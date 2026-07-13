@@ -23,10 +23,19 @@ add_rich_rule() {
     fi
 }
 
+# KOLEJNOŚĆ JEST KRYTYCZNA: --add-rich-rule bez --zone= trafia do AKTUALNEJ
+# domyślnej strefy w momencie wywołania. Jeśli najpierw dodać reguły (gdy
+# domyślną strefą jest jeszcze "public" z instalacji Rocky), a dopiero potem
+# przełączyć na "drop", reguły wylądują w strefie, która nigdy nie jest
+# aktywna — efekt: SSH/443 odcięte całkowicie mimo poprawnie wyglądających
+# reguł ("firewall-cmd --list-all" na strefie drop pokazuje pustkę).
+# Obserwowane wprost jako powtarzające się blokady dostępu SSH podczas
+# wdrożenia. Najpierw przełączamy strefę, dopiero potem dodajemy reguły.
+firewall-cmd --set-default-zone=drop
+
 add_rich_rule "rule family='ipv4' source address='${ADMIN_SUBNET_CIDR}' service name='ssh' accept"
 add_rich_rule "rule family='ipv4' source address='${ADMIN_SUBNET_CIDR}' port port='443' protocol='tcp' accept"
 
-firewall-cmd --set-default-zone=drop
 firewall-cmd --reload
 
 log_info "Firewalld VM1 skonfigurowany: 22/443 tylko z ${ADMIN_SUBNET_CIDR}, reszta domyślnie odrzucana."
