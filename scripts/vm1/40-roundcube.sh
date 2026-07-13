@@ -36,6 +36,16 @@ chown -R roundcube:roundcube "$RC_ROOT"
 mkdir -p /var/log/roundcube
 chown roundcube:roundcube /var/log/roundcube
 
+# Placeholder logo skina — config.inc.php ustawia skin_logo na
+# images/portal-logo.png; branding admina nadpisze go później przez
+# apply-branding.sh. Bez placeholdera (zanim admin skonfiguruje branding)
+# Roundcube pokazywałby zepsuty obrazek. Używamy stockowego thumbnail.png
+# skina (prawdziwy PNG), jeśli własny plik jeszcze nie istnieje.
+RC_SKIN_LOGO="$RC_ROOT/skins/elastic/images/portal-logo.png"
+if [[ ! -f "$RC_SKIN_LOGO" && -f "$RC_ROOT/skins/elastic/thumbnail.png" ]]; then
+    install -m 0644 -o roundcube -g roundcube "$RC_ROOT/skins/elastic/thumbnail.png" "$RC_SKIN_LOGO"
+fi
+
 ensure_secret_file "$DES_KEY_FILE" 18  # base64(18 bajtów) daje 24 znaki wymagane przez Roundcube
 
 export ROUNDCUBE_DB_PASSWORD ROUNDCUBE_DES_KEY VM2_HOSTNAME
