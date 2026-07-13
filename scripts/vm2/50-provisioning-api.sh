@@ -40,7 +40,7 @@ sudo -u vm2-api "$APP_DIR/venv/bin/pip" install -r "$APP_DIR/requirements.txt" -
 # Oba certyfikaty MUSZĄ powstać tutaj — CA żyje tylko na VM2. Wcześniej ten
 # skrypt generował tylko cert serwera i tylko *twierdził* w logu, że cert
 # kliencki jest gotowy (realny błąd, poprawione).
-mtls_setup_vm2_server "$REPO_ROOT/ca" "$VM2_HOSTNAME"
+mtls_setup_vm2_server "$REPO_ROOT/ca" "$VM2_HOSTNAME" "$VM2_IP"
 mtls_setup_vm1_client "$REPO_ROOT/ca"
 mkdir -p "$TLS_DIR"
 install -m 0640 -o vm2-api -g vm2-api "$REPO_ROOT/ca/vm2-server.crt" "$TLS_DIR/server.crt"

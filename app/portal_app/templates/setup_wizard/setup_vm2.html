@@ -5,8 +5,9 @@
   {% if error %}<p style="color:#dc2626">{{ error }}</p>{% endif %}
   <p style="font-size:0.85rem;color:#64748b">Certyfikat kliencki mTLS musi być wcześniej skopiowany na ten serwer pod <code>/etc/portal/vm1-client/</code> (patrz log <code>scripts/vm2/50-provisioning-api.sh</code>).</p>
   <form method="post" action="/admin/setup/vm2">
-    <label for="vm2_host">Adres / hostname VM2</label>
-    <input type="text" id="vm2_host" name="vm2_host" required autofocus>
+    <label for="vm2_host">Adres IP (lub hostname) VM2</label>
+    <input type="text" id="vm2_host" name="vm2_host" placeholder="np. 192.168.88.210" required autofocus>
+    <p style="font-size:0.8rem;color:#64748b;margin-top:0.25rem">Wpisz tę samą wartość co <code>VM2_IP</code> w install.conf. Jeśli nie masz wewnętrznego DNS, użyj adresu IP — certyfikat VM2 obejmuje zarówno IP, jak i nazwę hosta.</p>
     <label for="vm2_api_port">Port API</label>
     <input type="number" id="vm2_api_port" name="vm2_api_port" value="8443" required>
     <p style="margin-top:1.25rem">
