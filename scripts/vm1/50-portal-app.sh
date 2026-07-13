@@ -76,6 +76,16 @@ sudo -u portal-app bash -c "cd '$APP_DIR' && venv/bin/alembic upgrade head"
 mkdir -p /run/portal-app/imapsync /run/portal-import
 chown -R portal-app:portal-app /run/portal-app /run/portal-import
 
+# nginx (domena SELinux httpd_t) musi się połączyć z gniazdem Unix Gunicorna
+# w /run/portal-app/ — bez etykiety httpd_var_run_t dostaje AVC denied na
+# connectto (ten sam rodzaj problemu co /run/nginx.pid w scripts/vm1/30-nginx.sh).
+# Reguła jest trwała (semanage), więc systemd sam nada właściwą etykietę przy
+# każdym tworzeniu RuntimeDirectory=portal-app (katalog jest na tmpfs).
+if command -v semanage >/dev/null 2>&1; then
+    semanage fcontext -a -t httpd_var_run_t "/run/portal-app(/.*)?" 2>/dev/null \
+        || semanage fcontext -m -t httpd_var_run_t "/run/portal-app(/.*)?" 2>/dev/null || true
+fi
+
 # --- systemd units -----------------------------------------------------------------
 export PGDG_MAJOR_VERSION
 render_template "$REPO_ROOT/templates/systemd/portal-gunicorn.service.tmpl" /etc/systemd/system/portal-gunicorn.service '$PGDG_MAJOR_VERSION'
