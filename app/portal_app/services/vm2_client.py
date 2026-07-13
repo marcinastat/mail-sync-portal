@@ -58,6 +58,20 @@ def get_mailbox_status(conn: Vm2Connection, mailbox_id: str) -> dict:
         return resp.json()
 
 
+def get_mailbox_quota(conn: Vm2Connection, mailbox_id: str) -> dict:
+    with _client(conn) as client:
+        resp = client.get(f"/mailboxes/{mailbox_id}/quota")
+        resp.raise_for_status()
+        return resp.json()
+
+
+def update_mailbox_quota(conn: Vm2Connection, mailbox_id: str, quota_mb: int) -> dict:
+    with _client(conn) as client:
+        resp = client.patch(f"/mailboxes/{mailbox_id}", json={"quota_mb": quota_mb})
+        resp.raise_for_status()
+        return resp.json()
+
+
 def av_scan(conn: Vm2Connection, *, domain: str, local_part: str) -> dict:
     with _client(conn) as client:
         resp = client.post("/av/scan", json={"domain": domain, "local_part": local_part})

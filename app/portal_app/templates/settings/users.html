@@ -33,10 +33,16 @@
           <td>{{ u.role }}</td>
           <td>{% if u.is_active %}<span class="badge ok">aktywny</span>{% else %}<span class="badge err">nieaktywny</span>{% endif %}</td>
           <td>{% if u.totp and u.totp.confirmed_at %}<span class="badge ok">skonfigurowane</span>{% else %}<span class="badge warn">oczekuje</span>{% endif %}</td>
-          <td>
+          <td style="display:flex;gap:0.4rem">
+            {% if u.totp and u.totp.confirmed_at %}
+            <form method="post" action="/admin/settings/users/{{ u.id }}/reset-totp" style="display:inline"
+                  onsubmit="return confirm('Zresetować TOTP dla {{ u.username }}? Przy następnym logowaniu przejdzie ponowną konfigurację.')">
+              <button class="btn ghost sm" type="submit">Reset TOTP</button>
+            </form>
+            {% endif %}
             {% if u.is_active and u.id != current_user.id %}
             <form method="post" action="/admin/settings/users/{{ u.id }}/deactivate" style="display:inline">
-              <button class="btn danger" type="submit">Dezaktywuj</button>
+              <button class="btn danger sm" type="submit">Dezaktywuj</button>
             </form>
             {% endif %}
           </td>

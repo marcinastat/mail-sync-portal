@@ -65,6 +65,37 @@ def create_mailbox(
         return cur.fetchone(), True
 
 
+def get_used_quota(email: str) -> dict:
+    """Zajęta przestrzeń i liczba wiadomości ze skrzynki wg Dovecota
+    (doveadm quota get). Zwraca bajty użyte i limit (0 = bez limitu) oraz
+    liczbę wiadomości. Stały argv + sudo (wąski sudoers dla vm2-api)."""
+    import subprocess
+
+    result = subprocess.run(
+        ["/usr/bin/sudo", "-n", "/usr/bin/doveadm", "quota", "get", "-u", email],
+        capture_output=True, text=True, timeout=15,
+    )
+    used_bytes = limit_bytes = message_count = 0
+    if result.returncode == 0:
+        for line in result.stdout.splitlines():
+            parts = line.split()
+            # "User quota STORAGE <value_kB> <limit_kB> <pct>"  (doveadm podaje kB)
+            if "STORAGE" in parts:
+                idx = parts.index("STORAGE")
+                try:
+                    used_bytes = int(parts[idx + 1]) * 1024
+                    limit_bytes = 0 if parts[idx + 2] in ("-", "0") else int(parts[idx + 2]) * 1024
+                except (IndexError, ValueError):
+                    pass
+            elif "MESSAGE" in parts:
+                idx = parts.index("MESSAGE")
+                try:
+                    message_count = int(parts[idx + 1])
+                except (IndexError, ValueError):
+                    pass
+    return {"used_bytes": used_bytes, "limit_bytes": limit_bytes, "message_count": message_count}
+
+
 def get_mailbox(conn: psycopg.Connection, mailbox_id: int) -> dict:
     with conn.cursor() as cur:
         cur.execute(

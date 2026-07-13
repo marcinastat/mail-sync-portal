@@ -59,7 +59,6 @@ def build_argv(
         "--user2", dest_user,
         "--passfile2", str(dest_passfile),
         "--ssl2",
-        "--maxage", str(days_back),
         "--nofoldersizes",
         # imapsync domyślnie tworzy własny katalog LOG_imapsync/ w bieżącym
         # katalogu roboczym — a worker działa z CWD=/opt/portal-app (read-only
@@ -71,6 +70,12 @@ def build_argv(
         "--tmpdir", "/tmp",
         "--automap" if preserve_folder_structure else "--no-automap",
     ]
+    # --maxage OGRANICZA synchronizację do wiadomości młodszych niż N dni.
+    # days_back <= 0 oznacza "synchronizuj WSZYSTKO, bez limitu wieku" — wtedy
+    # w ogóle nie dodajemy --maxage. (Wcześniej domyślne 365 cicho pomijało
+    # starsze maile: skrzynka 1027 wiadomości -> tylko 485 zsynchronizowanych.)
+    if days_back and days_back > 0:
+        argv += ["--maxage", str(days_back)]
     if delete_on_dest_when_missing_from_source:
         # Jedyna flaga kasująca w całym module — dotyczy WYŁĄCZNIE hosta 2
         # (docelowy, VM2) i tylko gdy admin świadomie to włączył (domyślnie
@@ -147,6 +152,10 @@ _STATS_SINGLE = {
     "messages_total": re.compile(r"all (\d+) identified messages in host1"),
 }
 _STATS_FOLDERS = re.compile(r"Folders synced\s*:\s*(\d+)\s*/\s*(\d+)")
+# Suma po WSZYSTKICH folderach host1 (źródło) — prawdziwa liczba wiadomości na
+# skrzynce źródłowej, niezależna od --maxage. Linie w stylu:
+#   "Host1: folder [INBOX] has 1027 messages in total (mentioned by SELECT)"
+_STATS_HOST1_FOLDER_TOTAL = re.compile(r"Host1: folder \[.*?\] has (\d+) messages in total")
 
 
 def _parse_stats(stdout: str) -> dict:
@@ -155,7 +164,7 @@ def _parse_stats(stdout: str) -> dict:
     format może się różnić między wersjami; surowy log jest zawsze zachowany
     do ręcznej weryfikacji (job_runs.imapsync_log_path)."""
     stats = {"messages_transferred": 0, "bytes_transferred": 0, "messages_total": 0,
-             "folders_synced": 0, "folders_total": 0}
+             "folders_synced": 0, "folders_total": 0, "source_messages_total": 0}
     for key, pattern in _STATS_SINGLE.items():
         match = pattern.search(stdout)
         if match:
@@ -164,4 +173,7 @@ def _parse_stats(stdout: str) -> dict:
     if folders:
         stats["folders_synced"] = int(folders.group(1))
         stats["folders_total"] = int(folders.group(2))
+    source_totals = _STATS_HOST1_FOLDER_TOTAL.findall(stdout)
+    if source_totals:
+        stats["source_messages_total"] = sum(int(n) for n in source_totals)
     return stats

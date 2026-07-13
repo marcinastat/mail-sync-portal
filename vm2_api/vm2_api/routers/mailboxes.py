@@ -102,3 +102,16 @@ def get_mailbox_status(
 ):
     row = pda.get_mailbox(conn, mailbox_id)
     return _to_out(row)
+
+
+@router.get("/{mailbox_id}/quota")
+def get_mailbox_quota(
+    mailbox_id: int,
+    actor: str = Depends(require_vm1_ip),
+    conn: psycopg.Connection = Depends(get_conn),
+):
+    row = pda.get_mailbox(conn, mailbox_id)
+    email = f"{row['local_part']}@{row['domain_name']}"
+    quota = pda.get_used_quota(email)
+    quota["quota_bytes_limit_db"] = row["quota_bytes"]
+    return quota

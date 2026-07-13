@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import PlainTextResponse, RedirectResponse
 from ..templating import templates
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..deps import client_ip, get_db, require_login, require_setup_complete
@@ -26,10 +27,19 @@ def list_mailboxes(request: Request, current_user: AdminUser = Depends(require_l
         .all()
     )
     sync_jobs = {sj.mailbox_id: sj for sj in db.query(SyncJob).all()}
+    # Ostatni udany przebieg per skrzynka — do pokazania postępu (zsynchronizowane / na źródle).
+    subq = (
+        db.query(JobRun.mailbox_id, func.max(JobRun.id).label("max_id"))
+        .filter(JobRun.status == "success")
+        .group_by(JobRun.mailbox_id)
+        .subquery()
+    )
+    last_runs = {r.mailbox_id: r for r in db.query(JobRun).join(subq, JobRun.id == subq.c.max_id).all()}
     return templates.TemplateResponse(
         request,
         "mailboxes/list.html",
-        {"active": "mailboxes", "current_user": current_user, "mailboxes": mailboxes, "sync_jobs": sync_jobs},
+        {"active": "mailboxes", "current_user": current_user, "mailboxes": mailboxes,
+         "sync_jobs": sync_jobs, "last_runs": last_runs},
     )
 
 
@@ -88,6 +98,17 @@ def mailbox_detail(
     sync_job = db.query(SyncJob).filter(SyncJob.mailbox_id == mailbox_id).first()
     runs = db.query(JobRun).filter(JobRun.mailbox_id == mailbox_id).order_by(JobRun.id.desc()).limit(20).all()
     running_now = any(r.status == "running" for r in runs)
+    last_success = next((r for r in runs if r.status == "success"), None)
+
+    quota = None
+    if mailbox.vm2_mailbox_id:
+        conn = db.query(Vm2Connection).first()
+        if conn is not None:
+            try:
+                quota = vm2_client.get_mailbox_quota(conn, mailbox.vm2_mailbox_id)
+            except Exception:
+                quota = None
+
     return templates.TemplateResponse(
         request,
         "mailboxes/detail.html",
@@ -98,8 +119,41 @@ def mailbox_detail(
             "sync_job": sync_job,
             "runs": runs,
             "running_now": running_now,
+            "last_success": last_success,
+            "quota": quota,
         },
     )
+
+
+@router.post("/{mailbox_id}/quota")
+def update_quota(
+    mailbox_id: int,
+    request: Request,
+    quota_mb: int = Form(...),
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    mailbox = db.get(Mailbox, mailbox_id)
+    if mailbox is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    if not mailbox.vm2_mailbox_id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Skrzynka nie jest jeszcze zaprowizonowana na VM2.")
+    conn = db.query(Vm2Connection).first()
+    if conn is None:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Brak konfiguracji połączenia z VM2.")
+    vm2_client.update_mailbox_quota(conn, mailbox.vm2_mailbox_id, quota_mb)
+    mailbox.quota_mb = quota_mb
+    db.add(mailbox)
+    record(
+        db,
+        actor_admin_user_id=current_user.id,
+        action="mailbox.quota_update",
+        target_type="mailbox",
+        target_id=str(mailbox.id),
+        details={"quota_mb": quota_mb},
+        source_ip=client_ip(request),
+    )
+    return RedirectResponse(f"/admin/mailboxes/{mailbox_id}", status_code=303)
 
 
 @router.post("/{mailbox_id}/sync-now")

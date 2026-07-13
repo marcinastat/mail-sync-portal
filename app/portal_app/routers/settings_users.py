@@ -78,3 +78,27 @@ def deactivate_user(
             source_ip=client_ip(request),
         )
     return RedirectResponse("/admin/settings/users", status_code=303)
+
+
+@router.post("/{user_id}/reset-totp")
+def reset_totp(
+    user_id: int,
+    request: Request,
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    # Kasuje wpis TOTP użytkownika — przy następnym logowaniu przejdzie
+    # ponowny, obowiązkowy enrollment (routers/auth.py: totp-enroll). Do użycia
+    # gdy admin zgubił urządzenie/aplikację uwierzytelniającą.
+    user = db.get(AdminUser, user_id)
+    if user and user.totp is not None:
+        db.delete(user.totp)
+        record(
+            db,
+            actor_admin_user_id=current_user.id,
+            action="admin_user.reset_totp",
+            target_type="admin_user",
+            target_id=str(user.id),
+            source_ip=client_ip(request),
+        )
+    return RedirectResponse("/admin/settings/users", status_code=303)
