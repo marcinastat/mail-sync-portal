@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from pathlib import Path
 
 from sqlalchemy.orm import Session
 
@@ -25,9 +24,9 @@ def stage_batch(
     archive_password: str,
 ) -> ImportBatch:
     archive_type = archive_extractor.detect_type(archive_bytes)
-    staging_dir, xls_path = archive_extractor.extract_single_archive(archive_bytes, archive_password)
+    staging_dir, data_path = archive_extractor.extract_single_archive(archive_bytes, archive_password)
     try:
-        rows = xls_parser.parse_xls(xls_path)
+        rows = xls_parser.parse_spreadsheet(data_path)
     finally:
         archive_extractor.cleanup(staging_dir)
 
@@ -110,66 +109,97 @@ def commit_batch(db: Session, *, batch: ImportBatch, selected_row_ids: set[int],
             continue
 
         raw = row.raw_row
-        source_domain = raw["source_domain"].lower().strip()
-        source_username = raw["source_username"].strip()
-        source_password = raw["source_password"]
-        destination_username = (raw.get("destination_username") or _split_local_part(source_username)).strip()
-
-        domain = db.query(Domain).filter(Domain.source_domain == source_domain).first()
-        if domain is None:
-            # source_imap_host domyślnie = domena; admin doprecyzuje w
-            # /admin/domains, jeśli faktyczny serwer IMAP ma inny hostname.
-            domain = Domain(source_domain=source_domain, destination_domain=source_domain, source_imap_host=source_domain)
-            db.add(domain)
-            db.flush()
-
-        credential = (
-            db.query(Credential)
-            .filter(Credential.domain_id == domain.id, Credential.source_username == source_username)
-            .first()
+        _mailbox, was_created = upsert_mailbox(
+            db,
+            source_domain=raw["source_domain"],
+            source_username=raw["source_username"],
+            source_password=raw["source_password"],
+            destination_username=raw.get("destination_username"),
+            import_batch_id=batch.id,
         )
-        if credential is None:
-            credential = Credential(
-                domain_id=domain.id,
-                source_username=source_username,
-                source_password_encrypted=encrypt_password(source_password),
-                destination_username=destination_username,
-                import_batch_id=batch.id,
-                status="pending_provision",
-            )
-            db.add(credential)
-            db.flush()
+        row.resulting_credential_id = _mailbox.credential_id
+        db.add(row)
+        if was_created:
             created += 1
         else:
-            credential.source_password_encrypted = encrypt_password(source_password)
-            db.add(credential)
             updated += 1
-
-        row.resulting_credential_id = credential.id
-        db.add(row)
-
-        mailbox = db.query(Mailbox).filter(Mailbox.credential_id == credential.id).first()
-        if mailbox is None:
-            mailbox = Mailbox(
-                domain_id=domain.id,
-                credential_id=credential.id,
-                source_address=f"{source_username}@{source_domain}" if "@" not in source_username else source_username,
-                destination_address=f"{destination_username}@{domain.destination_domain}",
-                provisioning_status="pending",
-            )
-            db.add(mailbox)
-            db.flush()
-            db.add(SyncJob(mailbox_id=mailbox.id))
-
-        db.add(
-            JobQueue(
-                job_type="provision",
-                payload={"mailbox_id": mailbox.id},
-                run_after=datetime.now(timezone.utc),
-            )
-        )
 
     batch.status = "committed"
     db.add(batch)
 
     return {"created": created, "updated": updated, "skipped": skipped}
+
+
+def upsert_mailbox(
+    db: Session,
+    *,
+    source_domain: str,
+    source_username: str,
+    source_password: str,
+    destination_username: str | None = None,
+    source_imap_host: str | None = None,
+    source_imap_port: int = 993,
+    quota_mb: int = 0,
+    import_batch_id: int | None = None,
+) -> tuple[Mailbox, bool]:
+    """Zakłada (lub aktualizuje hasło) domenę/poświadczenia/skrzynkę i
+    kolejkuje provisioning na VM2. Współdzielone przez import XLS/CSV
+    (services/import_service.commit_batch) i ręczne dodawanie pojedynczej
+    skrzynki (routers/mailboxes.py) — ta sama logika, ten sam efekt końcowy.
+    Zwraca (mailbox, created) — created=True jeśli to nowe poświadczenia."""
+    source_domain = source_domain.lower().strip()
+    source_username = source_username.strip()
+    destination_username = (destination_username or _split_local_part(source_username)).strip()
+
+    domain = db.query(Domain).filter(Domain.source_domain == source_domain).first()
+    if domain is None:
+        # source_imap_host domyślnie = domena; admin doprecyzuje w
+        # /admin/domains, jeśli faktyczny serwer IMAP ma inny hostname.
+        domain = Domain(
+            source_domain=source_domain,
+            destination_domain=source_domain,
+            source_imap_host=source_imap_host or source_domain,
+            source_imap_port=source_imap_port,
+        )
+        db.add(domain)
+        db.flush()
+
+    credential = (
+        db.query(Credential)
+        .filter(Credential.domain_id == domain.id, Credential.source_username == source_username)
+        .first()
+    )
+    created = False
+    if credential is None:
+        credential = Credential(
+            domain_id=domain.id,
+            source_username=source_username,
+            source_password_encrypted=encrypt_password(source_password),
+            destination_username=destination_username,
+            import_batch_id=import_batch_id,
+            status="pending_provision",
+        )
+        db.add(credential)
+        db.flush()
+        created = True
+    else:
+        credential.source_password_encrypted = encrypt_password(source_password)
+        db.add(credential)
+
+    mailbox = db.query(Mailbox).filter(Mailbox.credential_id == credential.id).first()
+    if mailbox is None:
+        mailbox = Mailbox(
+            domain_id=domain.id,
+            credential_id=credential.id,
+            source_address=source_username if "@" in source_username else f"{source_username}@{source_domain}",
+            destination_address=f"{destination_username}@{domain.destination_domain}",
+            provisioning_status="pending",
+            quota_mb=quota_mb,
+        )
+        db.add(mailbox)
+        db.flush()
+        db.add(SyncJob(mailbox_id=mailbox.id))
+        created = True
+
+    db.add(JobQueue(job_type="provision", payload={"mailbox_id": mailbox.id}, run_after=datetime.now(timezone.utc)))
+    return mailbox, created

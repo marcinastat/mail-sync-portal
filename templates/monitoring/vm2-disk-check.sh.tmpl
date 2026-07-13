@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# VM2 — monitoring lokalny obu dysków (systemowy + pocztowy), niezależny od
+# tego czy VM1 żyje i odpytuje /system/disk-usage. Ostrzeżenia trafiają do
+# dziennika systemd (journalctl -u vm2-disk-check) — celowo NIE piszemy tego
+# do mail_db.audit_log, bo ten log jest tamper-evident (hash-chain liczony
+# wyłącznie przez vm2_api/audit.py) i ominięcie go bezpośrednim INSERT-em
+# złamałoby integralność łańcucha.
+set -euo pipefail
+
+THRESHOLD="${DISK_USAGE_WARNING_PERCENT}"
+
+check_disk() {
+    local label="$1" path="$2"
+    local percent
+    percent="$(df --output=pcent "$path" | tail -1 | tr -d ' %')"
+    if [[ "$percent" -ge "$THRESHOLD" ]]; then
+        logger -t vm2-disk-check -p warning "Dysk ${label} (${path}) zajęty w ${percent}% (próg: ${THRESHOLD}%)"
+        echo "WARNING: ${label} (${path}) at ${percent}%"
+    else
+        echo "OK: ${label} (${path}) at ${percent}%"
+    fi
+}
+
+check_disk "systemowy" "/"
+check_disk "pocztowy" "/var/mail/vhosts"

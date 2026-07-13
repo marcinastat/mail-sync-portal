@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Nowa skrzynka — Portal Poczty{% endblock %}
+{% block content %}
+  <h1>Dodaj skrzynkę ręcznie</h1>
+  <p style="font-size:0.85rem;color:#64748b">Do użycia, gdy nie masz jeszcze pliku XLS/CSV albo chcesz dodać pojedynczą skrzynkę spoza importu. Jeśli domena źródłowa nie istnieje, zostanie utworzona automatycznie. Skrzynka zostanie założona na VM2 w tle (provisioning).</p>
+
+  <div class="card">
+    <form method="post" action="/admin/mailboxes/new">
+      <label for="source_domain">Domena źródłowa</label>
+      <input type="text" id="source_domain" name="source_domain" placeholder="firma.pl" required autofocus>
+
+      <label for="source_imap_host">Serwer IMAP źródła (jeśli inny niż domena)</label>
+      <input type="text" id="source_imap_host" name="source_imap_host" placeholder="imap.dostawca.pl">
+
+      <label for="source_imap_port">Port IMAP źródła</label>
+      <input type="number" id="source_imap_port" name="source_imap_port" value="993">
+
+      <label for="source_username">Login źródłowy</label>
+      <input type="text" id="source_username" name="source_username" placeholder="jan.kowalski@firma.pl" required>
+
+      <label for="source_password">Hasło źródłowe</label>
+      <input type="password" id="source_password" name="source_password" required>
+
+      <label for="destination_username">Login docelowy (opcjonalnie — domyślnie z loginu źródłowego)</label>
+      <input type="text" id="destination_username" name="destination_username">
+
+      <label for="quota_mb">Limit skrzynki w MB (0 = bez limitu)</label>
+      <input type="number" id="quota_mb" name="quota_mb" value="0" min="0">
+
+      <p style="margin-top:1rem"><button class="btn" type="submit">Dodaj skrzynkę</button></p>
+    </form>
+  </div>
+{% endblock %}

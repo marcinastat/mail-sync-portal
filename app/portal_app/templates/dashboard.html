@@ -35,7 +35,8 @@
       <p>Health-check: {% if vm2_status.last_health_check_ok %}<span class="badge ok">OK</span>{% else %}<span class="badge err">problem</span>{% endif %}
         {% if vm2_status.last_health_check_at %}(ostatnio: {{ vm2_status.last_health_check_at.strftime("%Y-%m-%d %H:%M") }}){% endif %}</p>
       {% if vm2_status.disk_usage %}
-        <p>Dysk (/var/mail/vhosts): {{ vm2_status.disk_usage.used_percent }}% zajęte</p>
+        <p>Dysk systemowy (/): <span class="{{ 'badge err' if vm2_status.disk_usage.os_disk.used_percent >= 90 else ('badge warn' if vm2_status.disk_usage.os_disk.used_percent >= 75 else 'badge ok') }}">{{ vm2_status.disk_usage.os_disk.used_percent }}% zajęte</span></p>
+        <p>Dysk pocztowy (/var/mail/vhosts): <span class="{{ 'badge err' if vm2_status.disk_usage.mail_disk.used_percent >= 90 else ('badge warn' if vm2_status.disk_usage.mail_disk.used_percent >= 75 else 'badge ok') }}">{{ vm2_status.disk_usage.mail_disk.used_percent }}% zajęte</span></p>
       {% endif %}
       {% if vm2_status.av %}
         <p>ClamAV: {% if vm2_status.av.clamd_alive %}<span class="badge ok">aktywny</span>{% else %}<span class="badge err">nieaktywny</span>{% endif %}

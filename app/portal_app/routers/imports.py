@@ -1,5 +1,9 @@
+import csv
+import io
+
+import openpyxl
 from fastapi import APIRouter, Depends, Form, Request, UploadFile
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
@@ -11,12 +15,58 @@ from ..services.audit_service import record
 router = APIRouter(prefix="/admin/imports", tags=["imports"], dependencies=[Depends(require_setup_complete)])
 templates = Jinja2Templates(directory="portal_app/templates")
 
+_TEMPLATE_HEADER = xls_parser.REQUIRED_COLUMNS + xls_parser.OPTIONAL_COLUMNS
+_TEMPLATE_EXAMPLE_ROW = [
+    "firma.pl",
+    "jan.kowalski@firma.pl",
+    "TajneHaslo123!",
+    "jan.kowalski",
+    "Jan Kowalski",
+]
+
 
 @router.get("")
 def list_imports(request: Request, current_user: AdminUser = Depends(require_login), db: Session = Depends(get_db)):
     batches = db.query(ImportBatch).order_by(ImportBatch.id.desc()).limit(50).all()
     return templates.TemplateResponse(
-        request, "imports/list.html", {"active": "imports", "current_user": current_user, "batches": batches}
+        request,
+        "imports/list.html",
+        {
+            "active": "imports",
+            "current_user": current_user,
+            "batches": batches,
+            "required_columns": xls_parser.REQUIRED_COLUMNS,
+            "optional_columns": xls_parser.OPTIONAL_COLUMNS,
+        },
+    )
+
+
+@router.get("/template.csv")
+def download_template_csv(current_user: AdminUser = Depends(require_login)):
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(_TEMPLATE_HEADER)
+    writer.writerow(_TEMPLATE_EXAMPLE_ROW)
+    return Response(
+        content=buf.getvalue().encode("utf-8-sig"),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=szablon_import.csv"},
+    )
+
+
+@router.get("/template.xlsx")
+def download_template_xlsx(current_user: AdminUser = Depends(require_login)):
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = "import"
+    sheet.append(_TEMPLATE_HEADER)
+    sheet.append(_TEMPLATE_EXAMPLE_ROW)
+    buf = io.BytesIO()
+    workbook.save(buf)
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=szablon_import.xlsx"},
     )
 
 

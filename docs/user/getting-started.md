@@ -7,7 +7,7 @@ Portal Poczty składa się z dwóch części:
 
 ## Typowy przepływ pracy
 
-1. **Zaimportuj skrzynki** — [Import XLS](/admin/docs/user/importing-mailboxes) — wgraj zaszyfrowane archiwum z plikiem XLS zawierającym loginy/hasła do skrzynek źródłowych.
+1. **Dodaj skrzynki** — masowo przez [import XLS/CSV](/admin/docs/user/importing-mailboxes) (zaszyfrowane archiwum z loginami/hasłami), albo pojedynczo przez [ręczne dodanie skrzynki](/admin/mailboxes/new), jeśli nie masz jeszcze pliku albo chodzi tylko o jedną skrzynkę.
 2. **Przejrzyj i zatwierdź** — system pokaże które skrzynki są nowe, które to duplikaty, a które to aktualizacje istniejących danych. Ty decydujesz, co faktycznie zaimportować.
 3. **Poczekaj na provisioning** — nowe skrzynki są automatycznie zakładane na serwerze poczty (VM2) w tle.
 4. **Skonfiguruj synchronizację** — na liście [Skrzynek](/admin/mailboxes) możesz zaznaczyć wiele skrzynek naraz i ustawić: ile dni wstecz synchronizować, czy zachowywać strukturę folderów, czy kasować na docelowym gdy wiadomość zniknie ze źródła (domyślnie: nie).

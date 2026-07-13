@@ -1,8 +1,17 @@
-# Import skrzynek z XLS
+# Import skrzynek z XLS/CSV
+
+Nie masz jeszcze pliku albo chcesz dodać tylko jedną skrzynkę? Użyj
+[dodawania ręcznego](/admin/mailboxes/new) — pomija cały poniższy proces i
+zakłada skrzynkę od razu.
 
 ## Przygotowanie pliku
 
-Plik XLS/XLSX musi zawierać kolumny (nazwy nagłówków rozpoznawane w wariantach PL/EN):
+Obsługiwane formaty: **XLSX, XLS lub CSV** (dokładnie jeden arkusz/plik w
+archiwum). Gotowe szablony do pobrania na `/admin/imports` (przyciski
+"Pobierz szablon XLSX/CSV").
+
+Plik musi zawierać kolumny (nazwy nagłówków rozpoznawane w wariantach PL/EN,
+niewrażliwie na wielkość liter):
 
 | Kolumna | Wymagana | Opis |
 |---|---|---|
@@ -13,6 +22,8 @@ Plik XLS/XLSX musi zawierać kolumny (nazwy nagłówków rozpoznawane w warianta
 | nazwa (`display_name`) | nie | tylko informacyjnie |
 
 Plik należy spakować do **ZIP lub 7z zabezpieczonego hasłem** (RAR działa tylko jeśli administrator zainstalował na serwerze `unrar`).
+
+CSV: separator (przecinek, średnik lub tabulator) jest wykrywany automatycznie — typowy eksport z Excela z `;` działa bez dodatkowej konfiguracji. Zalecane kodowanie: UTF-8 (z lub bez BOM).
 
 ## Wgrywanie
 

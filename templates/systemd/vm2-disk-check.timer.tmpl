@@ -1,0 +1,10 @@
+[Unit]
+Description=Uruchamia vm2-disk-check.service co 15 minut
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+Unit=vm2-disk-check.service
+
+[Install]
+WantedBy=timers.target

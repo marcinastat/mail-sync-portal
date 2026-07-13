@@ -1,0 +1,10 @@
+[Unit]
+Description=VM2 — lokalne sprawdzenie zajętości dysku systemowego i pocztowego
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/vm2-disk-check.sh
+User=root
+NoNewPrivileges=true
+ProtectSystem=strict
+PrivateTmp=true
