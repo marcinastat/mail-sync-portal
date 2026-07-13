@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Alerty — Ustawienia{% endblock %}
+{% block content %}
+  <h1>Kanały alertów</h1>
+  <p style="font-size:0.85rem;color:#64748b">Alerty e-mail wymagają skonfigurowanego zewnętrznego relaya SMTP w <code>/etc/portal/alert-smtp.conf</code> na serwerze.</p>
+
+  <div class="card">
+    <h2 style="margin-top:0">Nowy kanał</h2>
+    <form method="post" action="/admin/settings/alerts">
+      <label for="channel_type">Typ</label>
+      <select id="channel_type" name="channel_type">
+        <option value="email">E-mail</option>
+        <option value="webhook">Webhook</option>
+      </select>
+      <label for="target">Cel (adres e-mail lub URL webhooka)</label>
+      <input type="text" id="target" name="target" required>
+      <label>Zdarzenia</label>
+      {% for ev in available_events %}
+        <label style="font-weight:normal"><input type="checkbox" name="events" value="{{ ev }}" checked> {{ ev }}</label>
+      {% endfor %}
+      <p style="margin-top:1rem"><button class="btn" type="submit">Dodaj</button></p>
+    </form>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead><tr><th>Typ</th><th>Cel</th><th>Zdarzenia</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        {% for c in channels %}
+        <tr>
+          <td>{{ c.channel_type }}</td>
+          <td>{{ c.target }}</td>
+          <td style="font-size:0.8rem">{{ c.events }}</td>
+          <td>{% if c.is_active %}<span class="badge ok">aktywny</span>{% else %}<span class="badge">nieaktywny</span>{% endif %}</td>
+          <td>
+            {% if c.is_active %}
+            <form method="post" action="/admin/settings/alerts/{{ c.id }}/deactivate">
+              <button class="btn danger" type="submit">Dezaktywuj</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

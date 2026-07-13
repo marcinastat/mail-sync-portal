@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from ...db import session_scope
 from ...models import Credential, Domain, JobRun, Mailbox, SyncJob, Vm2Connection
 from ...services import imapsync_runner
+from ...services.alert_service import dispatch as dispatch_alert
 from ...services.audit_service import record
 from ...services.credential_crypto import decrypt_password
 
@@ -102,4 +103,10 @@ def handle(payload: dict) -> None:
                 target_id=str(mailbox_id),
                 details={"error": error_summary, "job_run_id": job_run_id},
                 source_ip=None,
+            )
+            dispatch_alert(
+                db,
+                event="sync_failed",
+                subject=f"Synchronizacja skrzynki #{mailbox_id} nie powiodła się",
+                details={"mailbox_id": mailbox_id, "error": error_summary, "job_run_id": job_run_id},
             )

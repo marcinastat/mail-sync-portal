@@ -1,0 +1,10 @@
+[Unit]
+Description=Uruchamia portal-environment-check.service co 30 minut
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=30min
+Unit=portal-environment-check.service
+
+[Install]
+WantedBy=timers.target

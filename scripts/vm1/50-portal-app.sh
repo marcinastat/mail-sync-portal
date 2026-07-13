@@ -78,8 +78,12 @@ render_template "$REPO_ROOT/templates/systemd/portal-gunicorn.service.tmpl" /etc
 render_template "$REPO_ROOT/templates/systemd/portal-worker.service.tmpl" /etc/systemd/system/portal-worker.service '$PGDG_MAJOR_VERSION'
 render_template "$REPO_ROOT/templates/systemd/portal-scheduler.service.tmpl" /etc/systemd/system/portal-scheduler.service '$PGDG_MAJOR_VERSION'
 render_template "$REPO_ROOT/templates/systemd/portal-scheduler.timer.tmpl" /etc/systemd/system/portal-scheduler.timer
+render_template "$REPO_ROOT/templates/systemd/portal-audit-verify.service.tmpl" /etc/systemd/system/portal-audit-verify.service '$PGDG_MAJOR_VERSION'
+render_template "$REPO_ROOT/templates/systemd/portal-audit-verify.timer.tmpl" /etc/systemd/system/portal-audit-verify.timer
+render_template "$REPO_ROOT/templates/systemd/portal-environment-check.service.tmpl" /etc/systemd/system/portal-environment-check.service '$PGDG_MAJOR_VERSION'
+render_template "$REPO_ROOT/templates/systemd/portal-environment-check.timer.tmpl" /etc/systemd/system/portal-environment-check.timer
 systemctl daemon-reload
-systemctl enable --now portal-gunicorn portal-worker portal-scheduler.timer
+systemctl enable --now portal-gunicorn portal-worker portal-scheduler.timer portal-audit-verify.timer portal-environment-check.timer
 
 nginx -t && systemctl reload nginx || log_warn "nginx -t nie przeszło po starcie portal-gunicorn — sprawdź konfigurację."
 

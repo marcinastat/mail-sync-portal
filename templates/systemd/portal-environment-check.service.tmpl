@@ -1,0 +1,19 @@
+[Unit]
+Description=Portal Poczty — okresowy health-check VM2 i wygasania certyfikatu TLS
+After=network.target postgresql-${PGDG_MAJOR_VERSION}.service
+
+[Service]
+Type=oneshot
+User=portal-app
+Group=portal-app
+WorkingDirectory=/opt/portal-app
+
+LoadCredentialEncrypted=portal-secret-key:/etc/portal/creds/portal-secret-key.cred
+LoadCredentialEncrypted=portal-credential-key:/etc/portal/creds/portal-credential-key.cred
+
+ExecStart=/opt/portal-app/venv/bin/python -m portal_app.workers.environment_check_main
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true

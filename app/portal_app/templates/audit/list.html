@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Audyt — Portal Poczty{% endblock %}
+{% block content %}
+  <h1>Audyt</h1>
+  <div class="card">
+    <form method="get" action="/admin/audit" style="display:flex;gap:1rem;align-items:end;flex-wrap:wrap">
+      <div><label for="date_from">Od</label><input type="date" id="date_from" name="date_from" value="{{ date_from }}"></div>
+      <div><label for="date_to">Do</label><input type="date" id="date_to" name="date_to" value="{{ date_to }}"></div>
+      <div><label for="action">Akcja zawiera</label><input type="text" id="action" name="action" value="{{ action }}"></div>
+      <div><button class="btn" type="submit">Filtruj</button></div>
+      <div><a class="btn secondary" href="/admin/audit/export.csv?date_from={{ date_from }}&date_to={{ date_to }}&action={{ action }}">Eksport CSV</a></div>
+      <div><a class="btn secondary" href="/admin/audit/export.pdf?date_from={{ date_from }}&date_to={{ date_to }}&action={{ action }}">Eksport PDF</a></div>
+    </form>
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Kiedy (UTC)</th><th>Użytkownik</th><th>Akcja</th><th>Cel</th><th>IP</th></tr></thead>
+      <tbody>
+        {% for e in entries %}
+        <tr>
+          <td>{{ e.occurred_at.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+          <td>{{ e.actor_admin_user_id or "system" }}</td>
+          <td>{{ e.action }}</td>
+          <td>{{ e.target_type or "" }} {{ e.target_id or "" }}</td>
+          <td>{{ e.source_ip or "" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

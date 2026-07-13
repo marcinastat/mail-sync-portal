@@ -79,6 +79,13 @@ def system_update(conn: Vm2Connection) -> dict:
         return resp.json()
 
 
+def disk_usage(conn: Vm2Connection) -> dict:
+    with _client(conn) as client:
+        resp = client.get("/system/disk-usage")
+        resp.raise_for_status()
+        return resp.json()
+
+
 def system_reboot(conn: Vm2Connection, confirm_token: str) -> dict:
     with _client(conn) as client:
         resp = client.post("/system/reboot", json={"confirm_token": confirm_token})
