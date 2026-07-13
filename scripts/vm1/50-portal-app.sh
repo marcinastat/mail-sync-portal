@@ -27,7 +27,9 @@ if ! id portal-app >/dev/null 2>&1; then
 fi
 
 mkdir -p "$APP_DIR"
-rsync -a --delete --exclude '__pycache__' --exclude '.venv' --exclude 'tests' "$REPO_ROOT/app/" "$APP_DIR/"
+# "venv" (bez kropki) - patrz komentarz w scripts/vm2/50-provisioning-api.sh
+# o tym samym błędzie (rsync --delete próbujący skasować cały virtualenv).
+rsync -a --delete --exclude '__pycache__' --exclude 'venv' --exclude 'tests' "$REPO_ROOT/app/" "$APP_DIR/"
 rsync -a --delete "$REPO_ROOT/docs/" "$APP_DIR/docs/"
 chown -R portal-app:portal-app "$APP_DIR"
 
