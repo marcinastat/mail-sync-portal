@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from ...db import session_scope
 from ...models import Credential, Domain, JobRun, Mailbox, SyncJob, Vm2Connection
-from ...services import imapsync_runner
+from ...services import imapsync_runner, vm2_client
 from ...services.alert_service import dispatch as dispatch_alert
 from ...services.audit_service import record
 from ...services.credential_crypto import decrypt_password
@@ -94,6 +94,23 @@ def handle(payload: dict) -> None:
         job_run.error_summary = error_summary
         job_run.imapsync_log_path = log_path
         db.add(job_run)
+
+        # Cache rozmiarów skrzynki: źródło z imapsync (host1 total size),
+        # docelowy z doveadm quota na VM2 — żeby lista/szczegóły pokazywały
+        # zajętość bez odpytywania VM2 przy każdym renderze.
+        mb = db.get(Mailbox, mailbox_id)
+        if mb is not None:
+            if stats.get("source_bytes"):
+                mb.source_bytes = stats["source_bytes"]
+            if mb.vm2_mailbox_id:
+                conn2 = db.query(Vm2Connection).first()
+                if conn2 is not None:
+                    try:
+                        q = vm2_client.get_mailbox_quota(conn2, mb.vm2_mailbox_id)
+                        mb.dest_bytes = q.get("used_bytes", 0)
+                    except Exception:
+                        pass
+            db.add(mb)
 
         if status == "failed":
             record(

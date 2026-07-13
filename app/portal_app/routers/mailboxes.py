@@ -8,7 +8,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..deps import client_ip, get_db, require_login, require_setup_complete
-from ..models import AdminUser, Domain, JobQueue, JobRun, Mailbox, SyncJob, Vm2Connection
+from ..models import AdminUser, Credential, Domain, JobQueue, JobRun, Mailbox, SyncJob, Vm2Connection
 from ..services import import_service, vm2_client
 from ..services.audit_service import record
 from ..services.credential_crypto import encrypt_password
@@ -260,6 +260,38 @@ async def bulk_sync_config(
         source_ip=client_ip(request),
     )
     return RedirectResponse("/admin/mailboxes", status_code=303)
+
+
+@router.post("/{mailbox_id}/source-password")
+def update_source_password(
+    mailbox_id: int,
+    request: Request,
+    new_source_password: str = Form(...),
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    # Aktualizuje hasło używane do logowania na serwer ŹRÓDŁOWY (imapsync host1).
+    # Do użycia, gdy hasło zmieniło się po stronie źródła — inaczej kolejne
+    # synchronizacje padają na autoryzacji host1. NIE dotyka hasła docelowego
+    # na VM2 (to osobna operacja "reset hasła"). Hasło nigdy nie trafia do audytu.
+    mailbox = db.get(Mailbox, mailbox_id)
+    if mailbox is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    credential = db.get(Credential, mailbox.credential_id)
+    if credential is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Brak poświadczeń dla skrzynki.")
+    credential.source_password_encrypted = encrypt_password(new_source_password)
+    db.add(credential)
+    record(
+        db,
+        actor_admin_user_id=current_user.id,
+        action="mailbox.source_password_update",
+        target_type="mailbox",
+        target_id=str(mailbox.id),
+        details={},  # hasło nigdy nie trafia do audit logu
+        source_ip=client_ip(request),
+    )
+    return RedirectResponse(f"/admin/mailboxes/{mailbox_id}", status_code=303)
 
 
 @router.post("/{mailbox_id}/reset-password")

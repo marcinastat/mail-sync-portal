@@ -51,6 +51,19 @@ def _fmt_dt(value, fmt: str = "%Y-%m-%d %H:%M") -> str:
         return str(value)
 
 
+def _fmt_mb(value) -> str:
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return "—"
+    if v <= 0:
+        return "0 MB"
+    if v >= 1024 ** 3:
+        return f"{v / (1024 ** 3):.2f} GB"
+    return f"{v / (1024 ** 2):.1f} MB"
+
+
 templates.env.filters["gb"] = _fmt_gb
 templates.env.filters["dt"] = _fmt_dt
+templates.env.filters["mb"] = _fmt_mb
 
