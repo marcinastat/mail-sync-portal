@@ -1,22 +1,32 @@
 # Status implementacji
 
-Odzwierciedla fazy z `docs/technical/architecture.md` / planu źródłowego.
+Wszystkie fazy z planu źródłowego zaimplementowane.
 
 | Faza | Zakres | Status |
 |---|---|---|
-| 1 | Szkielet repo + biblioteka wspólna skryptów | w trakcie |
-| 2 | VM2 warstwa danych (Postgres, Postfix/Dovecot, ClamAV) | nierozpoczęta |
-| 3 | VM2 provisioning API | nierozpoczęta |
-| 4 | VM1 warstwa bazowa (hardening, Postgres, nginx + TLS) | nierozpoczęta |
-| 5 | Roundcube na VM1 | nierozpoczęta |
-| 6 | Rdzeń portal_app (auth, schema, wizard, TOTP, systemd-creds) | nierozpoczęta |
-| 7 | Domeny/skrzynki/import XLS + auto-provisioning + reset hasła + sync config | nierozpoczęta |
-| 8 | Kolejka jobów, worker, scheduler, silnik imapsync, logi/postęp/drift | nierozpoczęta |
-| 9 | Hardening bezpieczeństwa | nierozpoczęta |
-| 10 | Alerty, dashboard, eksport audytu/raportów | nierozpoczęta |
-| 11 | TLS certbot DNS-01 | nierozpoczęta (zablokowana wyborem dostawcy DNS) |
-| 12 | Dokumentacja + polish UI | nierozpoczęta |
+| 1 | Szkielet repo + biblioteka wspólna skryptów | gotowe |
+| 2 | VM2 warstwa danych (Postgres, Postfix/Dovecot, ClamAV) | gotowe |
+| 3 | VM2 provisioning API | gotowe |
+| 4 | VM1 warstwa bazowa (hardening, Postgres, nginx + TLS) | gotowe |
+| 5 | Roundcube na VM1 | gotowe |
+| 6 | Rdzeń portal_app (auth, schema, wizard, TOTP, systemd-creds) | gotowe |
+| 7 | Domeny/skrzynki/import XLS + auto-provisioning + reset hasła + sync config | gotowe |
+| 8 | Kolejka jobów, worker, scheduler, silnik imapsync, logi/postęp/drift | gotowe |
+| 9 | Hardening bezpieczeństwa | gotowe |
+| 10 | Alerty, dashboard, eksport audytu/raportów | gotowe |
+| 11 | TLS certbot DNS-01 | gotowe (opcjonalny skrypt, nie część stałej sekwencji) |
+| 12 | Dokumentacja + polish UI | gotowe |
 
 ## Decyzje podjęte podczas implementacji (uzupełniają plan źródłowy)
 
 - **Postfix na VM2 wysyła też pocztę wychodzącą** (rozstrzygnięcie otwartego pytania z planu): dodano usługę `submission` (587, SASL przez Dovecot), firewalld ograniczone do IP VM1 — bez tego Roundcube nie mógłby wysyłać/odpowiadać na pocztę ze zsynchronizowanych skrzynek. Port 25 zostaje jako dodatkowa warstwa (obrona w głąb), również ograniczony do IP VM1.
+- **Hasło skrzynki docelowej przechowywane jawnie zaszyfrowane** (`mailboxes.destination_password_encrypted`) — niezbędne, żeby imapsync mógł się logować na VM2 po ręcznym resecie hasła (samo hasło nigdy nie trafia do audit logu).
+- **Eksport PDF** przez `reportlab` (serwerowo generowany plik do pobrania), nie "print to PDF" w przeglądarce.
+- **Alerty e-mail** wymagają ręcznej konfiguracji zewnętrznego relaya SMTP (`/etc/portal/alert-smtp.conf`) — VM1 celowo nie ma własnego MTA.
+
+## Znane uproszczenia / dalsze kroki
+
+- Dokładny schemat kolumn XLS dopasowuje popularne warianty nazw (PL/EN); jeśli dostawca danych używa innych nagłówków, rozszerz `_HEADER_ALIASES` w `app/portal_app/services/xls_parser.py`.
+- Wskaźnik "drift" to heurystyka (spadek `messages_total` względem ostatniego udanego przebiegu), nie porównanie zbiorów UID.
+- Backup/DR świadomie poza zakresem repo (snapshoty po stronie hypervisora) — patrz `docs/technical/backup-strategy.md`.
+- Rola `operator` (read-only) ma już miejsce w schemacie (`admin_users.role`), ale UI/autoryzacja rozróżnia na razie tylko `admin`.

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — Dokumentacja{% endblock %}
+{% block content %}
+  <div style="display:flex;gap:1.5rem">
+    <div style="width:240px;flex-shrink:0">
+      {% for cat, label in categories.items() %}
+        <div class="card">
+          <strong>{{ label }}</strong>
+          <ul style="list-style:none;padding:0;margin:0.5rem 0 0">
+            {% for entry in toc.get(cat, []) %}
+              <li><a href="/admin/docs/{{ cat }}/{{ entry.slug }}" style="{% if current_category == cat and current_slug == entry.slug %}font-weight:700{% endif %}">{{ entry.title }}</a></li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endfor %}
+    </div>
+    <div class="card" style="flex:1">
+      {{ content|safe }}
+    </div>
+  </div>
+{% endblock %}
