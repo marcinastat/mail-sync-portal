@@ -19,12 +19,12 @@ ADMIN_SUBNET_CIDR="10.0.0.0/24"
 PGDG_MAJOR_VERSION="17"
 
 # --- nginx ---------------------------------------------------------------------
-# Repozytorium nginx.org (nie moduł AppStream dystrybucji). nginx.org od
-# pewnego czasu NIE publikuje już gałęzi "stable" dla RHEL/CentOS (dowolnej
-# wersji, nie tylko 10) — działa tylko "mainline" (potwierdzone: 404 na
-# stable/rhel/{7,8,9,10}, 200 na mainline/rhel/{7,8,9,10}). "mainline" mimo
-# nazwy jest tym, czego realnie używa się produkcyjnie na RHEL-family.
-NGINX_REPO_STREAM="mainline"
+# Repozytorium nginx.org (nie moduł AppStream dystrybucji): stable | mainline.
+# Uwaga: nginx.org dla rodziny RHEL/Rocky/CentOS/Alma używa etykiety "centos"
+# w URL nawet dla samego RHEL/Rocky — to nie literówka, tak jest udokumentowane
+# na https://nginx.org/en/linux_packages.html#RHEL. Ścieżka jest budowana
+# automatycznie w scripts/vm1/30-nginx.sh na podstawie tej wartości.
+NGINX_REPO_STREAM="stable"
 
 # --- TLS na VM1 ------------------------------------------------------------------
 # selfsigned | certbot | manual
