@@ -17,20 +17,18 @@
       <div class="sub">{{ mailbox.source_address }}</div>
     </div>
     <div class="stat">
-      <div class="label">Wiadomości na źródle</div>
-      <div class="value">{{ last_success.source_messages_total if last_success and last_success.source_messages_total else "—" }}</div>
-      <div class="sub">zsynchronizowano: {{ last_success.messages_total if last_success else 0 }} na docelowym</div>
+      <div class="label">Wiadomości (u nas / źródło)</div>
+      <div class="value">{{ last_success.messages_total if last_success else 0 }}<span class="muted" style="font-size:1rem;font-weight:600"> / {{ last_success.source_messages_total if last_success and last_success.source_messages_total else "?" }}</span></div>
+      <div class="sub">docelowy (VM2) / źródłowy serwer</div>
     </div>
     <div class="stat">
-      <div class="label">Zajętość skrzynki (VM2)</div>
-      {% if quota %}
-        <div class="value" style="font-size:1.4rem">{{ (quota.used_bytes / 1048576) | round(1) }} MB</div>
-        <div class="sub">{{ quota.message_count }} wiadomości{% if quota.limit_bytes %} · limit {{ (quota.limit_bytes / 1048576) | round(0) }} MB{% else %} · bez limitu{% endif %}</div>
-        {% if quota.limit_bytes %}
-          {% set qp = (quota.used_bytes / quota.limit_bytes * 100) if quota.limit_bytes else 0 %}
-          <div class="meter {{ 'err' if qp >= 90 else ('warn' if qp >= 75 else '') }}" style="margin-top:0.5rem"><span style="width:{{ qp if qp < 100 else 100 }}%"></span></div>
-        {% endif %}
-      {% else %}<div class="value">—</div><div class="sub">quota niedostępna</div>{% endif %}
+      <div class="label">Rozmiar (u nas / źródło)</div>
+      <div class="value" style="font-size:1.4rem">{{ mailbox.dest_bytes | mb }}<span class="muted" style="font-size:0.95rem;font-weight:600"> / {{ mailbox.source_bytes | mb }}</span></div>
+      {% if quota and quota.limit_bytes %}
+        {% set qp = (quota.used_bytes / quota.limit_bytes * 100) if quota.limit_bytes else 0 %}
+        <div class="sub">limit {{ (quota.limit_bytes / 1048576) | round(0) }} MB</div>
+        <div class="meter {{ 'err' if qp >= 90 else ('warn' if qp >= 75 else '') }}" style="margin-top:0.4rem"><span style="width:{{ qp if qp < 100 else 100 }}%"></span></div>
+      {% else %}<div class="sub">bez limitu</div>{% endif %}
     </div>
   </div>
 
@@ -97,14 +95,22 @@
         <p style="margin-top:1rem"><button class="btn" type="submit">Zmień limit</button></p>
       </form>
 
-      <h2 style="margin-top:1.5rem">Ręczny reset hasła na VM2</h2>
-      <p class="hint">Nie wymaga znajomości obecnego hasła.</p>
+      <h2 style="margin-top:1.5rem">Hasło do serwera źródłowego</h2>
+      <p class="hint">Zmień, gdy hasło zmieniło się po stronie źródła — inaczej kolejne synchronizacje padną na logowaniu. Dotyczy tylko logowania na serwer źródłowy (imapsync), nie skrzynki na VM2.</p>
+      <form method="post" action="/admin/mailboxes/{{ mailbox.id }}/source-password">
+        <label for="new_source_password">Nowe hasło źródłowe</label>
+        <input type="password" id="new_source_password" name="new_source_password" required>
+        <p style="margin-top:1rem"><button class="btn" type="submit">Zmień hasło źródłowe</button></p>
+      </form>
+
+      <h2 style="margin-top:1.5rem">Ręczny reset hasła na VM2 (docelowe)</h2>
+      <p class="hint">Nie wymaga znajomości obecnego hasła. Dotyczy skrzynki docelowej na VM2 (logowanie w Roundcube).</p>
       <form method="post" action="/admin/mailboxes/{{ mailbox.id }}/reset-password">
-        <label for="new_password">Nowe hasło</label>
+        <label for="new_password">Nowe hasło docelowe</label>
         <input type="password" id="new_password" name="new_password" required>
         <label for="confirm_text2">Wpisz "POTWIERDZAM"</label>
         <input type="text" id="confirm_text2" name="confirm_text" required>
-        <p style="margin-top:1rem"><button class="btn danger" type="submit">Zresetuj hasło</button></p>
+        <p style="margin-top:1rem"><button class="btn danger" type="submit">Zresetuj hasło docelowe</button></p>
       </form>
     </div>
   </div>

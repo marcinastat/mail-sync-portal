@@ -59,7 +59,6 @@ def build_argv(
         "--user2", dest_user,
         "--passfile2", str(dest_passfile),
         "--ssl2",
-        "--nofoldersizes",
         # imapsync domyślnie tworzy własny katalog LOG_imapsync/ w bieżącym
         # katalogu roboczym — a worker działa z CWD=/opt/portal-app (read-only
         # pod ProtectSystem) i pada z "Read-only file system". Przechwytujemy
@@ -150,6 +149,10 @@ _STATS_SINGLE = {
     # "all 486 identified messages in host1 are on host2" — najpewniejsze
     # źródło liczby wiadomości na źródle w tej wersji imapsync.
     "messages_total": re.compile(r"all (\d+) identified messages in host1"),
+    # Rozmiar skrzynki źródłowej (host1) w bajtach — wymaga braku
+    # --nofoldersizes. Format imapsync 2.229: "Host1 total size : N bytes".
+    "source_bytes": re.compile(r"Host1 total size\s*:\s*(\d+)"),
+    "dest_bytes_reported": re.compile(r"Host2 total size\s*:\s*(\d+)"),
 }
 _STATS_FOLDERS = re.compile(r"Folders synced\s*:\s*(\d+)\s*/\s*(\d+)")
 # Suma po WSZYSTKICH folderach host1 (źródło) — prawdziwa liczba wiadomości na
@@ -164,7 +167,8 @@ def _parse_stats(stdout: str) -> dict:
     format może się różnić między wersjami; surowy log jest zawsze zachowany
     do ręcznej weryfikacji (job_runs.imapsync_log_path)."""
     stats = {"messages_transferred": 0, "bytes_transferred": 0, "messages_total": 0,
-             "folders_synced": 0, "folders_total": 0, "source_messages_total": 0}
+             "folders_synced": 0, "folders_total": 0, "source_messages_total": 0,
+             "source_bytes": 0, "dest_bytes_reported": 0}
     for key, pattern in _STATS_SINGLE.items():
         match = pattern.search(stdout)
         if match:

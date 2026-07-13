@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, ForeignKey, Integer, String
+from sqlalchemy import BigInteger, Boolean, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base, TimestampMixin
@@ -37,5 +37,11 @@ class Mailbox(Base, TimestampMixin):
     # w ogóle przechowywane (potrzebne, żeby imapsync mógł się nadal logować
     # na VM2 po zmianie hasła). Nigdy nie trafia do audit logu.
     destination_password_encrypted: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+
+    # Rozmiary skrzynki (cache, aktualizowany po każdej synchronizacji i przez
+    # okresowy environment-check) — żeby lista/szczegóły pokazywały zajętość
+    # bez odpytywania VM2 przy każdym renderze.
+    source_bytes: Mapped[int] = mapped_column(BigInteger, default=0)
+    dest_bytes: Mapped[int] = mapped_column(BigInteger, default=0)
 
     domain: Mapped["Domain"] = relationship()

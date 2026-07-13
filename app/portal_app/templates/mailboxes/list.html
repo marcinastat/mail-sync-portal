@@ -15,7 +15,7 @@
           <thead><tr>
             <th><input type="checkbox" onclick="document.querySelectorAll('input[name=mailbox_ids]').forEach(c=>c.checked=this.checked)"></th>
             <th>Skrzynka docelowa</th><th>Domena źródłowa</th><th>Provisioning</th>
-            <th>Postęp (docelowy / źródło)</th><th>Dni wstecz</th><th>Sync</th>
+            <th>Wiadomości (u nas / źródło)</th><th>Rozmiar (u nas / źródło)</th><th>Dni wstecz</th><th>Sync</th>
           </tr></thead>
           <tbody>
             {% for m in mailboxes %}
@@ -31,6 +31,7 @@
                 {% else %}<span class="badge err">{{ m.provisioning_status }}</span>{% endif %}
               </td>
               <td>{% if lr %}<strong>{{ lr.messages_total }}</strong> / {{ lr.source_messages_total or "?" }}{% else %}<span class="hint">—</span>{% endif %}</td>
+              <td>{{ m.dest_bytes | mb }} <span class="hint">/ {{ m.source_bytes | mb }}</span></td>
               <td class="muted">{{ sj.days_back if sj else 365 }}{% if sj and sj.days_back == 0 %} <span class="hint">(wszystko)</span>{% endif %}</td>
               <td>{% if sj and sj.is_enabled %}<span class="badge ok">włączona</span>{% else %}<span class="badge muted">wyłączona</span>{% endif %}</td>
             </tr>
