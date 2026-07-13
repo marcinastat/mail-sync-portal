@@ -18,7 +18,7 @@ def _run(argv: list[str], timeout: int = 120) -> subprocess.CompletedProcess:
 
 
 def clamd_alive() -> bool:
-    result = _run(["/usr/bin/clamdscan", "--ping", "1", "-c", CLAMD_CONF], timeout=10)
+    result = _run(["/usr/bin/sudo", "-n", "/usr/bin/clamdscan", "--ping", "1", "-c", CLAMD_CONF], timeout=10)
     return result.returncode == 0
 
 
@@ -38,7 +38,7 @@ def get_status() -> dict:
 
 
 def update_defs() -> dict:
-    result = _run(["/usr/bin/freshclam"], timeout=300)
+    result = _run(["/usr/bin/sudo", "-n", "-u", "clamscan", "/usr/bin/freshclam"], timeout=300)
     if result.returncode not in (0, 1):  # freshclam zwraca 1 gdy bazy już aktualne
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY,
@@ -61,7 +61,7 @@ def scan_mailbox(domain_name: str, local_part: str) -> dict:
     if not target.exists():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Katalog skrzynki jeszcze nie istnieje (brak dostarczonej poczty).")
     result = _run(
-        ["/usr/bin/clamdscan", "--fdpass", "--multiscan", "-c", CLAMD_CONF, str(target)],
+        ["/usr/bin/sudo", "-n", "/usr/bin/clamdscan", "--fdpass", "--multiscan", "-c", CLAMD_CONF, str(target)],
         timeout=600,
     )
     infected = result.returncode == 1

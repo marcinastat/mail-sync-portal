@@ -6,13 +6,15 @@ append_dot_mydomain = no
 compatibility_level = 3
 readme_directory = no
 
-# VM2 jest archiwum poczty karmionym przez imapsync (IMAP APPEND), nie
-# publicznym MX. Postfix nie nasłuchuje na interfejsie sieciowym — służy
-# wyłącznie do lokalnego dostarczania LMTP->Dovecot i jako punkt integracji
-# z ClamAV (obrona w głąb, na wypadek gdyby ktoś w przyszłości chciał
-# podłączyć realny odbiór SMTP). Patrz docs/technical/architecture.md,
-# pytanie otwarte "Postfix outbound role".
-inet_interfaces = loopback-only
+# VM2 jest przede wszystkim archiwum poczty karmionym przez imapsync (IMAP
+# APPEND), nie publicznym MX. Port 25 (plain smtpd) zostaje otwarty tylko dla
+# obrony w głąb / ewentualnych przyszłych potrzeb i tak samo jak reszta portów
+# jest ograniczony firewalldem do IP VM1 (scripts/vm2/60-firewall-rules.sh) —
+# to NIE jest publiczny serwer pocztowy. Port 587 (submission, z uwierzytelnieniem
+# SASL przez Dovecot) istnieje po to, żeby Roundcube na VM1 mogło realnie
+# wysyłać/odpowiadać na pocztę ze zsynchronizowanych skrzynek — to nie dotyczy
+# serwera ŹRÓDŁOWEGO i nie łamie wymogu nienaruszalności źródła.
+inet_interfaces = all
 mydestination =
 
 virtual_mailbox_domains = pgsql:/etc/postfix/pgsql-virtual-mailbox-domains.cf
@@ -28,5 +30,17 @@ non_smtpd_milters = $smtpd_milters
 milter_default_action = accept
 milter_protocol = 6
 
+smtpd_tls_cert_file = ${DOVECOT_TLS_CERT}
+smtpd_tls_key_file = ${DOVECOT_TLS_KEY}
+smtpd_use_tls = yes
+smtpd_tls_security_level = may
+smtp_tls_security_level = may
+
+smtpd_sasl_type = dovecot
+smtpd_sasl_path = private/auth
+smtpd_sasl_auth_enable = no
+
+# Port 25 (plain smtpd, patrz master.cf): tylko dostarczanie z sieci uznanej
+# za zaufaną (firewalld ogranicza to i tak do VM1) — nigdy open relay.
 smtpd_relay_restrictions = permit_mynetworks, reject_unauth_destination
 mynetworks = 127.0.0.0/8

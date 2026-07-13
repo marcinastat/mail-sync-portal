@@ -31,7 +31,7 @@ def run_health_check() -> dict:
 
 
 def _reboot_pending() -> bool:
-    result = _run(["/usr/bin/needs-restarting", "-r"], timeout=15)
+    result = _run(["/usr/bin/sudo", "-n", "/usr/bin/needs-restarting", "-r"], timeout=15)
     # needs-restarting -r zwraca 1 jeśli wymagany reboot, 0 jeśli nie.
     return result.returncode == 1
 

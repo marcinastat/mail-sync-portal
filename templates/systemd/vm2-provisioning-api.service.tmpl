@@ -1,0 +1,29 @@
+[Unit]
+Description=VM2 Provisioning API (mTLS, wywoływane wyłącznie z VM1)
+After=network-online.target postgresql-${PGDG_MAJOR_VERSION}.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=vm2-api
+Group=vm2-api
+WorkingDirectory=/opt/vm2-api
+Environment=VM2_API_ALLOWED_CLIENT_IP=${VM1_IP}
+Environment=VM2_API_PORT=${VM2_API_PORT}
+ExecStart=/opt/vm2-api/venv/bin/python -m vm2_api.main
+Restart=on-failure
+RestartSec=5
+
+# NoNewPrivileges NIE jest ustawione celowo: usługa musi wywoływać `sudo`
+# dla ściśle ograniczonego zestawu komend uprzywilejowanych (dnf update,
+# systemctl reboot, freshclam, clamdscan) — sudo wymaga setuid, co
+# NoNewPrivileges by zablokowało. Rzeczywistą granicą bezpieczeństwa jest tu
+# wąski /etc/sudoers.d/vm2-api, nie flaga systemd. Patrz
+# docs/technical/architecture.md.
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/vm2-api
+
+[Install]
+WantedBy=multi-user.target

@@ -32,6 +32,9 @@ CERTBOT_DNS_PROVIDER=""            # np. "cloudflare", "route53"
 CERTBOT_DNS_CREDENTIALS_FILE=""    # ścieżka do pliku z poświadczeniami API dostawcy DNS
 CERTBOT_EMAIL=""
 
+# --- Roundcube -------------------------------------------------------------------
+ROUNDCUBE_VERSION="1.7.4"
+
 # --- imapsync ------------------------------------------------------------------
 IMAPSYNC_VERSION="pinned-at-install"  # patrz scripts/vm1/60-imapsync.sh
 

@@ -16,3 +16,7 @@ Odzwierciedla fazy z `docs/technical/architecture.md` / planu źródłowego.
 | 10 | Alerty, dashboard, eksport audytu/raportów | nierozpoczęta |
 | 11 | TLS certbot DNS-01 | nierozpoczęta (zablokowana wyborem dostawcy DNS) |
 | 12 | Dokumentacja + polish UI | nierozpoczęta |
+
+## Decyzje podjęte podczas implementacji (uzupełniają plan źródłowy)
+
+- **Postfix na VM2 wysyła też pocztę wychodzącą** (rozstrzygnięcie otwartego pytania z planu): dodano usługę `submission` (587, SASL przez Dovecot), firewalld ograniczone do IP VM1 — bez tego Roundcube nie mógłby wysyłać/odpowiadać na pocztę ze zsynchronizowanych skrzynek. Port 25 zostaje jako dodatkowa warstwa (obrona w głąb), również ograniczony do IP VM1.

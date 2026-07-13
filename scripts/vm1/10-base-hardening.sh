@@ -1,13 +1,23 @@
 #!/usr/bin/env bash
-# VM1 — krok 10: hardening bazowy (firewalld baseline, fail2ban pkg, SELinux check).
-# Status: STUB — implementacja w Fazie 4 planu (docs/technical/architecture.md).
+# VM1 — krok 10: hardening bazowy — pakiety firewalld/fail2ban (reguły/jaile
+# konfigurowane w późniejszych krokach 70/80), weryfikacja SELinux.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
+source "$SCRIPT_DIR/../lib/checks.sh"
 
 STEP_NAME="vm1-10-base-hardening"
 require_root
 step_done "$STEP_NAME"
 load_install_conf
 
-die "Krok '$STEP_NAME' nie jest jeszcze zaimplementowany (Faza 4). Zobacz docs/technical/build-status.md."
+check_selinux_enforcing
+
+pkg_install_idempotent firewalld fail2ban policycoreutils-python-utils
+systemctl enable --now firewalld
+
+mkdir -p /etc/portal/secrets
+chmod 0700 /etc/portal/secrets
+
+log_info "Hardening bazowy VM1 zakończony (firewalld/fail2ban zainstalowane, reguły w kolejnych krokach)."
+mark_step_done "$STEP_NAME"

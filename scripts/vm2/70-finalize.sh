@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# VM2 — krok 70: włącza/startuje usługi, health-check końcowy.
-# Status: STUB — implementacja w Fazie 3 planu (docs/technical/architecture.md).
+# VM2 — krok 70: końcowa weryfikacja, że wszystkie usługi żyją.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
@@ -10,4 +9,20 @@ require_root
 step_done "$STEP_NAME"
 load_install_conf
 
-die "Krok '$STEP_NAME' nie jest jeszcze zaimplementowany (Faza 3). Zobacz docs/technical/build-status.md."
+UNITS=(firewalld "postgresql-${PGDG_MAJOR_VERSION}" postfix dovecot clamd@scan clamav-milter@scan clamav-maildir-scan.timer vm2-provisioning-api)
+FAILED=0
+for unit in "${UNITS[@]}"; do
+    if systemctl is-active --quiet "$unit"; then
+        log_info "OK: $unit aktywny."
+    else
+        log_warn "PROBLEM: $unit NIE jest aktywny (systemctl status $unit)."
+        FAILED=1
+    fi
+done
+
+if [[ "$FAILED" -eq 1 ]]; then
+    die "Co najmniej jedna usługa nie działa — sprawdź logi przed przejściem do konfiguracji VM1."
+fi
+
+log_info "VM2 gotowe. API provisioningu nasłuchuje na porcie ${VM2_API_PORT} (mTLS, tylko z ${VM1_IP})."
+mark_step_done "$STEP_NAME"

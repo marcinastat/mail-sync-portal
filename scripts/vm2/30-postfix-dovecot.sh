@@ -42,20 +42,40 @@ if [[ ! -f "$DOVECOT_TLS_KEY" ]]; then
 fi
 
 # --- Postfix -----------------------------------------------------------------
-render_template "$REPO_ROOT/templates/postfix/main.cf.tmpl" /etc/postfix/main.cf
-render_template "$REPO_ROOT/templates/postfix/pgsql-virtual-mailbox-domains.cf.tmpl" /etc/postfix/pgsql-virtual-mailbox-domains.cf
-render_template "$REPO_ROOT/templates/postfix/pgsql-virtual-mailbox-maps.cf.tmpl" /etc/postfix/pgsql-virtual-mailbox-maps.cf
+render_template "$REPO_ROOT/templates/postfix/main.cf.tmpl" /etc/postfix/main.cf '$VM2_HOSTNAME $DOVECOT_TLS_CERT $DOVECOT_TLS_KEY'
+render_template "$REPO_ROOT/templates/postfix/pgsql-virtual-mailbox-domains.cf.tmpl" /etc/postfix/pgsql-virtual-mailbox-domains.cf '$MAIL_DB_PASSWORD'
+render_template "$REPO_ROOT/templates/postfix/pgsql-virtual-mailbox-maps.cf.tmpl" /etc/postfix/pgsql-virtual-mailbox-maps.cf '$MAIL_DB_PASSWORD'
 chmod 0640 /etc/postfix/pgsql-virtual-mailbox-*.cf
 chgrp postfix /etc/postfix/pgsql-virtual-mailbox-*.cf
 
+# Usługa "submission" (587, SASL przez Dovecot) — pozwala Roundcube na VM1
+# faktycznie wysyłać/odpowiadać na pocztę ze zsynchronizowanych skrzynek.
+# Dopisywana raz do domyślnego master.cf pakietu (nie nadpisujemy całego
+# pliku, żeby nie replikować reszty stockowej konfiguracji Postfiksa).
+if ! grep -q '^submission inet' /etc/postfix/master.cf; then
+    cat >> /etc/postfix/master.cf <<'MASTERCF'
+
+submission inet n       -       n       -       -       smtpd
+  -o syslog_name=postfix/submission
+  -o smtpd_tls_security_level=encrypt
+  -o smtpd_sasl_auth_enable=yes
+  -o smtpd_sasl_type=dovecot
+  -o smtpd_sasl_path=private/auth
+  -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
+  -o smtpd_recipient_restrictions=permit_sasl_authenticated,reject
+  -o milter_macro_daemon_name=ORIGINATING
+MASTERCF
+    log_info "Dodano usługę submission (587) do /etc/postfix/master.cf."
+fi
+
 # --- Dovecot -------------------------------------------------------------------
-render_template "$REPO_ROOT/templates/dovecot/dovecot-sql.conf.ext.tmpl" /etc/dovecot/dovecot-sql.conf.ext
+render_template "$REPO_ROOT/templates/dovecot/dovecot-sql.conf.ext.tmpl" /etc/dovecot/dovecot-sql.conf.ext '$MAIL_DB_PASSWORD'
 chmod 0640 /etc/dovecot/dovecot-sql.conf.ext
 chgrp dovecot /etc/dovecot/dovecot-sql.conf.ext
 
 render_template "$REPO_ROOT/templates/dovecot/10-mail.conf.tmpl" /etc/dovecot/conf.d/10-mail.conf
 render_template "$REPO_ROOT/templates/dovecot/10-master.conf.tmpl" /etc/dovecot/conf.d/10-master.conf
-render_template "$REPO_ROOT/templates/dovecot/10-ssl.conf.tmpl" /etc/dovecot/conf.d/10-ssl.conf
+render_template "$REPO_ROOT/templates/dovecot/10-ssl.conf.tmpl" /etc/dovecot/conf.d/10-ssl.conf '$DOVECOT_TLS_CERT $DOVECOT_TLS_KEY'
 render_template "$REPO_ROOT/templates/dovecot/10-auth.conf.tmpl" /etc/dovecot/conf.d/10-auth.conf
 
 # SELinux: pozwól Postfiksowi łączyć się z Postgresem po TCP i Dovecotowi

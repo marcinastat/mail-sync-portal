@@ -1,0 +1,29 @@
+<?php
+
+$config = [];
+
+$config['db_dsnw'] = 'pgsql://roundcube_app:${ROUNDCUBE_DB_PASSWORD}@127.0.0.1/roundcube_db';
+
+$config['default_host'] = 'ssl://${VM2_HOSTNAME}';
+$config['default_port'] = 993;
+$config['smtp_server'] = 'tls://${VM2_HOSTNAME}';
+$config['smtp_port'] = 587;
+$config['smtp_user'] = '%u';
+$config['smtp_pass'] = '%p';
+
+$config['support_url'] = '';
+$config['product_name'] = 'Portal Poczty';
+$config['des_key'] = '${ROUNDCUBE_DES_KEY}';
+$config['plugins'] = ['archive', 'zipdownload'];
+
+$config['skin'] = 'elastic';
+$config['language'] = 'pl_PL';
+
+// Logowanie nieudanych prób do dedykowanego pliku — konsumowane przez
+// fail2ban jail "roundcube-auth" (Faza 9).
+$config['log_driver'] = 'file';
+$config['log_dir'] = '/var/log/roundcube/';
+$config['userlogins'] = true;
+
+$config['session_lifetime'] = 30;
+$config['ip_check'] = true;

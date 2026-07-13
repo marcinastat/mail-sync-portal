@@ -23,4 +23,11 @@ service auth {
     mode = 0600
     user = vmail
   }
+  # Udostępnia SASL Postfiksowi dla usługi "submission" (port 587) —
+  # patrz scripts/vm2/30-postfix-dovecot.sh i templates/postfix/main.cf.tmpl.
+  unix_listener /var/spool/postfix/private/auth {
+    mode = 0660
+    user = postfix
+    group = postfix
+  }
 }

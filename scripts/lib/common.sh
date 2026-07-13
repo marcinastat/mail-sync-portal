@@ -63,18 +63,29 @@ pkg_install_idempotent() {
     dnf install -y "$@"
 }
 
-# Renderuje szablon (proste podstawienia ${VAR} przez envsubst) do pliku docelowego.
+# Renderuje szablon do pliku docelowego. Trzeci argument to jawna lista
+# zmiennych do podstawienia (np. '$VM1_HOSTNAME $VM2_IP'), przekazywana
+# wprost do envsubst jako whitelist. To NIE jest opcjonalne dla szablonów
+# zawierających $ inne niż nasze (nginx/postfix/dovecot mają własną,
+# bardzo podobną składnię $zmienna) — envsubst bez whitelisty podstawiłby
+# pusty string za KAŻDĄ nierozpoznaną zmienną środowiskową, cicho psując
+# konfigurację (np. $remote_addr w nginx). Pusty/pominięty trzeci argument
+# oznacza "nie podstawiaj niczego, tylko skopiuj".
 # Jeśli plik docelowy istnieje i różni się od ostatnio wyrenderowanej wersji
 # (a nie tylko od nowego szablonu), robi kopię zapasową zamiast cicho nadpisywać
 # ręczne zmiany administratora.
 render_template() {
-    local template_path="$1" target_path="$2"
+    local template_path="$1" target_path="$2" vars="${3:-}"
     local rendered_marker="${target_path}.rendered-sha256"
     local tmp_rendered
     tmp_rendered="$(mktemp)"
     trap 'rm -f "$tmp_rendered"' RETURN
 
-    envsubst < "$template_path" > "$tmp_rendered"
+    if [[ -n "$vars" ]]; then
+        envsubst "$vars" < "$template_path" > "$tmp_rendered"
+    else
+        cp "$template_path" "$tmp_rendered"
+    fi
     local new_sha
     new_sha="$(sha256sum "$tmp_rendered" | awk '{print $1}')"
 

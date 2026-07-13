@@ -1,0 +1,62 @@
+server {
+    listen 80;
+    server_name ${VM1_HOSTNAME};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name ${VM1_HOSTNAME};
+
+    ssl_certificate     /etc/portal/tls/active/fullchain.pem;
+    ssl_certificate_key /etc/portal/tls/active/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+
+    error_page 404 /errors/404.html;
+    error_page 429 /errors/429.html;
+    error_page 500 502 503 504 /errors/500.html;
+    location ^~ /errors/ {
+        internal;
+        root /var/www;
+    }
+
+    # Roundcube ma pojedynczy punkt wejścia (index.php) dla logowania i
+    # reszty UI, więc rate-limit logowania obejmuje cały ruch PHP — izolacja
+    # samego /?_task=login na poziomie nginx wymagałaby parsowania query
+    # stringa, co nginx robi zawodnie. Realną izolację loginu daje
+    # portal-admin-auth / roundcube-auth w fail2ban (Faza 9).
+    root /var/www/roundcube/public_html;
+    index index.php;
+
+    location / {
+        try_files $uri $uri/ /index.php?$args;
+    }
+
+    location ~ \.php$ {
+        limit_req zone=roundcube_login burst=10;
+        fastcgi_pass unix:/run/php-fpm/roundcube.sock;
+        fastcgi_index index.php;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    }
+
+    location = /admin/login {
+        limit_req zone=admin_login burst=10;
+        proxy_pass http://unix:/run/portal-app/gunicorn.sock:;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location /admin/ {
+        proxy_pass http://unix:/run/portal-app/gunicorn.sock:;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location /admin/static/ {
+        alias /opt/portal-app/portal_app/static/;
+    }
+}

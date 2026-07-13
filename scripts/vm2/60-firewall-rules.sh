@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# VM2 — krok 60: firewalld — 143/993/8443 tylko z VM1_IP (install.conf), reguły idempotentne.
-# Status: STUB — implementacja w Fazie 2/3 planu (docs/technical/architecture.md).
+# VM2 — krok 60: firewalld — 143/993 (Dovecot) + 8443 (provisioning API) tylko
+# z IP VM1. Reguły idempotentne (firewalld sam ignoruje duplikaty rich rules
+# przy --add-rich-rule, ale sprawdzamy jawnie żeby log był czytelny).
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
@@ -10,4 +11,31 @@ require_root
 step_done "$STEP_NAME"
 load_install_conf
 
-die "Krok '$STEP_NAME' nie jest jeszcze zaimplementowany (Faza 2/3). Zobacz docs/technical/build-status.md."
+: "${VM1_IP:?VM1_IP musi być ustawione w install.conf}"
+
+pkg_install_idempotent firewalld
+systemctl enable --now firewalld
+
+add_rich_rule() {
+    local rule="$1"
+    if ! firewall-cmd --permanent --query-rich-rule="$rule" >/dev/null 2>&1; then
+        firewall-cmd --permanent --add-rich-rule="$rule"
+        log_info "Dodano regułę firewalld: $rule"
+    else
+        log_info "Reguła już istnieje, pomijam: $rule"
+    fi
+}
+
+# Domyślnie odrzucaj wszystko poza SSH z podsieci admina (VM2 też jest
+# administrowana zdalnie po SSH z tej samej podsieci co VM1).
+add_rich_rule "rule family='ipv4' source address='${ADMIN_SUBNET_CIDR}' service name='ssh' accept"
+add_rich_rule "rule family='ipv4' source address='${VM1_IP}/32' port port='143' protocol='tcp' accept"
+add_rich_rule "rule family='ipv4' source address='${VM1_IP}/32' port port='993' protocol='tcp' accept"
+add_rich_rule "rule family='ipv4' source address='${VM1_IP}/32' port port='587' protocol='tcp' accept"
+add_rich_rule "rule family='ipv4' source address='${VM1_IP}/32' port port='${VM2_API_PORT}' protocol='tcp' accept"
+
+firewall-cmd --set-default-zone=drop
+firewall-cmd --reload
+
+log_info "Firewalld VM2 skonfigurowany (domyślna polityka: drop)."
+mark_step_done "$STEP_NAME"

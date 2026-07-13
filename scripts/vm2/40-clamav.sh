@@ -35,7 +35,7 @@ systemctl enable --now clamd@scan
 systemctl enable --now clamav-milter@scan 2>/dev/null || systemctl enable --now clamav-milter
 
 install -D -m 0644 "$REPO_ROOT/templates/systemd/clamav-maildir-scan.service.tmpl" /etc/systemd/system/clamav-maildir-scan.service
-render_template "$REPO_ROOT/templates/systemd/clamav-maildir-scan.timer.tmpl" /etc/systemd/system/clamav-maildir-scan.timer
+render_template "$REPO_ROOT/templates/systemd/clamav-maildir-scan.timer.tmpl" /etc/systemd/system/clamav-maildir-scan.timer '$CLAMAV_FRESHCLAM_INTERVAL_MIN'
 systemctl daemon-reload
 systemctl enable --now clamav-maildir-scan.timer
 systemctl enable --now freshclam 2>/dev/null || true
