@@ -21,8 +21,16 @@ render_template "$REPO_ROOT/templates/fail2ban/jail-portal.conf.tmpl" /etc/fail2
 touch /var/log/portal/auth.log
 chown portal-app:portal-app /var/log/portal/auth.log 2>/dev/null || true
 
+# fail2ban odmawia startu w ogóle (nie tylko pomija jail), jeśli logpath
+# jakiegokolwiek skonfigurowanego jaila nie istnieje — obserwowane: "Have not
+# found any log file for roundcube-auth jail", cały fail2ban.service pada.
+# Roundcube tworzy ten plik dopiero przy pierwszej próbie logowania.
+touch /var/log/roundcube/userlogins
+chown roundcube:roundcube /var/log/roundcube/userlogins 2>/dev/null || true
+
 systemctl restart fail2ban
 sleep 1
+systemctl is-active --quiet fail2ban || die "fail2ban nie wystartował — sprawdź journalctl -xeu fail2ban."
 fail2ban-client status | grep -q portal-admin-auth || log_warn "portal-admin-auth nie widoczne w fail2ban-client status — sprawdź /var/log/fail2ban.log"
 
 log_info "fail2ban jaile skonfigurowane: sshd, portal-admin-auth, roundcube-auth, nginx-limit-req."
