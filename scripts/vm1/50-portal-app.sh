@@ -137,7 +137,13 @@ render_template "$REPO_ROOT/templates/systemd/portal-audit-verify.timer.tmpl" /e
 render_template "$REPO_ROOT/templates/systemd/portal-environment-check.service.tmpl" /etc/systemd/system/portal-environment-check.service '$PGDG_MAJOR_VERSION'
 render_template "$REPO_ROOT/templates/systemd/portal-environment-check.timer.tmpl" /etc/systemd/system/portal-environment-check.timer
 systemctl daemon-reload
-systemctl enable --now portal-gunicorn portal-worker portal-scheduler.timer portal-audit-verify.timer portal-environment-check.timer
+systemctl enable portal-gunicorn portal-worker portal-scheduler.timer portal-audit-verify.timer portal-environment-check.timer
+systemctl start portal-scheduler.timer portal-audit-verify.timer portal-environment-check.timer
+# restart (nie enable --now): procesy Python wczytują kod do pamięci przy
+# starcie, a systemd czyta unit przy (re)starcie — po rsyncu nowego kodu i
+# re-renderze unitów działające procesy trzeba faktycznie zrestartować, żeby
+# zmiany weszły w życie (enable --now nie rusza już działającej usługi).
+systemctl restart portal-gunicorn portal-worker
 
 nginx -t && systemctl reload nginx || log_warn "nginx -t nie przeszło po starcie portal-gunicorn — sprawdź konfigurację."
 
