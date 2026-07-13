@@ -37,7 +37,7 @@ CERTBOT_DNS_CREDENTIALS_FILE=""    # ścieżka do pliku z poświadczeniami API d
 CERTBOT_EMAIL=""
 
 # --- Roundcube -------------------------------------------------------------------
-ROUNDCUBE_VERSION="1.7.4"
+ROUNDCUBE_VERSION="1.7.2"
 
 # --- imapsync ------------------------------------------------------------------
 IMAPSYNC_GIT_TAG="v2.267"  # przypięty tag z github.com/imapsync/imapsync
