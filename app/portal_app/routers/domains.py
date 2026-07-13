@@ -18,10 +18,18 @@ def list_domains(request: Request, current_user: AdminUser = Depends(require_log
     counts = dict(
         db.query(Mailbox.domain_id, func.count(Mailbox.id)).group_by(Mailbox.domain_id).all()
     )
+    # Zużycie WSPÓLNEJ PULI domeny = suma zajętości docelowej wszystkich jej
+    # skrzynek (dest_bytes cache'owany z doveadm po każdej synchronizacji).
+    usage = dict(
+        db.query(Mailbox.domain_id, func.coalesce(func.sum(Mailbox.dest_bytes), 0))
+        .group_by(Mailbox.domain_id)
+        .all()
+    )
     return templates.TemplateResponse(
         request,
         "domains/list.html",
-        {"active": "domains", "current_user": current_user, "domains": domains, "counts": counts},
+        {"active": "domains", "current_user": current_user, "domains": domains,
+         "counts": counts, "usage": usage},
     )
 
 
@@ -33,6 +41,7 @@ def update_domain(
     source_imap_host: str = Form(...),
     source_imap_port: int = Form(993),
     default_quota_mb: int = Form(0),
+    total_quota_mb: int = Form(0),
     apply_quota_to_all: bool = Form(False),
     is_active: bool = Form(False),
     current_user: AdminUser = Depends(require_login),
@@ -46,6 +55,7 @@ def update_domain(
     domain.source_imap_host = source_imap_host
     domain.source_imap_port = source_imap_port
     domain.default_quota_mb = default_quota_mb
+    domain.total_quota_mb = total_quota_mb
     domain.is_active = is_active
     db.add(domain)
 
@@ -76,6 +86,7 @@ def update_domain(
             "source_imap_host": source_imap_host,
             "source_imap_port": source_imap_port,
             "default_quota_mb": default_quota_mb,
+            "total_quota_mb": total_quota_mb,
             "quota_applied_to_mailboxes": applied,
             "is_active": is_active,
         },

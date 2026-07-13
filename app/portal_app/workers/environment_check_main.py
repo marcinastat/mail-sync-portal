@@ -3,9 +3,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from cryptography import x509
+from sqlalchemy import func
 
 from ..db import session_scope
-from ..models import Vm2Connection
+from ..models import Domain, Mailbox, Vm2Connection
 from ..services import vm2_client
 from ..services.alert_service import dispatch as dispatch_alert
 
@@ -71,10 +72,43 @@ def _check_vm2(db) -> None:
         logger.warning("Nie udało się sprawdzić zajętości dysków VM2: %s", exc)
 
 
+DOMAIN_POOL_WARNING_PERCENT = 90
+
+
+def _check_domain_pools(db) -> None:
+    """WSPÓLNA PULA na domenę: sumujemy zajętość docelową skrzynek
+    (dest_bytes, cache z doveadm) i porównujemy z total_quota_mb. Alert przy
+    przekroczeniu progu ostrzegawczego. Czysto aplikacyjne — bez XFS/Dovecota."""
+    usage = dict(
+        db.query(Mailbox.domain_id, func.coalesce(func.sum(Mailbox.dest_bytes), 0))
+        .group_by(Mailbox.domain_id)
+        .all()
+    )
+    domains = db.query(Domain).filter(Domain.total_quota_mb > 0).all()
+    for d in domains:
+        limit_bytes = d.total_quota_mb * 1048576
+        used = usage.get(d.id, 0)
+        percent = round(used / limit_bytes * 100, 1) if limit_bytes else 0
+        if percent >= DOMAIN_POOL_WARNING_PERCENT:
+            dispatch_alert(
+                db,
+                event="domain_pool_quota",
+                subject=f"Domena {d.source_domain}: wspólna pula zajęta w {percent}%",
+                details={
+                    "domain": d.source_domain,
+                    "used_bytes": used,
+                    "limit_mb": d.total_quota_mb,
+                    "used_percent": percent,
+                    "exceeded": percent >= 100,
+                },
+            )
+
+
 def run_once() -> None:
     with session_scope() as db:
         _check_cert_expiry(db)
         _check_vm2(db)
+        _check_domain_pools(db)
 
 
 if __name__ == "__main__":

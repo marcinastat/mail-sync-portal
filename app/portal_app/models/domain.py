@@ -18,5 +18,11 @@ class Domain(Base, TimestampMixin):
     # (0 = bez limitu). Można też jednorazowo wypchnąć na wszystkie istniejące
     # skrzynki domeny — patrz routers/domains.py.
     default_quota_mb: Mapped[int] = mapped_column(Integer, default=0)
+    # WSPÓLNA PULA na całą domenę (MB, 0 = bez limitu). To NIE jest limit per
+    # skrzynka — to jeden wspólny limit dzielony przez wszystkie skrzynki domeny.
+    # Zużycie liczymy na poziomie aplikacji jako SUM(mailboxes.dest_bytes) (cache
+    # z doveadm po synchronizacji) — bez XFS/Dovecot-dict, prosto i czytelnie.
+    # Przekroczenie sygnalizuje panel (metr) i alert z workera environment-check.
+    total_quota_mb: Mapped[int] = mapped_column(Integer, default=0)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
