@@ -1,69 +1,111 @@
 {% extends "base.html" %}
-{% block title %}{{ mailbox.destination_address }} — Portal Poczty{% endblock %}
+{% block title %}{{ mailbox.destination_address }}{% endblock %}
+{% block heading %}Skrzynka{% endblock %}
 {% block content %}
-  <h1>{{ mailbox.destination_address }}</h1>
-  {% if error %}<p style="color:#dc2626">{{ error }}</p>{% endif %}
+  <p style="margin-top:0"><a href="/admin/mailboxes" class="hint">← Skrzynki</a></p>
+  <h1 style="margin-bottom:0.4rem">{{ mailbox.destination_address }}</h1>
+  {% if error %}<div class="card" style="border-color:#dc2626;color:#991b1b">{{ error }}</div>{% endif %}
 
-  <div class="card">
-    <h2 style="margin-top:0">Status</h2>
-    <p>Provisioning: {{ mailbox.provisioning_status }}</p>
-    <p>Adres źródłowy: {{ mailbox.source_address }}</p>
-    <p>Hasło nadpisane ręcznie: {{ "tak" if mailbox.password_override else "nie (lustrzana kopia hasła źródłowego)" }}</p>
-    <form method="post" action="/admin/mailboxes/{{ mailbox.id }}/sync-now">
-      <button class="btn" type="submit" {% if running_now %}disabled{% endif %}>
-        {% if running_now %}Synchronizacja w toku…{% else %}Synchronizuj teraz{% endif %}
-      </button>
-    </form>
+  <div class="stat-grid">
+    <div class="stat">
+      <div class="label">Provisioning</div>
+      <div class="value" style="font-size:1.2rem">
+        {% if mailbox.provisioning_status == "active" %}<span class="badge ok">aktywna</span>
+        {% elif mailbox.provisioning_status == "pending" %}<span class="badge warn">oczekuje</span>
+        {% else %}<span class="badge err">{{ mailbox.provisioning_status }}</span>{% endif %}
+      </div>
+      <div class="sub">{{ mailbox.source_address }}</div>
+    </div>
+    <div class="stat">
+      <div class="label">Wiadomości na źródle</div>
+      <div class="value">{{ last_success.source_messages_total if last_success and last_success.source_messages_total else "—" }}</div>
+      <div class="sub">zsynchronizowano: {{ last_success.messages_total if last_success else 0 }} na docelowym</div>
+    </div>
+    <div class="stat">
+      <div class="label">Zajętość skrzynki (VM2)</div>
+      {% if quota %}
+        <div class="value" style="font-size:1.4rem">{{ (quota.used_bytes / 1048576) | round(1) }} MB</div>
+        <div class="sub">{{ quota.message_count }} wiadomości{% if quota.limit_bytes %} · limit {{ (quota.limit_bytes / 1048576) | round(0) }} MB{% else %} · bez limitu{% endif %}</div>
+        {% if quota.limit_bytes %}
+          {% set qp = (quota.used_bytes / quota.limit_bytes * 100) if quota.limit_bytes else 0 %}
+          <div class="meter {{ 'err' if qp >= 90 else ('warn' if qp >= 75 else '') }}" style="margin-top:0.5rem"><span style="width:{{ qp if qp < 100 else 100 }}%"></span></div>
+        {% endif %}
+      {% else %}<div class="value">—</div><div class="sub">quota niedostępna</div>{% endif %}
+    </div>
   </div>
 
   <div class="card">
-    <h2 style="margin-top:0">Historia synchronizacji</h2>
-    <table>
-      <thead><tr><th>Start</th><th>Status</th><th>Foldery</th><th>Wiadomości</th><th>Zachowane mimo zniknięcia ze źródła</th><th>Log</th></tr></thead>
-      <tbody>
-        {% for r in runs %}
-        <tr>
-          <td>{{ r.started_at.strftime("%Y-%m-%d %H:%M") if r.started_at else "" }}</td>
-          <td>
-            {% if r.status == "success" %}<span class="badge ok">sukces</span>
-            {% elif r.status == "running" %}<span class="badge warn">w toku</span>
-            {% elif r.status == "partial" %}<span class="badge warn">częściowy</span>
-            {% else %}<span class="badge err">błąd</span>{% endif %}
-          </td>
-          <td>{{ r.folders_synced }} / {{ r.folders_total }}</td>
-          <td>{{ r.messages_transferred }} / {{ r.messages_total }}</td>
-          <td>{{ r.messages_missing_from_source_retained }}</td>
-          <td>{% if r.imapsync_log_path %}<a href="/admin/mailboxes/{{ mailbox.id }}/runs/{{ r.id }}/log" target="_blank">surowy log</a>{% endif %}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div style="display:flex;align-items:center;gap:1rem">
+      <form method="post" action="/admin/mailboxes/{{ mailbox.id }}/sync-now" style="margin:0">
+        <button class="btn" type="submit" {% if running_now %}disabled{% endif %}>
+          {% if running_now %}Synchronizacja w toku…{% else %}▶ Synchronizuj teraz{% endif %}
+        </button>
+      </form>
+      <span class="hint">Hasło docelowe: {{ "ustawione ręcznie" if mailbox.password_override else "lustrzana kopia hasła źródłowego" }}</span>
+    </div>
   </div>
 
   <div class="card">
-    <h2 style="margin-top:0">Konfiguracja synchronizacji</h2>
-    <form method="post" action="/admin/mailboxes/sync-config">
-      <input type="hidden" name="mailbox_ids" value="{{ mailbox.id }}">
-      <label for="days_back">Ile dni wstecz</label>
-      <input type="number" id="days_back" name="days_back" value="{{ sync_job.days_back if sync_job else 365 }}" min="1">
-      <label><input type="checkbox" name="preserve_folder_structure" {% if not sync_job or sync_job.preserve_folder_structure %}checked{% endif %}> Zachowaj strukturę folderów IMAP</label>
-      <label><input type="checkbox" name="is_enabled" {% if not sync_job or sync_job.is_enabled %}checked{% endif %}> Synchronizacja włączona</label>
-      <label><input type="checkbox" name="delete_on_dest_when_missing_from_source" {% if sync_job and sync_job.delete_on_dest_when_missing_from_source %}checked{% endif %}> Kasuj na docelowym, gdy zniknie ze źródła</label>
-      <label for="confirm_text">Wpisz "POTWIERDZAM", jeśli włączasz kasowanie na docelowym</label>
-      <input type="text" id="confirm_text" name="confirm_text">
-      <p style="margin-top:1rem"><button class="btn" type="submit">Zapisz</button></p>
-    </form>
+    <h2>Historia synchronizacji</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Start</th><th>Status</th><th>Foldery</th><th>Przesłane / na docelowym</th><th>Na źródle</th><th>Drift</th><th>Log</th></tr></thead>
+        <tbody>
+          {% for r in runs %}
+          <tr>
+            <td>{{ r.started_at | dt }}</td>
+            <td>
+              {% if r.status == "success" %}<span class="badge ok">sukces</span>
+              {% elif r.status == "running" %}<span class="badge warn">w toku</span>
+              {% elif r.status == "partial" %}<span class="badge warn">częściowy</span>
+              {% else %}<span class="badge err">błąd</span>{% endif %}
+            </td>
+            <td>{{ r.folders_synced }} / {{ r.folders_total }}</td>
+            <td>{{ r.messages_transferred }} / {{ r.messages_total }}</td>
+            <td>{{ r.source_messages_total or "—" }}</td>
+            <td>{{ r.messages_missing_from_source_retained }}</td>
+            <td>{% if r.imapsync_log_path %}<a href="/admin/mailboxes/{{ mailbox.id }}/runs/{{ r.id }}/log" target="_blank">log</a>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 
-  <div class="card">
-    <h2 style="margin-top:0">Ręczny reset hasła na VM2</h2>
-    <p style="font-size:0.85rem;color:#64748b">Nie wymaga znajomości obecnego hasła. Po tej operacji hasło nie będzie już automatycznie nadpisywane lustrzaną kopią hasła źródłowego.</p>
-    <form method="post" action="/admin/mailboxes/{{ mailbox.id }}/reset-password">
-      <label for="new_password">Nowe hasło</label>
-      <input type="password" id="new_password" name="new_password" required>
-      <label for="confirm_text2">Wpisz "POTWIERDZAM"</label>
-      <input type="text" id="confirm_text2" name="confirm_text" required>
-      <p style="margin-top:1rem"><button class="btn danger" type="submit">Zresetuj hasło</button></p>
-    </form>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.1rem">
+    <div class="card">
+      <h2>Konfiguracja synchronizacji</h2>
+      <form method="post" action="/admin/mailboxes/sync-config">
+        <input type="hidden" name="mailbox_ids" value="{{ mailbox.id }}">
+        <label for="days_back">Ile dni wstecz</label>
+        <input type="number" id="days_back" name="days_back" value="{{ sync_job.days_back if sync_job else 365 }}" min="0">
+        <p class="hint" style="margin-top:0.25rem">Domyślnie 365 (ostatni rok). Wpisz <strong>0</strong>, aby synchronizować <strong>wszystko bez limitu wieku</strong>.</p>
+        <label><input type="checkbox" name="preserve_folder_structure" {% if not sync_job or sync_job.preserve_folder_structure %}checked{% endif %}> Zachowaj strukturę folderów IMAP</label>
+        <label><input type="checkbox" name="is_enabled" {% if not sync_job or sync_job.is_enabled %}checked{% endif %}> Synchronizacja włączona</label>
+        <label><input type="checkbox" name="delete_on_dest_when_missing_from_source" {% if sync_job and sync_job.delete_on_dest_when_missing_from_source %}checked{% endif %}> Kasuj na docelowym, gdy zniknie ze źródła</label>
+        <label for="confirm_text">Wpisz "POTWIERDZAM", jeśli włączasz kasowanie</label>
+        <input type="text" id="confirm_text" name="confirm_text">
+        <p style="margin-top:1rem"><button class="btn" type="submit">Zapisz konfigurację</button></p>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Limit (quota) skrzynki</h2>
+      <form method="post" action="/admin/mailboxes/{{ mailbox.id }}/quota">
+        <label for="quota_mb">Limit w MB (0 = bez limitu)</label>
+        <input type="number" id="quota_mb" name="quota_mb" value="{{ mailbox.quota_mb }}" min="0">
+        <p style="margin-top:1rem"><button class="btn" type="submit">Zmień limit</button></p>
+      </form>
+
+      <h2 style="margin-top:1.5rem">Ręczny reset hasła na VM2</h2>
+      <p class="hint">Nie wymaga znajomości obecnego hasła.</p>
+      <form method="post" action="/admin/mailboxes/{{ mailbox.id }}/reset-password">
+        <label for="new_password">Nowe hasło</label>
+        <input type="password" id="new_password" name="new_password" required>
+        <label for="confirm_text2">Wpisz "POTWIERDZAM"</label>
+        <input type="text" id="confirm_text2" name="confirm_text" required>
+        <p style="margin-top:1rem"><button class="btn danger" type="submit">Zresetuj hasło</button></p>
+      </form>
+    </div>
   </div>
 {% endblock %}

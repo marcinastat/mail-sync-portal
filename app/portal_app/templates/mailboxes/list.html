@@ -1,42 +1,54 @@
 {% extends "base.html" %}
-{% block title %}Skrzynki — Portal Poczty{% endblock %}
+{% block title %}Skrzynki{% endblock %}
+{% block heading %}Skrzynki{% endblock %}
 {% block content %}
-  <h1>Skrzynki</h1>
-  <p><a class="btn" href="/admin/mailboxes/new">+ Dodaj skrzynkę ręcznie</a></p>
-  {% if error %}<p style="color:#dc2626">{{ error }}</p>{% endif %}
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+    <h1 style="margin:0">Skrzynki <span class="hint" style="font-size:0.9rem">({{ mailboxes|length }})</span></h1>
+    <a class="btn" href="/admin/mailboxes/new">+ Dodaj skrzynkę ręcznie</a>
+  </div>
+  {% if error %}<div class="card" style="border-color:#dc2626;color:#991b1b">{{ error }}</div>{% endif %}
 
   <form method="post" action="/admin/mailboxes/sync-config">
     <div class="card">
-      <label><input type="checkbox" onclick="document.querySelectorAll('input[name=mailbox_ids]').forEach(c=>c.checked=this.checked)"> Zaznacz wszystkie</label>
-      <table>
-        <thead><tr><th></th><th>Skrzynka docelowa</th><th>Domena</th><th>Provisioning</th><th>Sync</th></tr></thead>
-        <tbody>
-          {% for m in mailboxes %}
-          {% set sj = sync_jobs.get(m.id) %}
-          <tr>
-            <td><input type="checkbox" name="mailbox_ids" value="{{ m.id }}"></td>
-            <td><a href="/admin/mailboxes/{{ m.id }}">{{ m.destination_address }}</a></td>
-            <td>{{ m.domain.source_domain if m.domain else "" }}</td>
-            <td>
-              {% if m.provisioning_status == "active" %}<span class="badge ok">aktywna</span>
-              {% elif m.provisioning_status == "pending" %}<span class="badge warn">oczekuje</span>
-              {% else %}<span class="badge err">{{ m.provisioning_status }}</span>{% endif %}
-            </td>
-            <td>{% if sj and sj.is_enabled %}<span class="badge ok">włączona</span>{% else %}<span class="badge">wyłączona</span>{% endif %}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th><input type="checkbox" onclick="document.querySelectorAll('input[name=mailbox_ids]').forEach(c=>c.checked=this.checked)"></th>
+            <th>Skrzynka docelowa</th><th>Domena źródłowa</th><th>Provisioning</th>
+            <th>Postęp (docelowy / źródło)</th><th>Dni wstecz</th><th>Sync</th>
+          </tr></thead>
+          <tbody>
+            {% for m in mailboxes %}
+            {% set sj = sync_jobs.get(m.id) %}
+            {% set lr = last_runs.get(m.id) %}
+            <tr>
+              <td><input type="checkbox" name="mailbox_ids" value="{{ m.id }}"></td>
+              <td><a href="/admin/mailboxes/{{ m.id }}">{{ m.destination_address }}</a></td>
+              <td class="muted">{{ m.domain.source_domain if m.domain else "" }}</td>
+              <td>
+                {% if m.provisioning_status == "active" %}<span class="badge ok">aktywna</span>
+                {% elif m.provisioning_status == "pending" %}<span class="badge warn">oczekuje</span>
+                {% else %}<span class="badge err">{{ m.provisioning_status }}</span>{% endif %}
+              </td>
+              <td>{% if lr %}<strong>{{ lr.messages_total }}</strong> / {{ lr.source_messages_total or "?" }}{% else %}<span class="hint">—</span>{% endif %}</td>
+              <td class="muted">{{ sj.days_back if sj else 365 }}{% if sj and sj.days_back == 0 %} <span class="hint">(wszystko)</span>{% endif %}</td>
+              <td>{% if sj and sj.is_enabled %}<span class="badge ok">włączona</span>{% else %}<span class="badge muted">wyłączona</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <div class="card">
-      <h2 style="margin-top:0">Konfiguracja synchronizacji dla zaznaczonych</h2>
+      <h2>Konfiguracja synchronizacji dla zaznaczonych</h2>
       <label for="days_back">Ile dni wstecz</label>
-      <input type="number" id="days_back" name="days_back" value="365" min="1">
+      <input type="number" id="days_back" name="days_back" value="365" min="0">
+      <p class="hint" style="margin-top:0.25rem">Domyślnie 365 (ostatni rok). Wpisz <strong>0</strong> = wszystko bez limitu wieku.</p>
       <label><input type="checkbox" name="preserve_folder_structure" checked> Zachowaj strukturę folderów IMAP</label>
       <label><input type="checkbox" name="is_enabled" checked> Synchronizacja włączona</label>
-      <label><input type="checkbox" name="delete_on_dest_when_missing_from_source"> Kasuj na docelowym, gdy zniknie ze źródła (domyślnie wyłączone — archiwum nie usuwa danych)</label>
-      <label for="confirm_text">Wpisz "POTWIERDZAM", jeśli włączasz kasowanie na docelowym</label>
+      <label><input type="checkbox" name="delete_on_dest_when_missing_from_source"> Kasuj na docelowym, gdy zniknie ze źródła (domyślnie wyłączone)</label>
+      <label for="confirm_text">Wpisz "POTWIERDZAM", jeśli włączasz kasowanie</label>
       <input type="text" id="confirm_text" name="confirm_text">
       <p style="margin-top:1rem"><button class="btn" type="submit">Zastosuj do zaznaczonych</button></p>
     </div>

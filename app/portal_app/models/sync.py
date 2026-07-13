@@ -50,6 +50,9 @@ class JobRun(Base, TimestampMixin):
     folders_synced: Mapped[int] = mapped_column(Integer, default=0)
     folders_total: Mapped[int] = mapped_column(Integer, default=0)
     messages_total: Mapped[int] = mapped_column(Integer, default=0)
+    # Liczba wiadomości na skrzynce ŹRÓDŁOWEJ (suma po folderach host1),
+    # niezależna od --maxage — pokazuje ile w ogóle jest do zsynchronizowania.
+    source_messages_total: Mapped[int] = mapped_column(Integer, default=0)
     # Wiadomości obecne na VM2, których już nie ma w źródle (zachowane
     # zgodnie z domyślną polityką "nie kasuj na docelowym") — wskaźnik "drift".
     messages_missing_from_source_retained: Mapped[int] = mapped_column(Integer, default=0)

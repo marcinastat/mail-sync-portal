@@ -5,3 +5,4 @@ vm2-api ALL=(root) NOPASSWD: /usr/bin/needs-restarting -r
 vm2-api ALL=(root) NOPASSWD: /usr/bin/clamdscan --ping 1 -c /etc/clamd.d/scan.conf
 vm2-api ALL=(root) NOPASSWD: /usr/bin/clamdscan --fdpass --multiscan -c /etc/clamd.d/scan.conf /var/mail/vhosts/*
 vm2-api ALL=(clamscan) NOPASSWD: /usr/bin/freshclam
+vm2-api ALL=(root) NOPASSWD: /usr/bin/doveadm quota get -u *
