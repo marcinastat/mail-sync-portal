@@ -9,3 +9,5 @@ venv/
 *.egg-info/
 .pytest_cache/
 /var/
+
+.claude/
