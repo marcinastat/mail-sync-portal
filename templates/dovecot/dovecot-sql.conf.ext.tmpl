@@ -2,8 +2,14 @@ driver = pgsql
 connect = host=127.0.0.1 dbname=mail_db user=mail_app password=${MAIL_DB_PASSWORD}
 default_pass_scheme = SHA512-CRYPT
 
+# WAŻNE: zwracamy '%u' (pełny login e-mail) jako "user", NIE m.local_part.
+# Gdyby zwrócić samo local_part ("marcin"), Dovecot po udanym passdb używałby
+# już tej skróconej nazwy do kolejnego zapytania userdb — z pustą domeną (%d),
+# przez co user_query nic nie zwraca i logowanie pada na "user not found from
+# userdb" MIMO poprawnego hasła. '%u' zachowuje pełny login (marcin@domena),
+# więc %n/%d w user_query pozostają prawidłowe.
 password_query = \
-  SELECT m.local_part AS user, m.password_hash AS password \
+  SELECT '%u' AS user, m.password_hash AS password \
   FROM virtual_mailboxes m JOIN virtual_domains d ON m.domain_id = d.id \
   WHERE d.name = '%d' AND m.local_part = '%n' AND m.is_active = true
 
