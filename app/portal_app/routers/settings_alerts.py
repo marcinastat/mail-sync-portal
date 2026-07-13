@@ -9,7 +9,7 @@ from ..services.audit_service import record
 
 router = APIRouter(prefix="/admin/settings/alerts", tags=["settings-alerts"], dependencies=[Depends(require_setup_complete)])
 
-AVAILABLE_EVENTS = ["sync_failed", "av_infected", "cert_expiring", "vm2_unhealthy", "audit_integrity_failed", "disk_low_space"]
+AVAILABLE_EVENTS = ["sync_failed", "av_infected", "cert_expiring", "vm2_unhealthy", "audit_integrity_failed", "disk_low_space", "domain_pool_quota"]
 
 
 @router.get("")

@@ -11,6 +11,28 @@
       <h2 style="margin:0">{{ d.source_domain }}</h2>
       <span class="hint">{{ counts.get(d.id, 0) }} skrzynek</span>
     </div>
+
+    {# WSPÓLNA PULA domeny: suma zajętości skrzynek / limit puli #}
+    {% set used = usage.get(d.id, 0) %}
+    {% if d.total_quota_mb and d.total_quota_mb > 0 %}
+      {% set limit_b = d.total_quota_mb * 1048576 %}
+      {% set pct = (used / limit_b * 100) if limit_b else 0 %}
+      <div style="margin-bottom:0.75rem">
+        <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:0.25rem">
+          <span class="hint">Wspólna pula domeny</span>
+          <span>
+            <strong>{{ used | gb }}</strong> / {{ (d.total_quota_mb / 1024) | round(1) }} GB
+            {% if pct >= 100 %}<span class="badge err">pula przekroczona</span>
+            {% elif pct >= 90 %}<span class="badge err">{{ pct | round(0) }}%</span>
+            {% elif pct >= 75 %}<span class="badge warn">{{ pct | round(0) }}%</span>
+            {% else %}<span class="badge ok">{{ pct | round(0) }}%</span>{% endif %}
+          </span>
+        </div>
+        <div class="meter {{ 'err' if pct >= 90 else ('warn' if pct >= 75 else '') }}"><span style="width:{{ pct if pct < 100 else 100 }}%"></span></div>
+      </div>
+    {% else %}
+      <p class="hint" style="margin-bottom:0.75rem">Wspólna pula: <strong>bez limitu</strong> · zajęte przez skrzynki: {{ used | gb }}</p>
+    {% endif %}
     <form method="post" action="/admin/domains/{{ d.id }}">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:0.75rem">
         <div>
@@ -26,8 +48,12 @@
           <input type="text" name="destination_domain" value="{{ d.destination_domain }}">
         </div>
         <div>
-          <label>Domyślna quota (MB, 0 = bez limitu)</label>
+          <label>Domyślna quota <span class="hint">na skrzynkę</span> (MB, 0 = bez limitu)</label>
           <input type="number" name="default_quota_mb" value="{{ d.default_quota_mb }}" min="0">
+        </div>
+        <div>
+          <label>Wspólna pula <span class="hint">na całą domenę</span> (MB, 0 = bez limitu)</label>
+          <input type="number" name="total_quota_mb" value="{{ d.total_quota_mb }}" min="0">
         </div>
       </div>
       <div style="display:flex;gap:1.25rem;align-items:center;margin-top:0.75rem;flex-wrap:wrap">
