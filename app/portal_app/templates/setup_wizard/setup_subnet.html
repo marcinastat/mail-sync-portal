@@ -1,0 +1,11 @@
+{% extends "auth_base.html" %}
+{% block title %}Pierwsze uruchomienie — podsieć administracyjna{% endblock %}
+{% block content %}
+  <h2>Krok 3/5 — Podsieć administracyjna</h2>
+  <p>Dostęp do tego panelu i SSH jest ograniczony firewalldem do poniższej podsieci (ustawionej w <code>config/install.conf</code> podczas instalacji):</p>
+  <p style="font-family:monospace;background:#f1f5f9;padding:0.5rem;border-radius:0.375rem">{{ admin_subnet_cidr }}</p>
+  <p style="font-size:0.85rem;color:#64748b">Zmiana podsieci po instalacji wymaga edycji <code>config/install.conf</code> i ponownego uruchomienia <code>scripts/vm1/80-firewall-rules.sh</code> na serwerze — panel jeszcze tego nie automatyzuje.</p>
+  <form method="post" action="/admin/setup/subnet">
+    <button class="btn" type="submit" style="width:100%">Potwierdzam, kontynuuj</button>
+  </form>
+{% endblock %}

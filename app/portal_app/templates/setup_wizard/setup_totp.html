@@ -1,0 +1,15 @@
+{% extends "auth_base.html" %}
+{% block title %}Pierwsze uruchomienie — TOTP{% endblock %}
+{% block content %}
+  <h2>Krok 2/5 — Uwierzytelnianie dwuskładnikowe (obowiązkowe)</h2>
+  {% if error %}<p style="color:#dc2626">{{ error }}</p>{% endif %}
+  <p>Zeskanuj kod w aplikacji (np. Google Authenticator, Aegis) i wpisz wygenerowany kod.</p>
+  <p style="text-align:center"><img src="/admin/setup/totp/qr" alt="QR TOTP" width="200" height="200"></p>
+  <form method="post" action="/admin/setup/totp">
+    <label for="code">Kod z aplikacji</label>
+    <input type="text" id="code" name="code" required autofocus autocomplete="one-time-code">
+    <p style="margin-top:1.25rem">
+      <button class="btn" type="submit" style="width:100%">Potwierdź</button>
+    </p>
+  </form>
+{% endblock %}

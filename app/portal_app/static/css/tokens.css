@@ -1,0 +1,8 @@
+/* Nadpisywane przez services/branding_renderer.py po ustawieniu brandingu
+   (kreator pierwszego uruchomienia / Ustawienia -> Branding). Wartości
+   poniżej to neutralne domyślne, zanim branding zostanie skonfigurowany. */
+:root {
+  --brand-primary: #2563eb;
+  --brand-secondary: #1e293b;
+  --brand-accent: #f59e0b;
+}

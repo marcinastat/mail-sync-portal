@@ -1,0 +1,19 @@
+{% extends "auth_base.html" %}
+{% block title %}Pierwsze uruchomienie — branding{% endblock %}
+{% block content %}
+  <h2>Krok 5/5 — Wygląd</h2>
+  <p style="font-size:0.85rem;color:#64748b">Logo i kolory zostaną zastosowane w panelu admina, w Roundcube i na stronach błędów nginx.</p>
+  <form method="post" action="/admin/setup/branding" enctype="multipart/form-data">
+    <label for="logo">Logo (PNG/JPG)</label>
+    <input type="file" id="logo" name="logo" accept="image/*">
+    <label for="primary_color">Kolor główny</label>
+    <input type="color" id="primary_color" name="primary_color" value="#2563eb">
+    <label for="secondary_color">Kolor drugorzędny (tło)</label>
+    <input type="color" id="secondary_color" name="secondary_color" value="#1e293b">
+    <label for="accent_color">Kolor akcentu</label>
+    <input type="color" id="accent_color" name="accent_color" value="#f59e0b">
+    <p style="margin-top:1.25rem">
+      <button class="btn" type="submit" style="width:100%">Zakończ konfigurację</button>
+    </p>
+  </form>
+{% endblock %}

@@ -1,0 +1,36 @@
+[Unit]
+Description=Portal Poczty — aplikacja /admin (Gunicorn)
+After=network.target postgresql-${PGDG_MAJOR_VERSION}.service
+Requires=postgresql-${PGDG_MAJOR_VERSION}.service
+
+[Service]
+Type=simple
+User=portal-app
+Group=portal-app
+WorkingDirectory=/opt/portal-app
+RuntimeDirectory=portal-app
+RuntimeDirectoryMode=0750
+
+# Klucze nigdy nie lądują jako plaintext na dysku — systemd je odszyfrowuje
+# (systemd-creds, ewentualnie związane z TPM2) do prywatnej, tylko-w-pamięci
+# przestrzeni tego unitu, dostępnej pod $CREDENTIALS_DIRECTORY. Patrz
+# scripts/vm1/50-portal-app.sh (generowanie) i portal_app/config.py (odczyt).
+LoadCredentialEncrypted=portal-secret-key:/etc/portal/creds/portal-secret-key.cred
+LoadCredentialEncrypted=portal-credential-key:/etc/portal/creds/portal-credential-key.cred
+
+ExecStart=/opt/portal-app/venv/bin/gunicorn portal_app.app:app \
+    --workers 2 \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --bind unix:/run/portal-app/gunicorn.sock \
+    --access-logfile - --error-logfile -
+Restart=on-failure
+RestartSec=5
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/log/portal /var/lib/portal-app /opt/portal-app/portal_app/static
+
+[Install]
+WantedBy=multi-user.target

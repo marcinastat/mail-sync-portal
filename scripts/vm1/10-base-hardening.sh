@@ -15,6 +15,9 @@ check_selinux_enforcing
 
 pkg_install_idempotent firewalld fail2ban policycoreutils-python-utils
 systemctl enable --now firewalld
+# Jaile własne (portal-admin-auth, roundcube-auth, nginx-limit-req) dochodzą
+# w Fazie 9 — na razie fail2ban startuje z domyślnym jailem sshd.
+systemctl enable --now fail2ban
 
 mkdir -p /etc/portal/secrets
 chmod 0700 /etc/portal/secrets

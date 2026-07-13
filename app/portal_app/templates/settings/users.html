@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Użytkownicy — Ustawienia{% endblock %}
+{% block content %}
+  <h1>Użytkownicy administracyjni</h1>
+
+  {% if new_user_temp_password %}
+    <div class="card" style="border-color:#16a34a">
+      <p>Konto <strong>{{ new_user_username }}</strong> utworzone. Tymczasowe hasło (przekaż bezpiecznym kanałem, nie zostanie pokazane ponownie):</p>
+      <p style="font-family:monospace;background:#f1f5f9;padding:0.5rem;border-radius:0.375rem">{{ new_user_temp_password }}</p>
+      <p style="font-size:0.85rem;color:#64748b">Przy pierwszym logowaniu użytkownik zostanie poprowadzony przez obowiązkowy enrollment TOTP.</p>
+    </div>
+  {% endif %}
+
+  <div class="card">
+    <h2 style="margin-top:0">Nowy użytkownik</h2>
+    <form method="post" action="/admin/settings/users">
+      <label for="username">Login</label>
+      <input type="text" id="username" name="username" required>
+      <label for="email">E-mail</label>
+      <input type="email" id="email" name="email" required>
+      <p style="margin-top:1rem"><button class="btn" type="submit">Utwórz</button></p>
+    </form>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead><tr><th>Login</th><th>E-mail</th><th>Rola</th><th>Status</th><th>TOTP</th><th></th></tr></thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>{{ u.username }}</td>
+          <td>{{ u.email }}</td>
+          <td>{{ u.role }}</td>
+          <td>{% if u.is_active %}<span class="badge ok">aktywny</span>{% else %}<span class="badge err">nieaktywny</span>{% endif %}</td>
+          <td>{% if u.totp and u.totp.confirmed_at %}<span class="badge ok">skonfigurowane</span>{% else %}<span class="badge warn">oczekuje</span>{% endif %}</td>
+          <td>
+            {% if u.is_active and u.id != current_user.id %}
+            <form method="post" action="/admin/settings/users/{{ u.id }}/deactivate" style="display:inline">
+              <button class="btn danger" type="submit">Dezaktywuj</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

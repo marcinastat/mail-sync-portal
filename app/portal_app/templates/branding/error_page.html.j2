@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>{{ code }} — {{ title }}</title>
+<style>
+  body{font-family:system-ui,sans-serif;background:{{ secondary_color }};color:#e2e8f0;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0}
+  .box{text-align:center}
+  img.logo{max-height:56px;margin-bottom:1rem}
+  h1{font-size:3rem;margin:0;color:{{ accent_color }}}
+  p{color:#cbd5e1}
+</style>
+</head>
+<body>
+  <div class="box">
+    {% if logo_data_uri %}<img class="logo" src="{{ logo_data_uri }}" alt="logo">{% endif %}
+    <h1>{{ code }}</h1>
+    <p>{{ message }}</p>
+  </div>
+</body>
+</html>

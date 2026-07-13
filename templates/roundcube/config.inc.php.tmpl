@@ -18,6 +18,10 @@ $config['plugins'] = ['archive', 'zipdownload'];
 
 $config['skin'] = 'elastic';
 $config['language'] = 'pl_PL';
+// Logo brandingu jest serwowane przez portal_app pod stałym adresem — admin
+// może je zmienić w kreatorze/Ustawieniach bez ponownego renderowania tego
+// pliku (patrz services/branding_renderer.py).
+$config['skin_logo'] = '/admin/static/branding/logo.png';
 
 // Logowanie nieudanych prób do dedykowanego pliku — konsumowane przez
 // fail2ban jail "roundcube-auth" (Faza 9).

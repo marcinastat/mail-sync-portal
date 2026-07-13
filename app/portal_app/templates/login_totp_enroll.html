@@ -1,0 +1,15 @@
+{% extends "auth_base.html" %}
+{% block title %}Konfiguracja TOTP — Portal Poczty{% endblock %}
+{% block content %}
+  <h2>Skonfiguruj uwierzytelnianie dwuskładnikowe</h2>
+  <p style="font-size:0.85rem;color:#64748b">To pierwsze logowanie na tym koncie — TOTP jest obowiązkowe.</p>
+  {% if error %}<p style="color:#dc2626">{{ error }}</p>{% endif %}
+  <p style="text-align:center"><img src="/admin/login/totp-enroll/qr" alt="QR TOTP" width="200" height="200"></p>
+  <form method="post" action="/admin/login/totp-enroll">
+    <label for="code">Kod z aplikacji</label>
+    <input type="text" id="code" name="code" required autofocus autocomplete="one-time-code">
+    <p style="margin-top:1.25rem">
+      <button class="btn" type="submit" style="width:100%">Potwierdź</button>
+    </p>
+  </form>
+{% endblock %}

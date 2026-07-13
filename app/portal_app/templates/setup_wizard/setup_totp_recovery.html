@@ -1,0 +1,11 @@
+{% extends "auth_base.html" %}
+{% block title %}Kody odzyskiwania{% endblock %}
+{% block content %}
+  <h2>Zapisz kody odzyskiwania</h2>
+  <p>Każdy kod działa jednorazowo, jeśli utracisz dostęp do aplikacji TOTP. Zapisz je teraz — nie zostaną pokazane ponownie.</p>
+  <pre style="background:#f1f5f9;padding:1rem;border-radius:0.375rem">{% for c in codes %}{{ c }}
+{% endfor %}</pre>
+  <form method="post" action="/admin/setup/subnet">
+    <button class="btn" type="submit" style="width:100%">Zapisałem kody, kontynuuj</button>
+  </form>
+{% endblock %}
