@@ -26,6 +26,13 @@ add_rich_rule() {
     fi
 }
 
+# KOLEJNOŚĆ JEST KRYTYCZNA — patrz obszerny komentarz w
+# scripts/vm1/80-firewall-rules.sh: --add-rich-rule bez --zone= trafia do
+# AKTUALNEJ domyślnej strefy w chwili wywołania. Strefę trzeba przełączyć
+# na "drop" ZANIM dodamy reguły, inaczej wylądują w nieużywanej strefie
+# "public" i SSH/porty zostaną odcięte całkowicie mimo poprawnych reguł.
+firewall-cmd --set-default-zone=drop
+
 # Domyślnie odrzucaj wszystko poza SSH z podsieci admina (VM2 też jest
 # administrowana zdalnie po SSH z tej samej podsieci co VM1).
 add_rich_rule "rule family='ipv4' source address='${ADMIN_SUBNET_CIDR}' service name='ssh' accept"
@@ -34,7 +41,6 @@ add_rich_rule "rule family='ipv4' source address='${VM1_IP}/32' port port='993' 
 add_rich_rule "rule family='ipv4' source address='${VM1_IP}/32' port port='587' protocol='tcp' accept"
 add_rich_rule "rule family='ipv4' source address='${VM1_IP}/32' port port='${VM2_API_PORT}' protocol='tcp' accept"
 
-firewall-cmd --set-default-zone=drop
 firewall-cmd --reload
 
 log_info "Firewalld VM2 skonfigurowany (domyślna polityka: drop)."
