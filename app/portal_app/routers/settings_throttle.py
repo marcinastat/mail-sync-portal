@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
+from ..templating import templates
 from sqlalchemy.orm import Session
 
 from ..deps import client_ip, get_db, require_login, require_setup_complete
@@ -9,7 +9,6 @@ from ..services.audit_service import record
 from ..services.throttle_service import get_global_policy
 
 router = APIRouter(prefix="/admin/settings/throttle", tags=["settings-throttle"], dependencies=[Depends(require_setup_complete)])
-templates = Jinja2Templates(directory="portal_app/templates")
 
 
 @router.get("")

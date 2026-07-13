@@ -2,7 +2,7 @@ import secrets
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
+from ..templating import templates
 from passlib.hash import argon2
 from sqlalchemy.orm import Session
 
@@ -11,7 +11,6 @@ from ..models import AdminUser
 from ..services.audit_service import record
 
 router = APIRouter(prefix="/admin/settings/users", tags=["settings-users"], dependencies=[Depends(require_setup_complete)])
-templates = Jinja2Templates(directory="portal_app/templates")
 
 
 @router.get("")

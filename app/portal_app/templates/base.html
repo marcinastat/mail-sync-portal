@@ -10,33 +10,38 @@
   <script src="/admin/static/js/alpine.min.js" defer></script>
 </head>
 <body>
-  <div class="topbar">
-    {% if branding and branding.logo_path %}
-      <img class="logo" src="/admin/static/branding/{{ branding.logo_path }}" alt="logo">
-    {% endif %}
-    <strong>{{ branding.product_name if branding and branding.product_name else 'Portal Poczty' }}</strong>
-    <div class="spacer"></div>
-    {% if current_user %}
-      <span>{{ current_user.username }}</span>
-      <form method="post" action="/admin/logout" style="display:inline">
-        <button class="btn secondary" type="submit">Wyloguj</button>
-      </form>
-    {% endif %}
-  </div>
-  <div class="layout">
-    <div class="sidebar">
-      <a href="/admin/" class="{{ 'active' if active == 'dashboard' }}">Pulpit</a>
-      <a href="/admin/domains" class="{{ 'active' if active == 'domains' }}">Domeny</a>
-      <a href="/admin/mailboxes" class="{{ 'active' if active == 'mailboxes' }}">Skrzynki</a>
-      <a href="/admin/imports" class="{{ 'active' if active == 'imports' }}">Import XLS</a>
-      <a href="/admin/audit" class="{{ 'active' if active == 'audit' }}">Audyt</a>
-      <a href="/admin/reports" class="{{ 'active' if active == 'reports' }}">Raporty</a>
-      <a href="/admin/settings" class="{{ 'active' if active == 'settings' }}">Ustawienia</a>
-      <a href="/admin/docs" class="{{ 'active' if active == 'docs' }}">Dokumentacja</a>
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      {% if branding and branding.logo_path %}
+        <img class="logo" src="/admin/static/branding/{{ branding.logo_path }}?v={{ branding.generated_at }}" alt="logo">
+      {% endif %}
+      <span class="brand-name">{{ branding.product_name if branding and branding.product_name else 'Portal Poczty' }}</span>
     </div>
-    <div class="content">
+    <nav class="nav">
+      <a href="/admin/" class="{{ 'active' if active == 'dashboard' }}"><span class="ic">▪</span> Pulpit</a>
+      <a href="/admin/mailboxes" class="{{ 'active' if active == 'mailboxes' }}"><span class="ic">✉</span> Skrzynki</a>
+      <a href="/admin/domains" class="{{ 'active' if active == 'domains' }}"><span class="ic">◈</span> Domeny</a>
+      <a href="/admin/imports" class="{{ 'active' if active == 'imports' }}"><span class="ic">⬆</span> Import XLS/CSV</a>
+      <a href="/admin/reports" class="{{ 'active' if active == 'reports' }}"><span class="ic">▤</span> Raporty</a>
+      <a href="/admin/audit" class="{{ 'active' if active == 'audit' }}"><span class="ic">⚑</span> Audyt</a>
+      <a href="/admin/settings" class="{{ 'active' if active == 'settings' }}"><span class="ic">⚙</span> Ustawienia</a>
+      <a href="/admin/docs" class="{{ 'active' if active == 'docs' }}"><span class="ic">?</span> Dokumentacja</a>
+    </nav>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <div class="page-title">{% block heading %}{% endblock %}</div>
+      <div class="spacer"></div>
+      {% if current_user %}
+        <span class="user-chip">{{ current_user.username }}</span>
+        <form method="post" action="/admin/logout" style="display:inline">
+          <button class="btn ghost" type="submit">Wyloguj</button>
+        </form>
+      {% endif %}
+    </header>
+    <main class="content">
       {% block content %}{% endblock %}
-    </div>
+    </main>
   </div>
 </body>
 </html>

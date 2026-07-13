@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import pyotp
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse, Response
-from fastapi.templating import Jinja2Templates
+from ..templating import templates
 from passlib.hash import argon2
 from sqlalchemy.orm import Session
 
@@ -14,7 +14,6 @@ from ..services.audit_service import record
 from ..services.auth_log import log_failed_login, log_successful_login
 
 router = APIRouter(tags=["auth"], dependencies=[Depends(require_setup_complete)])
-templates = Jinja2Templates(directory="portal_app/templates")
 
 
 @router.get("/admin/login")

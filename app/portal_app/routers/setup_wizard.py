@@ -4,7 +4,7 @@ from pathlib import Path
 import pyotp
 from fastapi import APIRouter, Depends, Form, Request, UploadFile
 from fastapi.responses import RedirectResponse, Response
-from fastapi.templating import Jinja2Templates
+from ..templating import templates
 from passlib.hash import argon2
 from sqlalchemy.orm import Session
 
@@ -14,7 +14,6 @@ from ..services import branding_renderer, totp_service, vm2_client
 from ..services.audit_service import record
 
 router = APIRouter(prefix="/admin/setup", tags=["setup"])
-templates = Jinja2Templates(directory="portal_app/templates")
 
 ADMIN_SUBNET_FILE = Path("/etc/portal/admin-subnet-cidr")
 

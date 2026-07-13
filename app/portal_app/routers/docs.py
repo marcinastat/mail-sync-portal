@@ -2,13 +2,12 @@ from pathlib import Path
 
 import markdown
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.templating import Jinja2Templates
+from ..templating import templates
 
 from ..deps import require_login, require_setup_complete
 from ..models import AdminUser
 
 router = APIRouter(prefix="/admin/docs", tags=["docs"], dependencies=[Depends(require_setup_complete)])
-templates = Jinja2Templates(directory="portal_app/templates")
 
 DOCS_ROOT = Path("docs")
 CATEGORIES = {"technical": "Techniczna", "user": "Użytkownika"}
