@@ -36,6 +36,14 @@ def _logo_data_uri(logo_path: str | None) -> str | None:
     return f"data:{mime or 'image/png'};base64,{encoded}"
 
 
+# Trwała kopia logo POZA drzewem aplikacji (/opt jest celem rsync --delete przy
+# każdym deployu — patrz scripts/vm1/50-portal-app.sh). Dzięki niej logo panelu
+# jest samonaprawialne: nawet gdy deploy skasuje static/branding, przy starcie
+# usługi odtwarzamy je ze stagingu (ensure_panel_logo). /var/lib/portal-app jest
+# w ReadWritePaths i nie jest ruszane przez rsync kodu.
+_STAGE_LOGO = _STAGE_DIR / "logo.png"
+
+
 def save_logo(upload_bytes: bytes) -> str:
     """Zawsze zapisuje jako logo.png pod stałą ścieżką — Roundcube (Faza 5,
     config.inc.php: skin_logo) i strony błędów nginx odwołują się do niej
@@ -45,7 +53,26 @@ def save_logo(upload_bytes: bytes) -> str:
     image = Image.open(io.BytesIO(upload_bytes))
     image.thumbnail((512, 512))
     image.convert("RGBA").save(branding_dir / "logo.png", format="PNG")
+    # Trwała kopia poza /opt — źródło samonaprawy po deployu (patrz wyżej).
+    _STAGE_DIR.mkdir(parents=True, exist_ok=True)
+    image.convert("RGBA").save(_STAGE_LOGO, format="PNG")
     return "logo.png"
+
+
+def ensure_panel_logo() -> None:
+    """Samonaprawa logo panelu: jeśli static/branding/logo.png zniknęło (np.
+    skasowane przez rsync --delete przy deployu), a mamy trwałą kopię w stagingu,
+    odtwarzamy je. Wołane przy starcie aplikacji (app.py). Best-effort — brak
+    logo nie może wywalić startu usługi."""
+    try:
+        panel_logo = _STATIC_DIR / "branding" / "logo.png"
+        if panel_logo.exists() or not _STAGE_LOGO.exists():
+            return
+        panel_logo.parent.mkdir(parents=True, exist_ok=True)
+        panel_logo.write_bytes(_STAGE_LOGO.read_bytes())
+        logger.info("Odtworzono logo panelu ze stagingu po deployu: %s", panel_logo)
+    except Exception as exc:  # noqa: BLE001 — logo to nie funkcja krytyczna
+        logger.warning("Nie udało się odtworzyć logo panelu ze stagingu: %s", exc)
 
 
 def render_all(branding: BrandingConfig) -> None:

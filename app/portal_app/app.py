@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from .config import get_settings
+from .services import branding_renderer
 from .routers import (
     audit,
     auth,
@@ -33,6 +34,10 @@ app.add_middleware(
     https_only=True,
     max_age=60 * 60 * 8,
 )
+
+# Samonaprawa logo panelu po deployu (rsync --delete mógł skasować static/branding)
+# — odtwarza je z trwałej kopii w /var/lib/portal-app przed zamontowaniem static/.
+branding_renderer.ensure_panel_logo()
 
 app.mount("/admin/static", StaticFiles(directory="portal_app/static"), name="static")
 
