@@ -20,9 +20,13 @@ http {
     keepalive_timeout 65;
     client_max_body_size 64m;  # XLS import w zaszyfrowanym archiwum
 
-    # Strefy rate-limitingu dla logowania — patrz templates/nginx/admin.conf.tmpl.
-    limit_req_zone $binary_remote_addr zone=roundcube_login:10m rate=5r/m;
-    limit_req_zone $binary_remote_addr zone=admin_login:10m rate=5r/m;
+    # Rate-limiting logowania — stosowany WYŁĄCZNIE na /admin/login (portal_app,
+    # osobny pojedynczy endpoint). Roundcube NIE jest tu limitowany, bo serwuje
+    # wszystkie zasoby przez PHP i limit blokowałby całą aplikację — jego
+    # ochrona brute-force to jail roundcube-auth w fail2ban. Patrz obszerny
+    # komentarz w templates/nginx/admin.conf.tmpl. 30r/min pozwala normalnie
+    # wejść na formularz (kilka żądań), a wciąż tnie zautomatyzowany brute-force.
+    limit_req_zone $binary_remote_addr zone=admin_login:10m rate=30r/m;
     limit_req_status 429;
 
     include /etc/nginx/conf.d/*.conf;
