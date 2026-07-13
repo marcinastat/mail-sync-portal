@@ -2,26 +2,24 @@ module portal_mail_pgsql 1.0;
 
 require {
     type dovecot_auth_t;
-    type postfix_smtpd_t;
-    type postfix_cleanup_t;
-    type postfix_trivial_t;
-    type postfix_virtual_t;
-    type postfix_local_t;
     type postgresql_port_t;
     class tcp_socket name_connect;
 }
 
-# Dovecot (passdb/userdb SQL) i Postfix (virtual_mailbox_domains/maps) łączą
-# się z PostgreSQL po TCP 127.0.0.1:5432. Domyślna polityka RHEL blokuje
-# name_connect z domen tych usług do postgresql_port_t, a na tym systemie NIE
-# ma booleana (postfix_can_network_connect_db / dovecot_* nie istnieją — to
-# dlatego setsebool w 30-postfix-dovecot.sh zgłaszał "Boolean ... is not
-# defined"). Bez tej reguły Dovecot zwraca "Temporary authentication failure"
-# (backend padł), a Postfix nie rozwiąże domen/skrzynek wirtualnych.
-# Potwierdzone wprost z AVC: dovecot_auth_t -> postgresql_port_t name_connect.
+# Dovecot (passdb/userdb SQL) łączy się z PostgreSQL po TCP 127.0.0.1:5432.
+# Domyślna polityka RHEL blokuje name_connect z dovecot_auth_t do
+# postgresql_port_t, a na tym systemie NIE ma odpowiedniego booleana
+# (dovecot_* / postfix_can_network_connect_db nie istnieją — dlatego
+# setsebool w 30-postfix-dovecot.sh zgłaszał "Boolean ... is not defined").
+# Bez tej reguły Dovecot zwraca "Temporary authentication failure" (backend
+# SQL pada) i logowanie na skrzynkę docelową (m.in. imapsync na host2, oraz
+# Roundcube) jest niemożliwe. Potwierdzone wprost z AVC:
+#   avc: denied { name_connect } scontext=...:dovecot_auth_t
+#        tcontext=...:postgresql_port_t tclass=tcp_socket
 allow dovecot_auth_t postgresql_port_t:tcp_socket name_connect;
-allow postfix_smtpd_t postgresql_port_t:tcp_socket name_connect;
-allow postfix_cleanup_t postgresql_port_t:tcp_socket name_connect;
-allow postfix_trivial_t postgresql_port_t:tcp_socket name_connect;
-allow postfix_virtual_t postgresql_port_t:tcp_socket name_connect;
-allow postfix_local_t postgresql_port_t:tcp_socket name_connect;
+
+# UWAGA: Postfix też odpytuje tę bazę (virtual_mailbox_domains/maps), ale
+# tylko podczas dostarczania SMTP — imapsync korzysta z IMAP APPEND (Dovecot),
+# więc synchronizacja go nie potrzebuje. Reguły dla domen postfix_*_t dochodzą
+# osobno (dokładne nazwy typów zależą od wersji polityki i są dobierane z
+# realnych AVC), żeby nie wywalać kompilacji na nieistniejącym typie.
