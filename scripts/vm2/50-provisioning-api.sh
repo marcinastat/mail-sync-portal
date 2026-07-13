@@ -22,7 +22,12 @@ if ! id vm2-api >/dev/null 2>&1; then
 fi
 
 mkdir -p "$APP_DIR"
-rsync -a --delete --exclude '__pycache__' --exclude '.venv' "$REPO_ROOT/vm2_api/" "$APP_DIR/"
+# Katalog virtualenv nazywa się "venv" (bez kropki, patrz niżej) — exclude
+# musi się z nim zgadzać, inaczej rsync --delete przy każdym uruchomieniu
+# próbuje skasować cały venv (i częściowo się wywala na __pycache__, które
+# jest osobno wykluczone, więc nie da się go dowiązać do rmdir — obserwowane
+# "cannot delete non-empty directory").
+rsync -a --delete --exclude '__pycache__' --exclude 'venv' "$REPO_ROOT/vm2_api/" "$APP_DIR/"
 chown -R vm2-api:vm2-api "$APP_DIR"
 
 if [[ ! -d "$APP_DIR/venv" ]]; then
