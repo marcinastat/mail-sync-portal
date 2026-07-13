@@ -26,6 +26,10 @@ mkdir -p /var/log/clamav /run/clamd.scan /run/clamav-milter /var/lib/clamav
 # spójnego konta clamscan dla wszystkiego — bez tego chowna freshclam nie
 # może zapisać baz (obserwowany błąd: "Can't create freshclam.dat").
 chown -R clamscan:clamscan /var/log/clamav /run/clamd.scan /var/lib/clamav 2>/dev/null || true
+# 0755 nie wystarcza — clamilt (proces miltera, patrz niżej) potrzebuje
+# zapisu do /var/log/clamav jako suplementarny członek grupy clamscan, a
+# grupowe uprawnienia domyślne (r-x) na to nie pozwalają.
+chmod 0770 /var/log/clamav
 
 # Stockowa jednostka RPM clamav-milter.service wymusza User=clamilt (nie
 # clamscan) i zdejmuje prawie wszystkie capability (CAP_KILL only) — więc to
