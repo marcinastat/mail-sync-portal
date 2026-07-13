@@ -64,5 +64,10 @@ create_role_and_db portal_app portal_db "$SECRETS_DIR/vm1-portal-db.pass"
 
 systemctl reload "postgresql-${PG_VER}"
 
+# Odporność na `dnf update`: blokujemy wersję główną, żeby zwykła aktualizacja
+# systemu nigdy niespodziewanie nie przeskoczyła na inną gałąź PostgreSQL.
+pkg_install_idempotent python3-dnf-plugin-versionlock
+dnf versionlock add "postgresql${PG_VER}-server" "postgresql${PG_VER}" "postgresql${PG_VER}-contrib" 2>/dev/null || true
+
 log_info "PostgreSQL ${PG_VER} gotowe: roundcube_db + portal_db (osobne role, schematy stosowane w kolejnych fazach)."
 mark_step_done "$STEP_NAME"

@@ -1,4 +1,5 @@
 import secrets
+import shutil
 import subprocess
 import time
 
@@ -55,6 +56,18 @@ def run_dnf_update() -> dict:
         "health_check": health,
         "reboot_needed": reboot_needed,
         "reboot_confirm_token": token,
+    }
+
+
+def get_disk_usage() -> dict:
+    settings = get_settings()
+    usage = shutil.disk_usage(settings.maildir_base)
+    return {
+        "path": str(settings.maildir_base),
+        "total_bytes": usage.total,
+        "used_bytes": usage.used,
+        "free_bytes": usage.free,
+        "used_percent": round(usage.used / usage.total * 100, 1),
     }
 
 

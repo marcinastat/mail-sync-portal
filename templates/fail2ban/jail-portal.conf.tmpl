@@ -1,0 +1,35 @@
+[portal-admin-auth]
+enabled = true
+filter = portal-admin-auth
+logpath = /var/log/portal/auth.log
+backend = auto
+maxretry = 5
+findtime = 10m
+bantime = 1h
+action = firewallcmd-rich-rules
+
+[roundcube-auth]
+enabled = true
+filter = roundcube-auth
+logpath = /var/log/roundcube/userlogins
+backend = auto
+maxretry = 5
+findtime = 10m
+bantime = 1h
+action = firewallcmd-rich-rules
+
+[nginx-limit-req]
+enabled = true
+filter = nginx-limit-req
+logpath = /var/log/nginx/access.log
+backend = auto
+maxretry = 10
+findtime = 5m
+bantime = 30m
+action = firewallcmd-rich-rules
+
+[sshd]
+enabled = true
+maxretry = 5
+findtime = 10m
+bantime = 1h

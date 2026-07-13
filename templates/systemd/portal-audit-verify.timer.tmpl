@@ -1,0 +1,10 @@
+[Unit]
+Description=Uruchamia portal-audit-verify.service raz dziennie w nocy
+
+[Timer]
+OnCalendar=*-*-* 03:17:00
+Persistent=true
+Unit=portal-audit-verify.service
+
+[Install]
+WantedBy=timers.target

@@ -29,6 +29,11 @@ def system_update(
     return result
 
 
+@router.get("/disk-usage")
+def disk_usage(actor: str = Depends(require_vm1_ip)):
+    return system_control.get_disk_usage()
+
+
 @router.post("/reboot", status_code=202)
 def system_reboot(
     body: SystemRebootRequest,

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Raporty — Portal Poczty{% endblock %}
+{% block content %}
+  <h1>Raport statusu synchronizacji</h1>
+  <div class="card">
+    <a class="btn secondary" href="/admin/reports/mailboxes.csv">Eksport CSV</a>
+    <a class="btn secondary" href="/admin/reports/mailboxes.pdf">Eksport PDF</a>
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr>{% for h in header %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

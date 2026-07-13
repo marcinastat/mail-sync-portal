@@ -61,5 +61,8 @@ sudo -u postgres psql -v ON_ERROR_STOP=1 -d mail_db -v app_role=mail_app -f "$RE
 
 systemctl reload "postgresql-${PG_VER}"
 
+pkg_install_idempotent python3-dnf-plugin-versionlock
+dnf versionlock add "postgresql${PG_VER}-server" "postgresql${PG_VER}" "postgresql${PG_VER}-contrib" 2>/dev/null || true
+
 log_info "PostgreSQL ${PG_VER} + mail_db gotowe."
 mark_step_done "$STEP_NAME"

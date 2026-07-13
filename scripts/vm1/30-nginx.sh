@@ -61,5 +61,8 @@ fi
 systemctl enable --now nginx
 systemctl reload nginx
 
+pkg_install_idempotent python3-dnf-plugin-versionlock
+dnf versionlock add nginx 2>/dev/null || true
+
 log_info "nginx skonfigurowany (TLS: self-signed 10 lat, / -> Roundcube [Faza 5], /admin -> portal_app [Faza 6])."
 mark_step_done "$STEP_NAME"
