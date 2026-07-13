@@ -35,8 +35,9 @@ def _safe_member_path(dest_dir: Path, member_name: str) -> Path:
 
 
 def extract_single_archive(data: bytes, password: str) -> tuple[Path, Path]:
-    """Wypakowuje archiwum do izolowanego katalogu na tmpfs, zwraca (staging_dir, xls_path).
-    Wywołujący MUSI posprzątać staging_dir (patrz cleanup())."""
+    """Wypakowuje archiwum do izolowanego katalogu na tmpfs, zwraca (staging_dir, data_file_path)
+    — data_file_path to jedyny znaleziony plik XLSX/XLS/CSV. Wywołujący MUSI
+    posprzątać staging_dir (patrz cleanup())."""
     archive_type = detect_type(data)
     IMPORT_TMP_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
     staging_dir = IMPORT_TMP_DIR / str(uuid.uuid4())
@@ -50,10 +51,16 @@ def extract_single_archive(data: bytes, password: str) -> tuple[Path, Path]:
         elif archive_type == "rar":
             _extract_rar(data, staging_dir, password)
 
-        xls_files = list(staging_dir.rglob("*.xlsx")) + list(staging_dir.rglob("*.xls"))
-        if len(xls_files) != 1:
-            raise ArchiveError(f"Oczekiwano dokładnie jednego pliku XLS/XLSX w archiwum, znaleziono {len(xls_files)}.")
-        return staging_dir, xls_files[0]
+        data_files = (
+            list(staging_dir.rglob("*.xlsx"))
+            + list(staging_dir.rglob("*.xls"))
+            + list(staging_dir.rglob("*.csv"))
+        )
+        if len(data_files) != 1:
+            raise ArchiveError(
+                f"Oczekiwano dokładnie jednego pliku XLSX/XLS/CSV w archiwum, znaleziono {len(data_files)}."
+            )
+        return staging_dir, data_files[0]
     except Exception:
         cleanup(staging_dir)
         raise

@@ -3,7 +3,7 @@
 Środowisko do archiwizacji/synchronizacji poczty IMAP na dwóch maszynach Rocky Linux 10:
 
 - **VM1 „portal"** — Roundcube, panel administracyjny (`/admin`, aplikacja Python), nginx z TLS offloadingiem, silnik synchronizacji imapsync.
-- **VM2 „serwer poczty"** — Postfix + Dovecot (wiele domen wirtualnych), ClamAV, wewnętrzne API do provisioningu wywoływane przez VM1.
+- **VM2 „serwer poczty"** — Postfix + Dovecot (wiele domen wirtualnych), ClamAV, wewnętrzne API do provisioningu wywoływane przez VM1. **Wymaga dwóch dysków**: systemowego i dedykowanego na pocztę (auto-wykrywany, formatowany i montowany pod `/var/mail/vhosts` przez `scripts/vm2/25-mail-disk.sh`).
 
 Pełny plan projektu: zobacz plik planu w `docs/technical/architecture.md` (kopia zatwierdzonego planu).
 

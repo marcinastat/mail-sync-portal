@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..deps import client_ip, get_db, require_login, require_setup_complete
 from ..models import AdminUser, Domain, JobQueue, JobRun, Mailbox, SyncJob, Vm2Connection
-from ..services import vm2_client
+from ..services import import_service, vm2_client
 from ..services.audit_service import record
 from ..services.credential_crypto import encrypt_password
 
@@ -32,6 +32,48 @@ def list_mailboxes(request: Request, current_user: AdminUser = Depends(require_l
         "mailboxes/list.html",
         {"active": "mailboxes", "current_user": current_user, "mailboxes": mailboxes, "sync_jobs": sync_jobs},
     )
+
+
+@router.get("/new")
+def new_mailbox_form(request: Request, current_user: AdminUser = Depends(require_login)):
+    # Musi być zarejestrowane PRZED /{mailbox_id}, inaczej FastAPI próbowałoby
+    # dopasować "new" jako mailbox_id:int i zwrócić 422 zamiast tego formularza.
+    return templates.TemplateResponse(request, "mailboxes/new.html", {"active": "mailboxes", "current_user": current_user})
+
+
+@router.post("/new")
+def create_mailbox_manual(
+    request: Request,
+    source_domain: str = Form(...),
+    source_imap_host: str = Form(""),
+    source_imap_port: int = Form(993),
+    source_username: str = Form(...),
+    source_password: str = Form(...),
+    destination_username: str = Form(""),
+    quota_mb: int = Form(0),
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    mailbox, created = import_service.upsert_mailbox(
+        db,
+        source_domain=source_domain,
+        source_username=source_username,
+        source_password=source_password,
+        destination_username=destination_username or None,
+        source_imap_host=source_imap_host or None,
+        source_imap_port=source_imap_port,
+        quota_mb=quota_mb,
+    )
+    record(
+        db,
+        actor_admin_user_id=current_user.id,
+        action="mailbox.create_manual",
+        target_type="mailbox",
+        target_id=str(mailbox.id),
+        details={"source_domain": source_domain, "source_username": source_username, "created": created},
+        source_ip=client_ip(request),
+    )
+    return RedirectResponse(f"/admin/mailboxes/{mailbox.id}", status_code=303)
 
 
 @router.get("/{mailbox_id}")

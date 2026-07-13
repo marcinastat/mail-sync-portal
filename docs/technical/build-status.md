@@ -23,6 +23,9 @@ Wszystkie fazy z planu źródłowego zaimplementowane.
 - **Hasło skrzynki docelowej przechowywane jawnie zaszyfrowane** (`mailboxes.destination_password_encrypted`) — niezbędne, żeby imapsync mógł się logować na VM2 po ręcznym resecie hasła (samo hasło nigdy nie trafia do audit logu).
 - **Eksport PDF** przez `reportlab` (serwerowo generowany plik do pobrania), nie "print to PDF" w przeglądarce.
 - **Alerty e-mail** wymagają ręcznej konfiguracji zewnętrznego relaya SMTP (`/etc/portal/alert-smtp.conf`) — VM1 celowo nie ma własnego MTA.
+- **VM2 wymaga dwóch dysków** (systemowy + dedykowany na pocztę). `scripts/vm2/25-mail-disk.sh` autodetekuje dysk inny niż systemowy, formatuje go (XFS) TYLKO jeśli jest zupełnie pusty, dodaje wpis do `/etc/fstab` przez UUID i montuje pod `/var/mail/vhosts`. Ambiguity (0 lub >1 kandydatów) kończy się twardym błędem, nie zgadywaniem — override przez `VM2_MAIL_DISK` w `install.conf`. Oba dyski monitorowane lokalnie (`vm2-disk-check.timer`, co 15 min, próg `DISK_USAGE_WARNING_PERCENT`) i zdalnie z VM1 (`portal-environment-check.timer` → alert `disk_low_space`).
+- **Ręczne dodawanie pojedynczej skrzynki** (`/admin/mailboxes/new`) — alternatywa dla importu XLS/CSV, współdzieli logikę provisioningu (`services/import_service.upsert_mailbox`).
+- **Import obsługuje też CSV** (obok XLSX/XLS), z auto-wykrywaniem separatora (`,`/`;`/tab). Szablony do pobrania z `/admin/imports` (`template.csv`, `template.xlsx`), pełny opis schematu w `docs/user/importing-mailboxes.md` i bezpośrednio na stronie importu.
 
 ## Znane uproszczenia / dalsze kroki
 

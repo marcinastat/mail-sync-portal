@@ -2,6 +2,7 @@
 {% block title %}Skrzynki — Portal Poczty{% endblock %}
 {% block content %}
   <h1>Skrzynki</h1>
+  <p><a class="btn" href="/admin/mailboxes/new">+ Dodaj skrzynkę ręcznie</a></p>
   {% if error %}<p style="color:#dc2626">{{ error }}</p>{% endif %}
 
   <form method="post" action="/admin/mailboxes/sync-config">

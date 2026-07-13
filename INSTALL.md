@@ -4,6 +4,13 @@ Zakładam: masz dwie świeże VM z Rocky Linux 10 (Minimal), obie w tej samej
 sieci, root/sudo na obu, i wiesz jakie IP/hostname będą miały (VM1 = portal,
 VM2 = serwer poczty).
 
+**VM2 musi mieć DWA dyski**: jeden systemowy (na nim jest zainstalowany
+Rocky Linux) i jeden dodatkowy, całkowicie pusty (bez partycji, bez systemu
+plików) — na niego trafi cała poczta. `scripts/vm2/25-mail-disk.sh` wykrywa
+go automatycznie, formatuje (XFS) i montuje pod `/var/mail/vhosts`. Jeśli VM2
+ma więcej niż 2 dyski, ustaw jawnie `VM2_MAIL_DISK=/dev/sdX` w
+`config/install.conf` (patrz krok 0). VM1 wystarczy jeden dysk.
+
 ## 0. Przygotowanie na obu VM
 
 Na **VM1** i na **VM2** osobno:
@@ -37,6 +44,7 @@ jako root, każdy da się bezpiecznie uruchomić ponownie jeśli coś przerwiesz
 sudo scripts/vm2/00-preflight.sh
 sudo scripts/vm2/10-base-hardening.sh
 sudo scripts/vm2/20-postgresql.sh
+sudo scripts/vm2/25-mail-disk.sh
 sudo scripts/vm2/30-postfix-dovecot.sh
 sudo scripts/vm2/40-clamav.sh
 sudo scripts/vm2/50-provisioning-api.sh

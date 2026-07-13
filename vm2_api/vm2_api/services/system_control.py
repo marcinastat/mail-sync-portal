@@ -59,15 +59,25 @@ def run_dnf_update() -> dict:
     }
 
 
-def get_disk_usage() -> dict:
-    settings = get_settings()
-    usage = shutil.disk_usage(settings.maildir_base)
+def _usage_dict(path) -> dict:
+    usage = shutil.disk_usage(path)
     return {
-        "path": str(settings.maildir_base),
+        "path": str(path),
         "total_bytes": usage.total,
         "used_bytes": usage.used,
         "free_bytes": usage.free,
         "used_percent": round(usage.used / usage.total * 100, 1),
+    }
+
+
+def get_disk_usage() -> dict:
+    """VM2 ma dwa dyski (wymóg architektury — patrz scripts/vm2/25-mail-disk.sh):
+    systemowy (/) i dedykowany na pocztę (maildir_base). Raportujemy oba
+    osobno, żeby dało się odróżnić "system się zapycha" od "poczta się zapycha"."""
+    settings = get_settings()
+    return {
+        "os_disk": _usage_dict("/"),
+        "mail_disk": _usage_dict(settings.maildir_base),
     }
 
 

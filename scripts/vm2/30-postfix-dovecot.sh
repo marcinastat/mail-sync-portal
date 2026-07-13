@@ -18,6 +18,8 @@ export MAIL_DB_PASSWORD
 MAIL_DB_PASSWORD="$(cat "$DB_PASS_FILE")"
 export VM2_HOSTNAME
 
+mountpoint -q /var/mail/vhosts || die "/var/mail/vhosts nie jest zamontowanym dyskiem — uruchom najpierw scripts/vm2/25-mail-disk.sh (VM2 wymaga osobnego dysku na pocztę)."
+
 pkg_install_idempotent postfix dovecot dovecot-pgsql postfix-pgsql
 
 # --- Użytkownik systemowy dla skrzynek wirtualnych --------------------------

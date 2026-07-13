@@ -14,6 +14,7 @@ logger = logging.getLogger("portal.environment_check")
 
 ACTIVE_CERT_PATH = Path("/etc/portal/tls/active/fullchain.pem")
 CERT_EXPIRY_WARNING_DAYS = 30
+DISK_USAGE_WARNING_PERCENT = 85
 
 
 def _check_cert_expiry(db) -> None:
@@ -53,6 +54,21 @@ def _check_vm2(db) -> None:
             dispatch_alert(db, event="av_infected", subject="VM2: ClamAV (clamd) nie działa", details=av)
     except vm2_client.Vm2ApiError as exc:
         logger.warning("Nie udało się sprawdzić statusu AV na VM2: %s", exc)
+
+    try:
+        disk = vm2_client.disk_usage(conn)
+        for label, key in (("systemowy (/)", "os_disk"), ("pocztowy (/var/mail/vhosts)", "mail_disk")):
+            usage = disk.get(key, {})
+            percent = usage.get("used_percent", 0)
+            if percent >= DISK_USAGE_WARNING_PERCENT:
+                dispatch_alert(
+                    db,
+                    event="disk_low_space",
+                    subject=f"VM2: dysk {label} zajęty w {percent}%",
+                    details=usage,
+                )
+    except vm2_client.Vm2ApiError as exc:
+        logger.warning("Nie udało się sprawdzić zajętości dysków VM2: %s", exc)
 
 
 def run_once() -> None:

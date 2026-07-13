@@ -38,6 +38,14 @@ ROUNDCUBE_VERSION="1.7.4"
 # --- imapsync ------------------------------------------------------------------
 IMAPSYNC_GIT_TAG="v2.267"  # przypięty tag z github.com/imapsync/imapsync
 
+# --- Dysk pocztowy (VM2) ----------------------------------------------------------
+# VM2 MUSI mieć dwa dyski: jeden systemowy, jeden dedykowany na pocztę
+# (montowany pod /var/mail/vhosts). scripts/vm2/25-mail-disk.sh wykrywa go
+# automatycznie (dysk inny niż systemowy), o ile jest dokładnie jeden i jest
+# zupełnie pusty. Jeśli VM2 ma więcej niż 2 dyski, wskaż jawnie który użyć:
+VM2_MAIL_DISK=""   # np. "/dev/sdb" — puste = autodetekcja
+DISK_USAGE_WARNING_PERCENT="85"   # próg ostrzeżenia (lokalnie na VM2 i przez alerty z VM1)
+
 # --- ClamAV (VM2) ----------------------------------------------------------------
 CLAMAV_FRESHCLAM_INTERVAL_MIN="60"
 

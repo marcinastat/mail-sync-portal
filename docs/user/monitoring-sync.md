@@ -2,7 +2,16 @@
 
 ## Pulpit (`/admin/`)
 
-Jeden ekran ze stanem całego środowiska: liczba aktywnych skrzynek, dni do wygaśnięcia certyfikatu TLS, głębokość kolejki zadań (ile oczekuje/trwa/nie powiodło się), łączny "drift" (wiadomości zachowane na serwerze docelowym mimo zniknięcia ze źródła), stan VM2 (health-check, zajętość dysku, ClamAV), ostatnie zdarzenia audytowe.
+Jeden ekran ze stanem całego środowiska: liczba aktywnych skrzynek, dni do wygaśnięcia certyfikatu TLS, głębokość kolejki zadań (ile oczekuje/trwa/nie powiodło się), łączny "drift" (wiadomości zachowane na serwerze docelowym mimo zniknięcia ze źródła), stan VM2 (health-check, zajętość **obu dysków** — systemowego i pocztowego — osobno, ClamAV), ostatnie zdarzenia audytowe.
+
+## Monitoring dysków VM2
+
+VM2 ma dwa dyski: systemowy i dedykowany na pocztę (`/var/mail/vhosts`). Zajętość obu jest sprawdzana dwutorowo:
+
+- **lokalnie na VM2** co 15 minut (`vm2-disk-check.timer`) — ostrzeżenia trafiają do dziennika systemowego (`journalctl -u vm2-disk-check`), niezależnie od tego, czy VM1 w ogóle żyje;
+- **z VM1** co 30 minut (razem z resztą health-checku VM2) — po przekroczeniu progu wysyła alert `disk_low_space` przez skonfigurowane kanały.
+
+Próg ostrzeżenia (domyślnie 85%) ustawia się w `config/install.conf` (`DISK_USAGE_WARNING_PERCENT`).
 
 ## Widok skrzynki (`/admin/mailboxes/<id>`)
 

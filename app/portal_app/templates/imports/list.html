@@ -1,14 +1,35 @@
 {% extends "base.html" %}
-{% block title %}Import XLS — Portal Poczty{% endblock %}
+{% block title %}Import skrzynek — Portal Poczty{% endblock %}
 {% block content %}
-  <h1>Import skrzynek z XLS</h1>
+  <h1>Import skrzynek z XLS/CSV</h1>
+  <p style="font-size:0.85rem;color:#64748b">Szukasz sposobu na dodanie pojedynczej skrzynki bez pliku? <a href="/admin/mailboxes/new">Dodaj ją ręcznie</a>.</p>
   {% if error %}<p style="color:#dc2626">{{ error }}</p>{% endif %}
 
   <div class="card">
+    <h2 style="margin-top:0">Wymagany schemat pliku</h2>
+    <p style="font-size:0.85rem;color:#64748b">Plik XLSX, XLS lub CSV (jeden arkusz/plik, pierwszy wiersz to nagłówki). Nazwy kolumn rozpoznawane są w wariantach PL/EN, niewrażliwie na wielkość liter — wystarczy, że sens się zgadza.</p>
+    <table>
+      <thead><tr><th>Kolumna</th><th>Wymagana</th><th>Akceptowane nagłówki</th><th>Opis</th></tr></thead>
+      <tbody>
+        <tr><td><code>source_domain</code></td><td><span class="badge err">tak</span></td><td>source_domain, domena_zrodlowa, domena, domain</td><td>domena skrzynki na serwerze źródłowym</td></tr>
+        <tr><td><code>source_username</code></td><td><span class="badge err">tak</span></td><td>source_username, login, user, username, email, e-mail</td><td>login/adres do logowania na serwer źródłowy</td></tr>
+        <tr><td><code>source_password</code></td><td><span class="badge err">tak</span></td><td>source_password, haslo, hasło, password</td><td>hasło do serwera źródłowego</td></tr>
+        <tr><td><code>destination_username</code></td><td>nie</td><td>destination_username, login_docelowy, target_username</td><td>jeśli inny niż login źródłowy; domyślnie część przed "@"</td></tr>
+        <tr><td><code>display_name</code></td><td>nie</td><td>display_name, nazwa, imie_nazwisko, imię i nazwisko</td><td>tylko informacyjnie</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:1rem">
+      <a class="btn secondary" href="/admin/imports/template.xlsx">Pobierz szablon XLSX</a>
+      <a class="btn secondary" href="/admin/imports/template.csv">Pobierz szablon CSV</a>
+    </p>
+    <p style="font-size:0.85rem;color:#64748b">Pełny opis: <a href="/admin/docs/user/importing-mailboxes">dokumentacja importu</a>.</p>
+  </div>
+
+  <div class="card">
     <h2 style="margin-top:0">Nowy import</h2>
-    <p style="font-size:0.85rem;color:#64748b">Archiwum ZIP lub 7z (RAR — best-effort, wymaga <code>unrar</code> na serwerze) zabezpieczone hasłem, zawierające dokładnie jeden plik XLS/XLSX z kolumnami: domena źródłowa, login, hasło (opcjonalnie: login docelowy, nazwa).</p>
+    <p style="font-size:0.85rem;color:#64748b">Plik XLSX/XLS/CSV zgodny ze schematem powyżej, spakowany do <strong>ZIP lub 7z zabezpieczonego hasłem</strong> (RAR — best-effort, wymaga <code>unrar</code> zainstalowanego na serwerze). Archiwum musi zawierać dokładnie jeden taki plik.</p>
     <form method="post" action="/admin/imports" enctype="multipart/form-data">
-      <label for="archive">Archiwum</label>
+      <label for="archive">Archiwum (ZIP/7z/RAR)</label>
       <input type="file" id="archive" name="archive" required>
       <label for="archive_password">Hasło archiwum</label>
       <input type="password" id="archive_password" name="archive_password" required>
@@ -18,7 +39,7 @@
 
   <div class="card">
     <table>
-      <thead><tr><th>Plik</th><th>Typ</th><th>Wierszy</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Plik</th><th>Typ archiwum</th><th>Wierszy</th><th>Status</th><th></th></tr></thead>
       <tbody>
         {% for b in batches %}
         <tr>
