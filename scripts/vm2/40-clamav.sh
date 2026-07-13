@@ -27,6 +27,13 @@ mkdir -p /var/log/clamav /run/clamd.scan /run/clamav-milter /var/lib/clamav
 # może zapisać baz (obserwowany błąd: "Can't create freshclam.dat").
 chown -R clamscan:clamscan /var/log/clamav /run/clamd.scan /var/lib/clamav 2>/dev/null || true
 
+# clamav-milter działa jako clamscan (MilterSocketGroup postfix w
+# clamav-milter.conf) i musi ustawić grupę gniazda na `postfix`, żeby
+# Postfix mógł się do niego podłączyć. Unix pozwala zmienić grupę pliku
+# tylko na grupę, do której proces faktycznie należy — bez tego dopisania
+# milter pada z "Failed to change socket ownership to group postfix".
+usermod -aG postfix clamscan
+
 render_template "$REPO_ROOT/templates/clamav/freshclam.conf.tmpl" /etc/freshclam.conf
 render_template "$REPO_ROOT/templates/clamav/clamd.scan.conf.tmpl" /etc/clamd.d/scan.conf
 render_template "$REPO_ROOT/templates/clamav/clamav-milter.conf.tmpl" /etc/mail/clamav-milter.conf
