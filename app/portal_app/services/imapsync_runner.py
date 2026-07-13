@@ -61,6 +61,14 @@ def build_argv(
         "--ssl2",
         "--maxage", str(days_back),
         "--nofoldersizes",
+        # imapsync domyślnie tworzy własny katalog LOG_imapsync/ w bieżącym
+        # katalogu roboczym — a worker działa z CWD=/opt/portal-app (read-only
+        # pod ProtectSystem) i pada z "Read-only file system". Przechwytujemy
+        # całe stdout/stderr do własnego pliku (run_sync niżej), więc własne
+        # logowanie imapsync jest zbędne — wyłączamy je (--nolog), a operacje
+        # tymczasowe kierujemy do /tmp (PrivateTmp=true daje zapisywalny, prywatny /tmp).
+        "--nolog",
+        "--tmpdir", "/tmp",
         "--automap" if preserve_folder_structure else "--no-automap",
     ]
     if delete_on_dest_when_missing_from_source:
