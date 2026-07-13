@@ -37,11 +37,20 @@ server {
         try_files $uri $uri/ /index.php?$args;
     }
 
-    location ~ \.php$ {
+    # Musi być \.php(/|$), NIE \.php$ — Roundcube serwuje zasoby przez URL-e
+    # w stylu PATH_INFO: /static.php/skins/elastic/styles/styles.min.css.
+    # Taki URL kończy się na .css, więc \.php$ go NIE łapał i wpadał do
+    # location / -> try_files -> /index.php, przez co przeglądarka dostawała
+    # HTML strony logowania zamiast CSS (efekt: Roundcube bez stylów).
+    # fastcgi_split_path_info rozdziela /static.php + /skins/...css, żeby
+    # PHP-FPM dostał poprawny SCRIPT_FILENAME i PATH_INFO.
+    location ~ \.php(/|$) {
+        fastcgi_split_path_info ^(.+?\.php)(/.*)$;
         fastcgi_pass unix:/run/php-fpm/roundcube.sock;
         fastcgi_index index.php;
         include fastcgi_params;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
     }
 
     location = /admin/login {
