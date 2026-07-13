@@ -13,6 +13,11 @@ load_install_conf
 
 check_selinux_enforcing
 
+# fail2ban jest w EPEL, nie w bazowych repo Rocky.
+if ! rpm -q epel-release >/dev/null 2>&1; then
+    pkg_install_idempotent epel-release
+fi
+
 pkg_install_idempotent firewalld fail2ban policycoreutils-python-utils
 systemctl enable --now firewalld
 # Jaile własne (portal-admin-auth, roundcube-auth, nginx-limit-req) dochodzą
