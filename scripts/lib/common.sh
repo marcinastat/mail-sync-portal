@@ -124,12 +124,19 @@ backup_file() {
 }
 
 # Generuje losowy sekret i zapisuje go do pliku root:root 0600, jeśli plik
-# jeszcze nie istnieje (nie nadpisuje istniejących sekretów przy ponownym
-# uruchomieniu skryptu — idempotencja).
+# jeszcze nie istnieje LUB jest pusty (nie nadpisuje istniejących, niepustych
+# sekretów przy ponownym uruchomieniu skryptu — idempotencja).
+#
+# Test -s (nie -f): plik musi istnieć I być niepusty. Krytyczne — jeśli
+# openssl był niedostępny przy pierwszym uruchomieniu (Rocky Minimal nie ma
+# go domyślnie), samo przekierowanie "> plik" tworzyło pusty plik ZANIM
+# openssl padł, a kolejne uruchomienia z testem -f pomijały regenerację,
+# zostawiając pusty sekret na stałe (obserwowane: puste hasło roli Postgresa
+# na VM2 -> "no password supplied" przy tworzeniu skrzynki).
 ensure_secret_file() {
     local path="$1" length="${2:-32}"
     mkdir -p "$(dirname "$path")"
-    if [[ ! -f "$path" ]]; then
+    if [[ ! -s "$path" ]]; then
         openssl rand -base64 "$length" | tr -d '\n' > "$path"
         chmod 0600 "$path"
         log_info "Wygenerowano nowy sekret: $path"
