@@ -35,6 +35,13 @@ cat > /etc/tmpfiles.d/clamav-freshclam.conf <<'EOF'
 d /run/clamav 0755 clamscan clamscan -
 EOF
 systemd-tmpfiles --create /etc/tmpfiles.d/clamav-freshclam.conf
+
+# freshclam 1.4.3 w trybie demona przy pierwszym starcie próbuje lchown()
+# na UpdateLogFile ZANIM go utworzy, jeśli plik jeszcze nie istnieje —
+# kończy się "lchown ... failed ... No such file or directory" i wyjściem
+# 9. Tworzymy plik z wyprzedzeniem, żeby obejść tę kolejność.
+touch /var/log/clamav/freshclam.log
+chown clamscan:clamscan /var/log/clamav/freshclam.log
 # 0755 nie wystarcza — clamilt (proces miltera, patrz niżej) potrzebuje
 # zapisu do /var/log/clamav jako suplementarny członek grupy clamscan, a
 # grupowe uprawnienia domyślne (r-x) na to nie pozwalają.
