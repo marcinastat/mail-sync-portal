@@ -136,13 +136,17 @@ def run_sync(
     }
 
 
-_STATS_PATTERNS = {
-    "messages_transferred": re.compile(r"Transferred messages\s*:\s*(\d+)"),
-    "folders_synced": re.compile(r"Folders synced\s*:\s*(\d+)"),
-    "bytes_transferred": re.compile(r"Transferred bytes\s*:\s*(\d+)"),
-    "messages_total": re.compile(r"Total messages on host1\s*:\s*(\d+)"),
-    "folders_total": re.compile(r"Total folders on host1\s*:\s*(\d+)"),
+# Wzorce dopasowane do rzeczywistego formatu podsumowania imapsync 2.229
+# (potwierdzone na żywym logu). "Folders synced : 7/7 synced" niesie i
+# zsynchronizowane, i całkowite; "Messages transferred : 486" itd.
+_STATS_SINGLE = {
+    "messages_transferred": re.compile(r"Messages transferred\s*:\s*(\d+)"),
+    "bytes_transferred": re.compile(r"Total bytes transferred\s*:\s*(\d+)"),
+    # "all 486 identified messages in host1 are on host2" — najpewniejsze
+    # źródło liczby wiadomości na źródle w tej wersji imapsync.
+    "messages_total": re.compile(r"all (\d+) identified messages in host1"),
 }
+_STATS_FOLDERS = re.compile(r"Folders synced\s*:\s*(\d+)\s*/\s*(\d+)")
 
 
 def _parse_stats(stdout: str) -> dict:
@@ -150,9 +154,14 @@ def _parse_stats(stdout: str) -> dict:
     parsowanie jest best-effort (brakujące pola zostają na 0), bo dokładny
     format może się różnić między wersjami; surowy log jest zawsze zachowany
     do ręcznej weryfikacji (job_runs.imapsync_log_path)."""
-    stats = dict.fromkeys(_STATS_PATTERNS, 0)
-    for key, pattern in _STATS_PATTERNS.items():
+    stats = {"messages_transferred": 0, "bytes_transferred": 0, "messages_total": 0,
+             "folders_synced": 0, "folders_total": 0}
+    for key, pattern in _STATS_SINGLE.items():
         match = pattern.search(stdout)
         if match:
             stats[key] = int(match.group(1))
+    folders = _STATS_FOLDERS.search(stdout)
+    if folders:
+        stats["folders_synced"] = int(folders.group(1))
+        stats["folders_total"] = int(folders.group(2))
     return stats
