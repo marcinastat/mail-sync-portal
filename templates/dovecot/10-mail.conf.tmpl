@@ -7,3 +7,14 @@ first_valid_gid = 5000
 last_valid_gid = 5000
 
 mail_plugins = $mail_plugins quota
+
+# Ten plik NADPISUJE stockowy conf.d/10-mail.conf, który zawierał blok
+# "namespace inbox { inbox = yes }". Bez jego odtworzenia Dovecot pada na
+# każdym logowaniu z "namespace configuration error: inbox=yes namespace
+# missing" (obserwowane — imapsync nie mógł utworzyć/wybrać folderów).
+namespace inbox {
+  type = private
+  separator = /
+  prefix =
+  inbox = yes
+}
