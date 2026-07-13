@@ -2,7 +2,13 @@ MilterSocket /run/clamav-milter/clamav-milter.sock
 MilterSocketGroup postfix
 MilterSocketMode 0660
 FixStaleSocket true
-User clamscan
+# Musi się zgadzać z User=/Group= narzuconym przez systemd w stockowej
+# jednostce RPM (/usr/lib/systemd/system/clamav-milter.service ma
+# User=clamilt, Group=clamilt, CapabilityBoundingSet=CAP_KILL — proces
+# startuje jako clamilt bez roota i BEZ CAP_SETUID, więc nie może sam
+# przełączyć się na innego usera; ustawienie tu "clamscan" powodowało ciche
+# odrzucenie startu). clamilt dostaje potrzebne grupy w scripts/vm2/40-clamav.sh.
+User clamilt
 ClamdSocket unix:/run/clamd.scan/clamd.sock
 LogFile /var/log/clamav/clamav-milter.log
 LogFileMaxSize 5M
