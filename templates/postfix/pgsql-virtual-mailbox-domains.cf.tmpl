@@ -1,0 +1,5 @@
+hosts = 127.0.0.1
+user = mail_app
+password = ${MAIL_DB_PASSWORD}
+dbname = mail_db
+query = SELECT 1 FROM virtual_domains WHERE name='%s' AND is_active = true

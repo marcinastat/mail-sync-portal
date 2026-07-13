@@ -1,0 +1,10 @@
+[Unit]
+Description=Uruchamia clamav-maildir-scan.service co ${CLAMAV_FRESHCLAM_INTERVAL_MIN} minut
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=${CLAMAV_FRESHCLAM_INTERVAL_MIN}min
+Unit=clamav-maildir-scan.service
+
+[Install]
+WantedBy=timers.target

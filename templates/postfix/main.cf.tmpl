@@ -1,0 +1,32 @@
+myhostname = ${VM2_HOSTNAME}
+myorigin = ${VM2_HOSTNAME}
+smtpd_banner = $myhostname ESMTP
+biff = no
+append_dot_mydomain = no
+compatibility_level = 3
+readme_directory = no
+
+# VM2 jest archiwum poczty karmionym przez imapsync (IMAP APPEND), nie
+# publicznym MX. Postfix nie nasłuchuje na interfejsie sieciowym — służy
+# wyłącznie do lokalnego dostarczania LMTP->Dovecot i jako punkt integracji
+# z ClamAV (obrona w głąb, na wypadek gdyby ktoś w przyszłości chciał
+# podłączyć realny odbiór SMTP). Patrz docs/technical/architecture.md,
+# pytanie otwarte "Postfix outbound role".
+inet_interfaces = loopback-only
+mydestination =
+
+virtual_mailbox_domains = pgsql:/etc/postfix/pgsql-virtual-mailbox-domains.cf
+virtual_mailbox_maps = pgsql:/etc/postfix/pgsql-virtual-mailbox-maps.cf
+virtual_mailbox_base = /var/mail/vhosts
+virtual_minimum_uid = 5000
+virtual_uid_maps = static:5000
+virtual_gid_maps = static:5000
+virtual_transport = lmtp:unix:private/dovecot-lmtp
+
+smtpd_milters = unix:/run/clamav-milter/clamav-milter.sock
+non_smtpd_milters = $smtpd_milters
+milter_default_action = accept
+milter_protocol = 6
+
+smtpd_relay_restrictions = permit_mynetworks, reject_unauth_destination
+mynetworks = 127.0.0.0/8

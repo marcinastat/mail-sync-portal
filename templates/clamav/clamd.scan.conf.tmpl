@@ -1,0 +1,12 @@
+LocalSocket /run/clamd.scan/clamd.sock
+LocalSocketGroup clamscan
+LocalSocketMode 0660
+FixStaleSocket true
+User clamscan
+LogFile /var/log/clamav/clamd.scan.log
+LogFileMaxSize 5M
+LogRotate true
+LogTime true
+PidFile /run/clamd.scan/clamd.pid
+DatabaseDirectory /var/lib/clamav
+MaxThreads 4

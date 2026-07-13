@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Skopiuj ten plik do config/install.conf i uzupełnij wartości przed uruchomieniem
+# jakiegokolwiek skryptu z scripts/vm1/ lub scripts/vm2/. Ten plik jest źródłem
+# prawdy dla wszystkich parametrów instalacji — skrypty nigdy nie hardkodują
+# adresów IP, podsieci ani nazw hostów.
+
+# --- Tożsamość maszyn -------------------------------------------------------
+VM1_HOSTNAME="portal.example.internal"
+VM1_IP="10.0.0.10"
+VM2_HOSTNAME="mail.example.internal"
+VM2_IP="10.0.0.20"
+
+# --- Sieć / firewall ---------------------------------------------------------
+# Podsieć (CIDR), z której wolno łączyć się do VM1 po SSH/HTTPS.
+ADMIN_SUBNET_CIDR="10.0.0.0/24"
+
+# --- PostgreSQL ---------------------------------------------------------------
+# Najnowsza aktualnie wspierana gałąź główna z oficjalnego repo PGDG.
+PGDG_MAJOR_VERSION="17"
+
+# --- nginx ---------------------------------------------------------------------
+# Repozytorium nginx.org (nie moduł AppStream dystrybucji).
+NGINX_REPO_STREAM="stable"
+
+# --- TLS na VM1 ------------------------------------------------------------------
+# selfsigned | certbot | manual
+TLS_MODE="selfsigned"
+TLS_SELFSIGNED_DAYS="3650"
+# Wymagane tylko gdy TLS_MODE=certbot (DNS-01 — VM1 nie jest internet-facing,
+# więc HTTP-01 nie zadziała). Patrz docs/technical/tls-lifecycle.md.
+CERTBOT_DNS_PROVIDER=""            # np. "cloudflare", "route53"
+CERTBOT_DNS_CREDENTIALS_FILE=""    # ścieżka do pliku z poświadczeniami API dostawcy DNS
+CERTBOT_EMAIL=""
+
+# --- imapsync ------------------------------------------------------------------
+IMAPSYNC_VERSION="pinned-at-install"  # patrz scripts/vm1/60-imapsync.sh
+
+# --- ClamAV (VM2) ----------------------------------------------------------------
+CLAMAV_FRESHCLAM_INTERVAL_MIN="60"
+
+# --- Provisioning API (VM2) -------------------------------------------------------
+VM2_API_PORT="8443"
+
+# --- Skala / limity domyślne ------------------------------------------------------
+DEFAULT_SYNC_DAYS_BACK="365"
+DEFAULT_SYNC_DELETE_ON_DEST="false"
+DEFAULT_MAILBOX_QUOTA_MB="0"   # 0 = bez limitu
+
+# --- Repozytoria pakietów ----------------------------------------------------------
+# true jeśli VM1/VM2 mają bezpośredni dostęp wychodzący do internetu (dnf/pip).
+# false wymagałoby skonfigurowania wewnętrznego mirrora/proxy (poza zakresem v1).
+OUTBOUND_INTERNET_ACCESS="true"

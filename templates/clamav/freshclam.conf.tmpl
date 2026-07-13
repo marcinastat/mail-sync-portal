@@ -1,0 +1,9 @@
+DatabaseDirectory /var/lib/clamav
+UpdateLogFile /var/log/clamav/freshclam.log
+LogFileMaxSize 5M
+LogRotate true
+LogTime true
+PidFile /run/clamav/freshclam.pid
+DatabaseOwner clamscan
+Checks 24
+DatabaseMirror database.clamav.net

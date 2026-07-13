@@ -1,0 +1,11 @@
+ca/
+config/install.conf
+*.bak-*
+*.rendered-sha256
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+/var/

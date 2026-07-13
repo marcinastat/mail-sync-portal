@@ -1,0 +1,14 @@
+driver = pgsql
+connect = host=127.0.0.1 dbname=mail_db user=mail_app password=${MAIL_DB_PASSWORD}
+default_pass_scheme = SHA512-CRYPT
+
+password_query = \
+  SELECT m.local_part AS user, m.password_hash AS password \
+  FROM virtual_mailboxes m JOIN virtual_domains d ON m.domain_id = d.id \
+  WHERE d.name = '%d' AND m.local_part = '%n' AND m.is_active = true
+
+user_query = \
+  SELECT '/var/mail/vhosts/%d/%n' AS home, 5000 AS uid, 5000 AS gid, \
+         concat('*:bytes=', CASE WHEN m.quota_bytes > 0 THEN m.quota_bytes ELSE 1099511627776 END) AS quota_rule \
+  FROM virtual_mailboxes m JOIN virtual_domains d ON m.domain_id = d.id \
+  WHERE d.name = '%d' AND m.local_part = '%n' AND m.is_active = true

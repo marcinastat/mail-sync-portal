@@ -1,0 +1,13 @@
+MilterSocket /run/clamav-milter/clamav-milter.sock
+MilterSocketGroup postfix
+MilterSocketMode 0660
+FixStaleSocket true
+User clamscan
+ClamdSocket unix:/run/clamd.scan/clamd.sock
+LogFile /var/log/clamav/clamav-milter.log
+LogFileMaxSize 5M
+LogRotate true
+LogTime true
+PidFile /run/clamav-milter/clamav-milter.pid
+OnInfected Reject
+AddHeader Replace

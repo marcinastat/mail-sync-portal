@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# VM2 — krok 30: Postfix (virtual mailbox domains, LMTP->Dovecot) + Dovecot
+# (IMAP/IMAPS, SQL passdb/userdb backed by mail_db). Tylko dostarczanie
+# lokalne — patrz komentarz w templates/postfix/main.cf.tmpl.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/common.sh"
+
+STEP_NAME="vm2-30-postfix-dovecot"
+require_root
+step_done "$STEP_NAME"
+load_install_conf
+
+REPO_ROOT="$(repo_root)"
+DB_PASS_FILE="/etc/portal/secrets/vm2-mail-db.pass"
+[[ -f "$DB_PASS_FILE" ]] || die "Brak $DB_PASS_FILE — uruchom najpierw scripts/vm2/20-postgresql.sh"
+export MAIL_DB_PASSWORD
+MAIL_DB_PASSWORD="$(cat "$DB_PASS_FILE")"
+export VM2_HOSTNAME
+
+pkg_install_idempotent postfix dovecot dovecot-pgsql postfix-pgsql
+
+# --- Użytkownik systemowy dla skrzynek wirtualnych --------------------------
+if ! id vmail >/dev/null 2>&1; then
+    groupadd -g 5000 vmail
+    useradd -u 5000 -g vmail -d /var/mail/vhosts -s /sbin/nologin -c "Virtual mail user" vmail
+fi
+mkdir -p /var/mail/vhosts
+chown vmail:vmail /var/mail/vhosts
+chmod 0750 /var/mail/vhosts
+
+# --- Certyfikat TLS dla Dovecot (self-signed, 10 lat, ruch tylko wewnętrzny) --
+DOVECOT_TLS_DIR="/etc/pki/dovecot"
+export DOVECOT_TLS_CERT="$DOVECOT_TLS_DIR/dovecot.crt"
+export DOVECOT_TLS_KEY="$DOVECOT_TLS_DIR/dovecot.key"
+mkdir -p "$DOVECOT_TLS_DIR"
+if [[ ! -f "$DOVECOT_TLS_KEY" ]]; then
+    openssl req -x509 -new -nodes -sha256 -days 3650 \
+        -subj "/CN=${VM2_HOSTNAME}" \
+        -keyout "$DOVECOT_TLS_KEY" -out "$DOVECOT_TLS_CERT"
+    chmod 0600 "$DOVECOT_TLS_KEY"
+fi
+
+# --- Postfix -----------------------------------------------------------------
+render_template "$REPO_ROOT/templates/postfix/main.cf.tmpl" /etc/postfix/main.cf
+render_template "$REPO_ROOT/templates/postfix/pgsql-virtual-mailbox-domains.cf.tmpl" /etc/postfix/pgsql-virtual-mailbox-domains.cf
+render_template "$REPO_ROOT/templates/postfix/pgsql-virtual-mailbox-maps.cf.tmpl" /etc/postfix/pgsql-virtual-mailbox-maps.cf
+chmod 0640 /etc/postfix/pgsql-virtual-mailbox-*.cf
+chgrp postfix /etc/postfix/pgsql-virtual-mailbox-*.cf
+
+# --- Dovecot -------------------------------------------------------------------
+render_template "$REPO_ROOT/templates/dovecot/dovecot-sql.conf.ext.tmpl" /etc/dovecot/dovecot-sql.conf.ext
+chmod 0640 /etc/dovecot/dovecot-sql.conf.ext
+chgrp dovecot /etc/dovecot/dovecot-sql.conf.ext
+
+render_template "$REPO_ROOT/templates/dovecot/10-mail.conf.tmpl" /etc/dovecot/conf.d/10-mail.conf
+render_template "$REPO_ROOT/templates/dovecot/10-master.conf.tmpl" /etc/dovecot/conf.d/10-master.conf
+render_template "$REPO_ROOT/templates/dovecot/10-ssl.conf.tmpl" /etc/dovecot/conf.d/10-ssl.conf
+render_template "$REPO_ROOT/templates/dovecot/10-auth.conf.tmpl" /etc/dovecot/conf.d/10-auth.conf
+
+# SELinux: pozwól Postfiksowi łączyć się z Postgresem po TCP i Dovecotowi
+# czytać/pisać w /var/mail/vhosts poza domyślną etykietą.
+if command -v setsebool >/dev/null 2>&1; then
+    setsebool -P postfix_can_network_connect_db on || true
+fi
+if command -v semanage >/dev/null 2>&1; then
+    semanage fcontext -a -t mail_spool_t "/var/mail/vhosts(/.*)?" 2>/dev/null || true
+    restorecon -R /var/mail/vhosts || true
+fi
+
+systemctl enable --now postfix dovecot
+systemctl restart postfix dovecot
+
+log_info "Postfix + Dovecot skonfigurowane (domeny wirtualne z mail_db)."
+mark_step_done "$STEP_NAME"

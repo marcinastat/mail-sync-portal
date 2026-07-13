@@ -1,0 +1,5 @@
+hosts = 127.0.0.1
+user = mail_app
+password = ${MAIL_DB_PASSWORD}
+dbname = mail_db
+query = SELECT 1 FROM virtual_mailboxes m JOIN virtual_domains d ON m.domain_id = d.id WHERE d.name = '%d' AND m.local_part = '%u' AND m.is_active = true
