@@ -21,6 +21,18 @@ if ! id vm2-api >/dev/null 2>&1; then
     useradd --system --home-dir "$APP_DIR" --shell /sbin/nologin --create-home vm2-api
 fi
 
+# API czyta hasło do bazy w runtime jako user vm2-api (config.py:get_settings).
+# Plik generuje 20-postgresql.sh jako 0600 root — bez tego vm2-api dostaje
+# PermissionError i usługa w ogóle nie startuje. Otwieramy dostęp tylko do
+# tego jednego pliku (reszta /etc/portal/secrets zostaje root-only, jest
+# czytana wyłącznie jako root przy renderowaniu configów Postfix/Dovecot).
+DB_PASS_FILE="/etc/portal/secrets/vm2-mail-db.pass"
+if [[ -f "$DB_PASS_FILE" ]]; then
+    chmod 0711 /etc/portal/secrets
+    chown vm2-api:vm2-api "$DB_PASS_FILE"
+    chmod 0600 "$DB_PASS_FILE"
+fi
+
 mkdir -p "$APP_DIR"
 # Katalog virtualenv nazywa się "venv" (bez kropki, patrz niżej) — exclude
 # musi się z nim zgadzać, inaczej rsync --delete przy każdym uruchomieniu
