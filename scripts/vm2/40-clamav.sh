@@ -19,13 +19,22 @@ if ! rpm -q epel-release >/dev/null 2>&1; then
 fi
 pkg_install_idempotent clamav clamav-update clamav-server clamav-server-systemd clamav-milter clamav-milter-systemd
 
-mkdir -p /var/log/clamav /run/clamd.scan /run/clamav-milter /var/lib/clamav
+mkdir -p /var/log/clamav /run/clamd.scan /run/clamav-milter /run/clamav /var/lib/clamav
 # Pakiet EPEL domyślnie zakłada właściciela clamupdate:clamupdate dla
 # /var/lib/clamav, ale nasza konfiguracja (freshclam.conf: DatabaseOwner
 # clamscan; clamd.scan.conf: User clamscan) świadomie używa jednego,
 # spójnego konta clamscan dla wszystkiego — bez tego chowna freshclam nie
 # może zapisać baz (obserwowany błąd: "Can't create freshclam.dat").
-chown -R clamscan:clamscan /var/log/clamav /run/clamd.scan /var/lib/clamav 2>/dev/null || true
+chown -R clamscan:clamscan /var/log/clamav /run/clamd.scan /run/clamav /var/lib/clamav 2>/dev/null || true
+
+# /run jest tmpfs — czyszczony przy każdym reboocie. Bez reguły tmpfiles.d
+# /run/clamav (gdzie freshclam.conf każe zapisywać PidFile) po restarcie VM
+# by nie istniał i clamav-freshclam.service padałby z "No such file or
+# directory" tak samo jak teraz, dopóki ktoś ręcznie nie doda go z powrotem.
+cat > /etc/tmpfiles.d/clamav-freshclam.conf <<'EOF'
+d /run/clamav 0755 clamscan clamscan -
+EOF
+systemd-tmpfiles --create /etc/tmpfiles.d/clamav-freshclam.conf
 # 0755 nie wystarcza — clamilt (proces miltera, patrz niżej) potrzebuje
 # zapisu do /var/log/clamav jako suplementarny członek grupy clamscan, a
 # grupowe uprawnienia domyślne (r-x) na to nie pozwalają.
