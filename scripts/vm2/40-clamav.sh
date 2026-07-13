@@ -52,7 +52,13 @@ fi
 # reset-failed: jeśli poprzednie uruchomienie tego skryptu nie powiodło się
 # (np. przez brak uprawnień do /var/lib/clamav, patrz wyżej), systemd mógł
 # wejść w start-limit-hit i odmawiać restartu mimo poprawionej przyczyny.
-systemctl reset-failed clamd@scan.service clamav-milter@scan.service clamav-milter.service 2>/dev/null || true
+systemctl reset-failed clamd@scan.service clamav-milter@scan.service clamav-milter.service clamav-freshclam.service 2>/dev/null || true
+
+# Stary plik pid po nieudanym/przerwanym starcie bywa root:root (proces
+# docelowo działa jako clamilt — patrz komentarz przy usermod wyżej) i
+# blokuje kolejny start ("Can't save PID in file ..."); bezpieczne do
+# usunięcia, systemd i tak śledzi proces po swoim cgroup, nie po tym pliku.
+rm -f /run/clamav-milter/clamav-milter.pid
 
 systemctl enable --now clamd@scan
 systemctl enable --now clamav-milter@scan 2>/dev/null || systemctl enable --now clamav-milter
@@ -61,7 +67,9 @@ install -D -m 0644 "$REPO_ROOT/templates/systemd/clamav-maildir-scan.service.tmp
 render_template "$REPO_ROOT/templates/systemd/clamav-maildir-scan.timer.tmpl" /etc/systemd/system/clamav-maildir-scan.timer '$CLAMAV_FRESHCLAM_INTERVAL_MIN'
 systemctl daemon-reload
 systemctl enable --now clamav-maildir-scan.timer
-systemctl enable --now freshclam 2>/dev/null || true
+# Nazwa jednostki to clamav-freshclam (nie "freshclam") — działa w trybie
+# demona (freshclam -d), respektując "Checks 24" z freshclam.conf.
+systemctl enable --now clamav-freshclam
 
 log_info "ClamAV skonfigurowany: clamd + milter (obrona w głąb) + okresowe skanowanie /var/mail/vhosts co ${CLAMAV_FRESHCLAM_INTERVAL_MIN}min."
 mark_step_done "$STEP_NAME"
