@@ -18,3 +18,14 @@ namespace inbox {
   prefix =
   inbox = yes
 }
+
+# Backend quoty — bez tego `doveadm quota get` zwraca "Quota not enabled",
+# a panel nie może pokazać zajętości skrzynki. Limit pochodzi z userdb
+# (user_query zwraca quota_rule w dovecot-sql.conf.ext). "maildir:User quota"
+# liczy zajętość z maildira. imap_quota udostępnia zajętość klientom IMAP.
+plugin {
+  quota = maildir:User quota
+}
+protocol imap {
+  mail_plugins = $mail_plugins imap_quota
+}
