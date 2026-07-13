@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Branding — Ustawienia{% endblock %}
+{% block content %}
+  <h1>Branding</h1>
+  {% if saved %}<div class="card" style="border-color:#16a34a">Zapisano. Odśwież panel i Roundcube (Ctrl+Shift+R), aby zobaczyć zmiany.</div>{% endif %}
+
+  <div class="card">
+    <p style="font-size:0.85rem;color:#64748b">Zmiany obejmują: nazwę produktu (podpis „Portal Poczty" w panelu i Roundcube), logo (panel, Roundcube, strony błędów nginx) oraz kolory motywu panelu.</p>
+    <form method="post" action="/admin/settings/branding" enctype="multipart/form-data">
+      <label for="product_name">Nazwa / podpis</label>
+      <input type="text" id="product_name" name="product_name" value="{{ branding.product_name }}" required>
+
+      <label for="logo">Logo (PNG/JPG){% if branding.logo_path %} — obecne:
+        <img src="/admin/static/branding/{{ branding.logo_path }}?v={{ branding.generated_at }}" alt="logo" style="height:24px;vertical-align:middle;margin-left:0.5rem">
+      {% endif %}</label>
+      <input type="file" id="logo" name="logo" accept="image/*">
+
+      <label for="primary_color">Kolor główny</label>
+      <input type="color" id="primary_color" name="primary_color" value="{{ branding.primary_color }}">
+      <label for="secondary_color">Kolor drugorzędny (tło)</label>
+      <input type="color" id="secondary_color" name="secondary_color" value="{{ branding.secondary_color }}">
+      <label for="accent_color">Kolor akcentu</label>
+      <input type="color" id="accent_color" name="accent_color" value="{{ branding.accent_color }}">
+
+      <p style="margin-top:1rem"><button class="btn" type="submit">Zapisz branding</button></p>
+    </form>
+  </div>
+{% endblock %}
