@@ -72,4 +72,13 @@ ca/                      # generowane lokalnie przy instalacji, NIGDY nie commit
 | Hasło skrzynki docelowej VM2 | Lustrzane odwzorowanie hasła źródłowego z XLS | decyzja użytkownika, prostsze |
 | TLS na VM1 | Self-signed 10 lat domyślnie; certbot tylko DNS-01; manual paste z walidacją | VM1 nie jest internet-facing |
 
-Pełne szczegóły (schemat danych, przepływ importu, zarządzanie hasłami, API VM2, bezpieczeństwo/audyt, first-run wizard, dashboard, eksporty, kolejność budowy, weryfikacja, otwarte pytania) — patrz plik planu źródłowego wskazany na górze tego dokumentu; zostanie tu przeniesiony 1:1 w kolejnej aktualizacji dokumentacji (Faza 12).
+Pełne szczegóły w dedykowanych dokumentach:
+
+- Sieć i granice zaufania: `docs/technical/network.md`
+- Schemat baz danych: `docs/technical/database-schema.md`
+- Cykl życia TLS: `docs/technical/tls-lifecycle.md`
+- Backup/DR: `docs/technical/backup-strategy.md`
+- Runbook po `dnf update`: `docs/technical/runbooks/post-update-checklist.md`
+- Status implementacji per faza: `docs/technical/build-status.md`
+- Instalacja krok po kroku: `INSTALL.md` (root repo)
+- Dokumentacja użytkowa: `docs/user/` (dostępna też w panelu pod `/admin/docs`)
