@@ -9,7 +9,7 @@ require_root
 step_done "$STEP_NAME"
 load_install_conf
 
-UNITS=(firewalld "postgresql-${PGDG_MAJOR_VERSION}" postfix dovecot clamd@scan clamav-milter@scan clamav-maildir-scan.timer vm2-disk-check.timer vm2-provisioning-api)
+UNITS=(firewalld "postgresql-${PGDG_MAJOR_VERSION}" postfix dovecot clamd@scan clamav-milter clamav-freshclam clamav-maildir-scan.timer vm2-disk-check.timer vm2-provisioning-api)
 FAILED=0
 for unit in "${UNITS[@]}"; do
     if systemctl is-active --quiet "$unit"; then
