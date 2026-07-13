@@ -87,6 +87,16 @@ sudo -u portal-app bash -c "cd '$APP_DIR' && venv/bin/alembic upgrade head"
 mkdir -p /run/portal-app/imapsync /run/portal-import
 chown -R portal-app:portal-app /run/portal-app /run/portal-import
 
+# RuntimeDirectoryMode=0750 (portal-gunicorn.service.tmpl) oznacza, że tylko
+# grupa portal-app może wejść do /run/portal-app — nginx działa jako
+# osobny user "nginx" (templates/nginx/nginx.conf.tmpl), więc bez dopisania
+# go do tej grupy dostaje zwykłe DAC "Permission denied" przy connect() do
+# gunicorn.sock, niezależnie od etykiety SELinux (patrz fcontext niżej —
+# to dwa NIEZALEŻNE warunki, oba muszą być spełnione).
+if id nginx >/dev/null 2>&1; then
+    usermod -aG portal-app nginx
+fi
+
 # nginx (domena SELinux httpd_t) musi się połączyć z gniazdem Unix Gunicorna
 # w /run/portal-app/ — bez etykiety httpd_var_run_t dostaje AVC denied na
 # connectto (ten sam rodzaj problemu co /run/nginx.pid w scripts/vm1/30-nginx.sh).
