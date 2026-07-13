@@ -40,7 +40,11 @@ chmod 0600 "$DB_PASS_FILE"
 mkdir -p "$APP_DIR"
 # "venv" (bez kropki) - patrz komentarz w scripts/vm2/50-provisioning-api.sh
 # o tym samym błędzie (rsync --delete próbujący skasować cały virtualenv).
-rsync -a --delete --exclude '__pycache__' --exclude 'venv' --exclude 'tests' "$REPO_ROOT/app/" "$APP_DIR/"
+# portal_app/static/branding/ WYKLUCZONE z --delete: tam ląduje logo wgrane
+# przez admina (nie ma go w repo), a bez wykluczenia rsync --delete kasowałby
+# je przy każdym redeployu — obserwowane: znikające logo brandingu.
+rsync -a --delete --exclude '__pycache__' --exclude 'venv' --exclude 'tests' \
+    --exclude 'portal_app/static/branding' "$REPO_ROOT/app/" "$APP_DIR/"
 rsync -a --delete "$REPO_ROOT/docs/" "$APP_DIR/docs/"
 chown -R portal-app:portal-app "$APP_DIR"
 
