@@ -12,6 +12,8 @@ require_root
 step_done "$STEP_NAME"
 load_install_conf
 
+install_base_prereqs
+
 check_os_rocky10
 check_disk_space_gb "/" 20
 check_disk_space_gb "/var" 20

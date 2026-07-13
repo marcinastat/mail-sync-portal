@@ -63,6 +63,14 @@ pkg_install_idempotent() {
     dnf install -y "$@"
 }
 
+# Rocky Linux "Minimal" NIE zawiera nawet openssl/rsync/tar domyślnie — a
+# common.sh (ensure_secret_file, mtls.sh) i kilka skryptów instalacyjnych
+# (rsync app/ na VM1, tar przy rozpakowywaniu Roundcube) zakładają ich
+# obecność. Wołane z każdego 00-preflight.sh, zanim cokolwiek innego ich użyje.
+install_base_prereqs() {
+    pkg_install_idempotent openssl rsync tar curl nano
+}
+
 # Renderuje szablon do pliku docelowego. Trzeci argument to jawna lista
 # zmiennych do podstawienia (np. '$VM1_HOSTNAME $VM2_IP'), przekazywana
 # wprost do envsubst jako whitelist. To NIE jest opcjonalne dla szablonów

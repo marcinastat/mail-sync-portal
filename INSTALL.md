@@ -11,7 +11,11 @@ go automatycznie, formatuje (XFS) i montuje pod `/var/mail/vhosts`. Jeśli VM2
 ma więcej niż 2 dyski, ustaw jawnie `VM2_MAIL_DISK=/dev/sdX` w
 `config/install.conf` (patrz krok 0). VM1 wystarczy jeden dysk.
 
-## 0. Przygotowanie na obu VM
+## 0. Przygotowanie repozytorium
+
+Dwie opcje — wybierz jedną.
+
+### Opcja A: git clone na obu VM osobno
 
 Na **VM1** i na **VM2** osobno:
 
@@ -22,8 +26,35 @@ cd mail-sync-portal
 cp config/install.conf.example config/install.conf
 ```
 
+### Opcja B: klonujesz tylko na VM1, stamtąd wypychasz na VM2
+
+Na **VM1**:
+
+```bash
+sudo dnf -y install git
+git clone https://github.com/marcinastat/mail-sync-portal.git
+cd mail-sync-portal
+cp config/install.conf.example config/install.conf
+```
+
+Uzupełnij `config/install.conf` (patrz niżej), potem:
+
+```bash
+sudo scripts/vm1/sync-to-vm2.sh
+```
+
+Skrypt sam wygeneruje klucz SSH na VM1, wypchnie go na VM2 (**poprosi o
+hasło roota VM2 jednorazowo** — potem już nie), i zsynchronizuje całe
+repozytorium na VM2 pod `/root/mail-sync-portal` (rsync, bezpieczne do
+wielokrotnego uruchomienia po każdej zmianie). Skrypty `scripts/vm2/*.sh`
+nadal uruchamiasz **ręcznie i po kolei bezpośrednio na VM2** (przez SSH) —
+ten skrypt tylko przygotowuje tam pliki, niczego zdalnie nie instaluje.
+
+### Konfiguracja (obie opcje)
+
 Otwórz `config/install.conf` (np. `nano config/install.conf`) i uzupełnij
-**dokładnie te same wartości na obu VM** (to jeden wspólny plik konfiguracyjny):
+**dokładnie te same wartości wszędzie, gdzie plik istnieje** (jeśli używasz
+Opcji B, wystarczy uzupełnić raz na VM1 — `sync-to-vm2.sh` skopiuje plik na VM2):
 
 ```
 VM1_HOSTNAME="portal.twoja-firma.local"
@@ -62,8 +93,17 @@ Certyfikat kliencki dla VM1 gotowy w .../ca/vm1-client.{crt,key} — skopiuj go 
 
 ## 2. Skopiuj certyfikaty mTLS z VM2 na VM1
 
-Z Twojego komputera (albo z VM2 do VM1 bezpośrednio po SSH), skopiuj 3 pliki
-z `mail-sync-portal/ca/` na VM2 do `/etc/portal/vm1-client/` na VM1:
+Jeśli używałeś **Opcji B** (kroku `sync-to-vm2.sh`) w kroku 0, na VM1 wystarczy:
+
+```bash
+sudo scripts/vm1/fetch-vm2-client-cert.sh
+```
+
+— pobierze `ca/vm1-client.{crt,key}` i `ca/ca.crt` z VM2 (tym samym kluczem
+SSH co `sync-to-vm2.sh`) i zainstaluje je pod `/etc/portal/vm1-client/`.
+
+Jeśli używałeś **Opcji A** (osobny `git clone` na każdej VM), skopiuj 3 pliki
+ręcznie z `mail-sync-portal/ca/` na VM2 do `/etc/portal/vm1-client/` na VM1:
 
 ```bash
 # uruchom to z VM2 (albo dostosuj do swojego sposobu łączenia się z VM1)
@@ -113,7 +153,13 @@ Z komputera znajdującego się w podsieci `ADMIN_SUBNET_CIDR`:
 
 - Każdy skrypt loguje się czytelnie i można go uruchomić ponownie (jest
   idempotentny) — `FORCE_REAPPLY=1 sudo scripts/vmX/NN-*.sh` wymusza ponowne
-  wykonanie danego kroku.
+  wykonanie danego kroku (uwaga: `00-preflight.sh` z `FORCE_REAPPLY=1` też
+  ponownie doinstaluje pakiety bazowe — przydatne po `git pull`, jeśli
+  wcześniej brakowało np. `openssl`/`rsync`).
 - `sudo scripts/vm1/health-check.sh` — szybki przegląd usług na VM1.
 - Status usług: `systemctl status <nazwa>`, logi: `journalctl -u <nazwa> -e`.
+- Jeśli `clamd@scan` nie startuje z błędem `Can't create freshclam.dat` /
+  `No supported database files found` — to znak, że masz starszą wersję repo
+  sprzed poprawki uprawnień `/var/lib/clamav`; zrób `git pull` i uruchom
+  ponownie `sudo scripts/vm2/40-clamav.sh`.
 - Pełny status faz projektu: `docs/technical/build-status.md`.

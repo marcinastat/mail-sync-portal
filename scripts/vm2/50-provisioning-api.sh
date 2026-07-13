@@ -31,14 +31,18 @@ fi
 sudo -u vm2-api "$APP_DIR/venv/bin/pip" install --upgrade pip -q
 sudo -u vm2-api "$APP_DIR/venv/bin/pip" install -r "$APP_DIR/requirements.txt" -q
 
-# --- mTLS: certyfikat serwera dla API (CA generowane przez lib/mtls.sh) -------
+# --- mTLS: CA + certyfikat serwera (API) + certyfikat kliencki (dla VM1) ------
+# Oba certyfikaty MUSZĄ powstać tutaj — CA żyje tylko na VM2. Wcześniej ten
+# skrypt generował tylko cert serwera i tylko *twierdził* w logu, że cert
+# kliencki jest gotowy (realny błąd, poprawione).
 mtls_setup_vm2_server "$REPO_ROOT/ca" "$VM2_HOSTNAME"
+mtls_setup_vm1_client "$REPO_ROOT/ca"
 mkdir -p "$TLS_DIR"
 install -m 0640 -o vm2-api -g vm2-api "$REPO_ROOT/ca/vm2-server.crt" "$TLS_DIR/server.crt"
 install -m 0600 -o vm2-api -g vm2-api "$REPO_ROOT/ca/vm2-server.key" "$TLS_DIR/server.key"
 install -m 0640 -o vm2-api -g vm2-api "$REPO_ROOT/ca/ca.crt" "$TLS_DIR/ca.crt"
 
-log_info "Certyfikat kliencki dla VM1 gotowy w $REPO_ROOT/ca/vm1-client.{crt,key} — skopiuj go bezpiecznie na VM1 (np. scp przez tunel administracyjny), NIE przez sieć publiczną."
+log_info "Certyfikat kliencki dla VM1 gotowy w $REPO_ROOT/ca/vm1-client.{crt,key} (+ $REPO_ROOT/ca/ca.crt) — skopiuj oba na VM1 do /etc/portal/vm1-client/{client.crt,client.key,ca.crt}. Możesz użyć scripts/vm1/fetch-vm2-client-cert.sh (patrz INSTALL.md)."
 
 # --- sudoers.d (jedyna realna granica uprawnień, patrz komentarz w unicie) ----
 # vm2-api.tmpl jest statyczny (brak ${VAR}), więc render_template go tylko kopiuje.
