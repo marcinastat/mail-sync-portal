@@ -34,11 +34,21 @@ ExecStart=/opt/portal-app/venv/bin/gunicorn portal_app.app:app \
 Restart=on-failure
 RestartSec=5
 
-NoNewPrivileges=true
-ProtectSystem=strict
+# NoNewPrivileges celowo NIE ustawione: aplikacja wywołuje sudo dla DWÓCH
+# ściśle określonych skryptów (apply-branding.sh, apply-tls.sh), a
+# NoNewPrivileges=true blokuje jakąkolwiek eskalację przez setuid (sudo pada
+# z "no new privileges flag is set"). Realną granicą bezpieczeństwa jest tu
+# wąski /etc/sudoers.d/portal-app (tylko te dwa skrypty, root-owned 0700),
+# nie ta flaga — identyczny kompromis jak w vm2-provisioning-api.service.
+#
+# ProtectSystem=full (nie strict): /usr, /boot, /etc pozostają read-only, ale
+# /var jest zapisywalny — bez tego sudo'owany helper (dziedziczy namespace
+# usługi) nie mógłby zapisać stron błędów do /var/www/errors ani wykonać
+# systemctl reload nginx. /etc/portal/tls jawnie odblokowane dla apply-tls.sh.
+ProtectSystem=full
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=/var/log/portal /var/lib/portal-app /opt/portal-app/portal_app/static
+ReadWritePaths=/var/log/portal /var/lib/portal-app /opt/portal-app/portal_app/static /var/www/errors /etc/portal/tls
 
 [Install]
 WantedBy=multi-user.target
