@@ -26,6 +26,17 @@ if ! id portal-app >/dev/null 2>&1; then
     useradd --system --home-dir "$APP_DIR" --shell /sbin/nologin --create-home portal-app
 fi
 
+# portal_app czyta DB_PASS_FILE w runtime jako user portal-app (alembic
+# teraz, gunicorn/worker/scheduler później) — nie jako root. Domyślne
+# uprawnienia z 10-base-hardening.sh (katalog 0700 root, plik 0600 root)
+# blokują to całkowicie (obserwowane: PermissionError w alembic env.py).
+# Otwieramy tylko dostęp do TEGO JEDNEGO pliku; reszta /etc/portal/secrets
+# zostaje nietknięta (0700, root-only — czytana wyłącznie przy renderowaniu
+# configów jako root, np. Roundcube w scripts/vm1/40-roundcube.sh).
+chmod 0711 /etc/portal/secrets
+chown portal-app:portal-app "$DB_PASS_FILE"
+chmod 0600 "$DB_PASS_FILE"
+
 mkdir -p "$APP_DIR"
 # "venv" (bez kropki) - patrz komentarz w scripts/vm2/50-provisioning-api.sh
 # o tym samym błędzie (rsync --delete próbujący skasować cały virtualenv).
