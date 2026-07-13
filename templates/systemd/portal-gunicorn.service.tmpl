@@ -11,6 +11,14 @@ WorkingDirectory=/opt/portal-app
 RuntimeDirectory=portal-app
 RuntimeDirectoryMode=0750
 
+# systemd NIE konsultuje bazy semanage fcontext przy tworzeniu
+# RuntimeDirectory= (mimo trwałej reguły dodanej w scripts/vm1/50-portal-app.sh)
+# — katalog dostaje zwykłe var_run_t z /run, więc nginx (domena httpd_t) nie
+# może się połączyć z gunicorn.sock (AVC denied, "Permission denied" mimo
+# 0750/rwx). "+" uruchamia tę jedną linię jako root, mimo User=portal-app
+# powyżej — bez tego restorecon sam nie miałby uprawnień.
+ExecStartPre=+/usr/sbin/restorecon -R /run/portal-app
+
 # Klucze nigdy nie lądują jako plaintext na dysku — systemd je odszyfrowuje
 # (systemd-creds, ewentualnie związane z TPM2) do prywatnej, tylko-w-pamięci
 # przestrzeni tego unitu, dostępnej pod $CREDENTIALS_DIRECTORY. Patrz
