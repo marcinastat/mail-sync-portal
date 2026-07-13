@@ -79,7 +79,16 @@
         <p style="margin:0.2rem 0">Health: {% if vm2_status.last_health_check_ok %}<span class="badge ok">OK</span>{% else %}<span class="badge err">problem</span>{% endif %}
           <span class="hint">{{ vm2_status.last_health_check_at | dt }}</span></p>
         {% if vm2_status.av %}
-          <p style="margin:0.2rem 0">ClamAV: {% if vm2_status.av.clamd_alive %}<span class="badge ok">aktywny</span>{% else %}<span class="badge err">nieaktywny</span>{% endif %}</p>
+          <p style="margin:0.2rem 0">ClamAV: {% if vm2_status.av.clamd_alive %}<span class="badge ok">aktywny</span>{% else %}<span class="badge err">nieaktywny</span>{% endif %}
+            {% if vm2_status.av.defs_current is not none %}
+              {% if vm2_status.av.defs_current %}<span class="badge ok">definicje aktualne</span>{% else %}<span class="badge warn">definicje nieaktualne</span>{% endif %}
+            {% endif %}
+          </p>
+          <p style="margin:0.1rem 0" class="hint">
+            {% if vm2_status.av.engine_version %}silnik {{ vm2_status.av.engine_version }} · {% endif %}
+            {% if vm2_status.av.defs_version %}baza sygnatur {{ vm2_status.av.defs_version }} · {% endif %}
+            aktualizacja: {{ vm2_status.av.last_defs_update | dt }}{% if vm2_status.av.defs_age_hours is not none %} ({{ vm2_status.av.defs_age_hours }}h temu){% endif %}
+          </p>
         {% endif %}
         {% if vm2_status.disk_usage %}
           {% for dk, dlbl in [("os_disk","Dysk systemowy"), ("mail_disk","Dysk pocztowy")] %}
