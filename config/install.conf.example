@@ -19,8 +19,12 @@ ADMIN_SUBNET_CIDR="10.0.0.0/24"
 PGDG_MAJOR_VERSION="17"
 
 # --- nginx ---------------------------------------------------------------------
-# Repozytorium nginx.org (nie moduł AppStream dystrybucji).
-NGINX_REPO_STREAM="stable"
+# Repozytorium nginx.org (nie moduł AppStream dystrybucji). nginx.org od
+# pewnego czasu NIE publikuje już gałęzi "stable" dla RHEL/CentOS (dowolnej
+# wersji, nie tylko 10) — działa tylko "mainline" (potwierdzone: 404 na
+# stable/rhel/{7,8,9,10}, 200 na mainline/rhel/{7,8,9,10}). "mainline" mimo
+# nazwy jest tym, czego realnie używa się produkcyjnie na RHEL-family.
+NGINX_REPO_STREAM="mainline"
 
 # --- TLS na VM1 ------------------------------------------------------------------
 # selfsigned | certbot | manual

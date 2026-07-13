@@ -13,7 +13,7 @@ step_done "$STEP_NAME"
 load_install_conf
 
 REPO_ROOT="$(repo_root)"
-export NGINX_REPO_STREAM="${NGINX_REPO_STREAM:-stable}"
+export NGINX_REPO_STREAM="${NGINX_REPO_STREAM:-mainline}"
 export VM1_HOSTNAME
 
 if [[ ! -f /etc/yum.repos.d/nginx.repo ]]; then
