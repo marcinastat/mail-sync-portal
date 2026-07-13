@@ -18,8 +18,18 @@
     </div>
     <div class="stat">
       <div class="label">Wiadomości (u nas / źródło)</div>
-      <div class="value">{{ last_success.messages_total if last_success else 0 }}<span class="muted" style="font-size:1rem;font-weight:600"> / {{ last_success.source_messages_total if last_success and last_success.source_messages_total else "?" }}</span></div>
-      <div class="sub">docelowy (VM2) / źródłowy serwer</div>
+      {% set dest_n = (last_success.dest_nb_messages or last_success.messages_total) if last_success else 0 %}
+      {% set src_n = (last_success.source_nb_messages or last_success.source_messages_total) if last_success else 0 %}
+      <div class="value">{{ dest_n }}<span class="muted" style="font-size:1rem;font-weight:600"> / {{ src_n if src_n else "?" }}</span></div>
+      {% if last_success %}
+        {% if last_success.source_missing and last_success.source_missing > 0 %}
+          <div class="sub"><span class="badge err">brakuje {{ last_success.source_missing }}</span> na źródle a nie u nas</div>
+        {% else %}
+          <div class="sub"><span class="badge ok">komplet</span> imapsync: 0 brakujących
+            {%- if last_success.source_duplicates and last_success.source_duplicates > 0 %}, {{ last_success.source_duplicates }} duplikatów na źródle (nie kopiujemy){% endif %}
+          </div>
+        {% endif %}
+      {% else %}<div class="sub">docelowy (VM2) / źródłowy serwer</div>{% endif %}
     </div>
     <div class="stat">
       <div class="label">Rozmiar (u nas / źródło)</div>

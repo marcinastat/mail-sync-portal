@@ -56,5 +56,15 @@ class JobRun(Base, TimestampMixin):
     # Wiadomości obecne na VM2, których już nie ma w źródle (zachowane
     # zgodnie z domyślną polityką "nie kasuj na docelowym") — wskaźnik "drift".
     messages_missing_from_source_retained: Mapped[int] = mapped_column(Integer, default=0)
+    # Autorytatywne liczniki imapsync (nie surowy SELECT) — do rzetelnego,
+    # nie-alarmującego pokazania stanu w panelu:
+    #  dest_nb_messages   — realna liczba wiadomości u nas (Host2 Nb messages)
+    #  source_nb_messages — realna liczba wiadomości na źródle (Host1 Nb messages)
+    #  source_duplicates  — duplikaty na źródle (nie kopiujemy ich, nie ubytek)
+    #  source_missing     — wiadomości na źródle, których NIE ma u nas (0 = komplet)
+    dest_nb_messages: Mapped[int] = mapped_column(Integer, default=0)
+    source_nb_messages: Mapped[int] = mapped_column(Integer, default=0)
+    source_duplicates: Mapped[int] = mapped_column(Integer, default=0)
+    source_missing: Mapped[int] = mapped_column(Integer, default=0)
     error_summary: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     imapsync_log_path: Mapped[str | None] = mapped_column(String(500), nullable=True)

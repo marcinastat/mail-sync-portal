@@ -30,7 +30,7 @@
                 {% elif m.provisioning_status == "pending" %}<span class="badge warn">oczekuje</span>
                 {% else %}<span class="badge err">{{ m.provisioning_status }}</span>{% endif %}
               </td>
-              <td>{% if lr %}<strong>{{ lr.messages_total }}</strong> / {{ lr.source_messages_total or "?" }}{% else %}<span class="hint">—</span>{% endif %}</td>
+              <td>{% if lr %}<strong>{{ lr.dest_nb_messages or lr.messages_total }}</strong> / {{ lr.source_nb_messages or lr.source_messages_total or "?" }}{% if lr.source_missing and lr.source_missing > 0 %} <span class="badge err" title="na źródle a nie u nas">−{{ lr.source_missing }}</span>{% endif %}{% else %}<span class="hint">—</span>{% endif %}</td>
               <td>{{ m.dest_bytes | mb }} <span class="hint">/ {{ m.source_bytes | mb }}</span></td>
               <td class="muted">{{ sj.days_back if sj else 365 }}{% if sj and sj.days_back == 0 %} <span class="hint">(wszystko)</span>{% endif %}</td>
               <td>{% if sj and sj.is_enabled %}<span class="badge ok">włączona</span>{% else %}<span class="badge muted">wyłączona</span>{% endif %}</td>
