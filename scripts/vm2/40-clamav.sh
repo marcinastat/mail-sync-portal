@@ -19,8 +19,13 @@ if ! rpm -q epel-release >/dev/null 2>&1; then
 fi
 pkg_install_idempotent clamav clamav-update clamav-server clamav-server-systemd clamav-milter clamav-milter-systemd
 
-mkdir -p /var/log/clamav /run/clamd.scan /run/clamav-milter
-chown clamscan:clamscan /var/log/clamav /run/clamd.scan 2>/dev/null || true
+mkdir -p /var/log/clamav /run/clamd.scan /run/clamav-milter /var/lib/clamav
+# Pakiet EPEL domyślnie zakłada właściciela clamupdate:clamupdate dla
+# /var/lib/clamav, ale nasza konfiguracja (freshclam.conf: DatabaseOwner
+# clamscan; clamd.scan.conf: User clamscan) świadomie używa jednego,
+# spójnego konta clamscan dla wszystkiego — bez tego chowna freshclam nie
+# może zapisać baz (obserwowany błąd: "Can't create freshclam.dat").
+chown -R clamscan:clamscan /var/log/clamav /run/clamd.scan /var/lib/clamav 2>/dev/null || true
 
 render_template "$REPO_ROOT/templates/clamav/freshclam.conf.tmpl" /etc/freshclam.conf
 render_template "$REPO_ROOT/templates/clamav/clamd.scan.conf.tmpl" /etc/clamd.d/scan.conf
@@ -30,6 +35,11 @@ if [[ ! -f /var/lib/clamav/main.cvd && ! -f /var/lib/clamav/main.cld ]]; then
     log_info "Pobieram wstępne definicje wirusów (freshclam)..."
     freshclam || log_warn "Wstępny freshclam nie powiódł się — sprawdź łączność wychodzącą do database.clamav.net; freshclam.timer spróbuje ponownie."
 fi
+
+# reset-failed: jeśli poprzednie uruchomienie tego skryptu nie powiodło się
+# (np. przez brak uprawnień do /var/lib/clamav, patrz wyżej), systemd mógł
+# wejść w start-limit-hit i odmawiać restartu mimo poprawionej przyczyny.
+systemctl reset-failed clamd@scan.service clamav-milter@scan.service clamav-milter.service 2>/dev/null || true
 
 systemctl enable --now clamd@scan
 systemctl enable --now clamav-milter@scan 2>/dev/null || systemctl enable --now clamav-milter
