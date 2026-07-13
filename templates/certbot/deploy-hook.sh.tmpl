@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Certbot deploy-hook — uruchamiany PRZEZ CERTBOTA (jako root) wyłącznie po
+# potwierdzonym sukcesie wydania/odnowienia certyfikatu. Kopiuje nowy
+# cert/key do /etc/portal/tls/certbot/ i DOPIERO WTEDY przełącza symlinki
+# active/ — nginx nigdy nie wskazuje na niepotwierdzony certyfikat.
+set -euo pipefail
+
+DOMAIN="${RENEWED_DOMAINS%% *}"
+LIVE_DIR="/etc/letsencrypt/live/${DOMAIN}"
+TARGET_DIR="/etc/portal/tls/certbot"
+ACTIVE_DIR="/etc/portal/tls/active"
+
+mkdir -p "$TARGET_DIR"
+install -m 0644 "$LIVE_DIR/fullchain.pem" "$TARGET_DIR/fullchain.pem"
+install -m 0600 "$LIVE_DIR/privkey.pem" "$TARGET_DIR/privkey.pem"
+
+# Self-check: nginx -t musi przejść ZANIM podmienimy symlinki na produkcji.
+ln -sf "../certbot/fullchain.pem" "$ACTIVE_DIR/fullchain.pem.new"
+ln -sf "../certbot/privkey.pem" "$ACTIVE_DIR/privkey.pem.new"
+mv -f "$ACTIVE_DIR/fullchain.pem.new" "$ACTIVE_DIR/fullchain.pem"
+mv -f "$ACTIVE_DIR/privkey.pem.new" "$ACTIVE_DIR/privkey.pem"
+
+if nginx -t; then
+    systemctl reload nginx
+    echo "certbot deploy-hook: certyfikat ${DOMAIN} aktywowany."
+else
+    echo "certbot deploy-hook: nginx -t nie przeszło — NIE przeładowano nginx. Sprawdź ręcznie!" >&2
+    exit 1
+fi
