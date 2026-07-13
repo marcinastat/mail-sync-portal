@@ -13,11 +13,24 @@ step_done "$STEP_NAME"
 load_install_conf
 
 REPO_ROOT="$(repo_root)"
-export NGINX_REPO_STREAM="${NGINX_REPO_STREAM:-mainline}"
+export NGINX_REPO_STREAM="${NGINX_REPO_STREAM:-stable}"
 export VM1_HOSTNAME
 
+# Struktura URL na nginx.org jest niesymetryczna (potwierdzone bezpośrednio
+# przeciw serwerowi, patrz docs/technical/architecture.md):
+#   stable   -> https://nginx.org/packages/centos/$releasever/$basearch/
+#   mainline -> https://nginx.org/packages/mainline/centos/$releasever/$basearch/
+# ("centos" to u nginx.org wspólna etykieta całej rodziny RHEL-compatible,
+# obejmuje też Rocky Linux; ścieżka "rhel/..." używana wcześniej w tym
+# skrypcie zwracała 404 dla każdej wersji, nie tylko 10).
+if [[ "$NGINX_REPO_STREAM" == "mainline" ]]; then
+    export NGINX_REPO_URL_PATH="mainline/centos"
+else
+    export NGINX_REPO_URL_PATH="centos"
+fi
+
 if [[ ! -f /etc/yum.repos.d/nginx.repo ]]; then
-    render_template "$REPO_ROOT/templates/nginx/nginx-repo.tmpl" /etc/yum.repos.d/nginx.repo '$NGINX_REPO_STREAM'
+    render_template "$REPO_ROOT/templates/nginx/nginx-repo.tmpl" /etc/yum.repos.d/nginx.repo '$NGINX_REPO_STREAM $NGINX_REPO_URL_PATH'
 fi
 rpmkeys --import https://nginx.org/keys/nginx_signing.key 2>/dev/null || true
 
