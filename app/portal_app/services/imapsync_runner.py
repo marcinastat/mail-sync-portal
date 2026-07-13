@@ -150,9 +150,10 @@ _STATS_SINGLE = {
     # źródło liczby wiadomości na źródle w tej wersji imapsync.
     "messages_total": re.compile(r"all (\d+) identified messages in host1"),
     # Rozmiar skrzynki źródłowej (host1) w bajtach — wymaga braku
-    # --nofoldersizes. Format imapsync 2.229: "Host1 total size : N bytes".
-    "source_bytes": re.compile(r"Host1 total size\s*:\s*(\d+)"),
-    "dest_bytes_reported": re.compile(r"Host2 total size\s*:\s*(\d+)"),
+    # --nofoldersizes. Format imapsync 2.229 (potwierdzony na żywym logu):
+    #   "Host1 Total size:               7750159 bytes (7.391 MiB)"
+    "source_bytes": re.compile(r"Host1 Total size:\s*(\d+)"),
+    "dest_bytes_reported": re.compile(r"Host2 Total size:\s*(\d+)"),
 }
 _STATS_FOLDERS = re.compile(r"Folders synced\s*:\s*(\d+)\s*/\s*(\d+)")
 # Suma po WSZYSTKICH folderach host1 (źródło) — prawdziwa liczba wiadomości na
