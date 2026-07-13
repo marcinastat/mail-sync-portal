@@ -30,19 +30,30 @@ mtls_generate_ca() {
     log_info "CA wygenerowane: $ca_dir/ca.crt (ważne 10 lat)."
 }
 
-# mtls_issue_cert <ca_dir> <cn> <out_prefix>
+# mtls_issue_cert <ca_dir> <cn> <out_prefix> [san]
 # Wystawia certyfikat podpisany lokalnym CA. Użyj CN="vm1-portal-client" dla
 # klienta (aplikacja VM1) i CN=<VM2_HOSTNAME> dla serwera (provisioning API).
+# Opcjonalny [san] (np. "DNS:mail.example.internal,IP:10.0.0.20") jest KONIECZNY
+# dla certyfikatu serwera — nowoczesna weryfikacja TLS (Python/httpx, którego
+# używa aplikacja VM1) wymaga subjectAltName i NIE akceptuje samego CN.
 mtls_issue_cert() {
-    local ca_dir="$1" cn="$2" out_prefix="$3"
+    local ca_dir="$1" cn="$2" out_prefix="$3" san="${4:-}"
     openssl genrsa -out "${out_prefix}.key" 2048
     chmod 0600 "${out_prefix}.key"
     openssl req -new -key "${out_prefix}.key" -subj "/CN=${cn}" -out "${out_prefix}.csr"
+
+    local ext_args=() ext_file=""
+    if [[ -n "$san" ]]; then
+        ext_file="$(mktemp)"
+        printf 'subjectAltName=%s\n' "$san" > "$ext_file"
+        ext_args=(-extfile "$ext_file")
+    fi
     openssl x509 -req -in "${out_prefix}.csr" \
         -CA "$ca_dir/ca.crt" -CAkey "$ca_dir/ca.key" -CAcreateserial \
-        -out "${out_prefix}.crt" -days 825 -sha256
+        -out "${out_prefix}.crt" -days 825 -sha256 "${ext_args[@]}"
     rm -f "${out_prefix}.csr"
-    log_info "Wystawiono certyfikat CN=$cn -> ${out_prefix}.crt / ${out_prefix}.key"
+    [[ -n "$ext_file" ]] && rm -f "$ext_file"
+    log_info "Wystawiono certyfikat CN=$cn${san:+ (SAN: $san)} -> ${out_prefix}.crt / ${out_prefix}.key"
 }
 
 mtls_setup_vm1_client() {
@@ -52,7 +63,13 @@ mtls_setup_vm1_client() {
 }
 
 mtls_setup_vm2_server() {
-    local ca_dir="${1:-$(MTLS_CA_DIR_DEFAULT)}" vm2_hostname="$2"
+    local ca_dir="${1:-$(MTLS_CA_DIR_DEFAULT)}" vm2_hostname="$2" vm2_ip="${3:-}"
     mtls_generate_ca "$ca_dir"
-    mtls_issue_cert "$ca_dir" "$vm2_hostname" "$ca_dir/vm2-server"
+    # SAN musi objąć zarówno nazwę hosta, jak i IP — w kreatorze admin poda
+    # zwykle IP (brak wewnętrznego DNS), a httpx weryfikuje adres, z którym
+    # faktycznie się łączy, względem SAN. Bez IP w SAN test połączenia z VM2
+    # pada z błędem weryfikacji certyfikatu mimo poprawnego mTLS.
+    local san="DNS:${vm2_hostname}"
+    [[ -n "$vm2_ip" ]] && san="${san},IP:${vm2_ip}"
+    mtls_issue_cert "$ca_dir" "$vm2_hostname" "$ca_dir/vm2-server" "$san"
 }
