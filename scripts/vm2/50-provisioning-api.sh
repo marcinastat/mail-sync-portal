@@ -59,7 +59,12 @@ visudo -cf /etc/sudoers.d/vm2-api || die "Wygenerowany plik sudoers jest niepopr
 export PGDG_MAJOR_VERSION VM1_IP VM2_API_PORT
 render_template "$REPO_ROOT/templates/systemd/vm2-provisioning-api.service.tmpl" /etc/systemd/system/vm2-provisioning-api.service '$PGDG_MAJOR_VERSION $VM1_IP $VM2_API_PORT'
 systemctl daemon-reload
-systemctl enable --now vm2-provisioning-api
+systemctl enable vm2-provisioning-api
+# restart, nie tylko enable --now: uvicorn wczytuje certyfikat serwera do
+# pamięci przy starcie, więc po regeneracji certów (np. zmiana SAN/IP)
+# działający proces nadal serwowałby stary cert. restart jest bezpieczny —
+# API jest bezstanowe poza tokenem reboota, który i tak jest efemeryczny.
+systemctl restart vm2-provisioning-api
 
 log_info "VM2 provisioning API uruchomione na porcie ${VM2_API_PORT} (mTLS, dostęp tylko z ${VM1_IP})."
 mark_step_done "$STEP_NAME"
