@@ -1,0 +1,19 @@
+module portal_nginx_gunicorn 1.0;
+
+require {
+    type httpd_t;
+    type unconfined_service_t;
+    class unix_stream_socket connectto;
+}
+
+# nginx (domena httpd_t) łączy się z gniazdem Unix Gunicorna
+# (/run/portal-app/gunicorn.sock), które nasłuchuje w domenie
+# unconfined_service_t (portal-gunicorn.service nie ma dedykowanej domeny
+# SELinux — systemd uruchamia go w generycznej domenie usług). Samo
+# poprawne oznaczenie pliku gniazda (httpd_var_run_t, patrz ExecStartPre w
+# portal-gunicorn.service.tmpl) NIE wystarcza — SELinux osobno sprawdza
+# "connectto" między domenami procesów dla klasy unix_stream_socket.
+# Znalezione i zweryfikowane wprost na działającym środowisku (audit2allow
+# nie było potrzebne — reguła jest tu ręcznie, bo dokładnie wiadomo czego
+# dotyczy, żadnych dodatkowych uprawnień poza tym jednym connectto).
+allow httpd_t unconfined_service_t:unix_stream_socket connectto;
