@@ -4,7 +4,7 @@ import io
 import openpyxl
 from fastapi import APIRouter, Depends, Form, Request, UploadFile
 from fastapi.responses import RedirectResponse, Response
-from fastapi.templating import Jinja2Templates
+from ..templating import templates
 from sqlalchemy.orm import Session
 
 from ..deps import client_ip, get_db, require_login, require_setup_complete
@@ -13,7 +13,6 @@ from ..services import archive_extractor, import_service, xls_parser
 from ..services.audit_service import record
 
 router = APIRouter(prefix="/admin/imports", tags=["imports"], dependencies=[Depends(require_setup_complete)])
-templates = Jinja2Templates(directory="portal_app/templates")
 
 _TEMPLATE_HEADER = xls_parser.REQUIRED_COLUMNS + xls_parser.OPTIONAL_COLUMNS
 _TEMPLATE_EXAMPLE_ROW = [

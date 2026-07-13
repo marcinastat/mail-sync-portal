@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Form, Request, UploadFile
 from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
+from ..templating import templates
 from sqlalchemy.orm import Session
 
 from ..deps import client_ip, get_db, require_login, require_setup_complete
@@ -11,7 +11,6 @@ from ..services import branding_renderer
 from ..services.audit_service import record
 
 router = APIRouter(prefix="/admin/settings/branding", tags=["settings-branding"], dependencies=[Depends(require_setup_complete)])
-templates = Jinja2Templates(directory="portal_app/templates")
 
 
 def _get_branding(db: Session) -> BrandingConfig:

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
-from fastapi.templating import Jinja2Templates
+from ..templating import templates
 from sqlalchemy.orm import Session
 
 from ..deps import get_db, require_login, require_setup_complete
@@ -8,7 +8,6 @@ from ..models import AdminUser, JobRun, Mailbox, SyncJob
 from ..services.report_export import rows_to_csv, rows_to_pdf
 
 router = APIRouter(prefix="/admin/reports", tags=["reports"], dependencies=[Depends(require_setup_complete)])
-templates = Jinja2Templates(directory="portal_app/templates")
 
 HEADER = ["Skrzynka docelowa", "Provisioning", "Sync włączony", "Ostatni status", "Ostatnia sync.", "Wiadomości", "Drift"]
 

@@ -3,7 +3,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import PlainTextResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
+from ..templating import templates
 from sqlalchemy.orm import Session
 
 from ..deps import client_ip, get_db, require_login, require_setup_complete
@@ -13,7 +13,6 @@ from ..services.audit_service import record
 from ..services.credential_crypto import encrypt_password
 
 router = APIRouter(prefix="/admin/mailboxes", tags=["mailboxes"], dependencies=[Depends(require_setup_complete)])
-templates = Jinja2Templates(directory="portal_app/templates")
 
 CONFIRM_PHRASE = "POTWIERDZAM"
 

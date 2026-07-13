@@ -1,60 +1,114 @@
 {% extends "base.html" %}
-{% block title %}Pulpit — Portal Poczty{% endblock %}
+{% block title %}Pulpit{% endblock %}
+{% block heading %}Pulpit{% endblock %}
 {% block content %}
-  <h1>Pulpit</h1>
-
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem">
-    <div class="card">
-      <div style="font-size:0.8rem;color:#64748b">Skrzynki</div>
-      <div style="font-size:1.75rem;font-weight:700">{{ active_mailbox_count }} / {{ mailbox_count }}</div>
-      <div style="font-size:0.8rem;color:#64748b">aktywne / wszystkie</div>
+  <div class="stat-grid">
+    <div class="stat">
+      <div class="label">Skrzynki</div>
+      <div class="value">{{ active_mailbox_count }}<span class="muted" style="font-size:1rem;font-weight:600"> / {{ mailbox_count }}</span></div>
+      <div class="sub">aktywne / wszystkie</div>
     </div>
-    <div class="card">
-      <div style="font-size:0.8rem;color:#64748b">Certyfikat TLS</div>
+    <div class="stat">
+      <div class="label">Zsynchronizowane wiadomości</div>
+      <div class="value">{{ sync.messages_on_dest }}</div>
+      <div class="sub">na serwerze docelowym ({{ sync.synced_mailboxes }} skrzynek)</div>
+    </div>
+    <div class="stat">
+      <div class="label">Przesłane łącznie</div>
+      <div class="value">{{ sync.total_transferred }}</div>
+      <div class="sub">wiadomości od początku</div>
+    </div>
+    <div class="stat">
+      <div class="label">Certyfikat TLS</div>
       {% if cert_days_left is not none %}
-        <div style="font-size:1.75rem;font-weight:700" class="{{ 'badge err' if cert_days_left < 14 else ('badge warn' if cert_days_left < 30 else '') }}">{{ cert_days_left }} dni</div>
+        <div class="value {{ 'badge err' if cert_days_left < 14 else ('badge warn' if cert_days_left < 30 else '') }}" style="font-size:1.6rem">{{ cert_days_left }}<span style="font-size:0.9rem"> dni</span></div>
+      {% else %}<div class="value">—</div>{% endif %}
+      <div class="sub">do wygaśnięcia</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:1.1rem">
+    <div class="card">
+      <h2>Wolumen synchronizacji (14 dni)</h2>
+      {% if volume_max > 0 %}
+        <svg viewBox="0 0 {{ volume|length * 26 }} 120" width="100%" height="140" preserveAspectRatio="none">
+          {% for v in volume %}
+            {% set h = (v.count / volume_max * 100) | round(1) %}
+            <rect x="{{ loop.index0 * 26 + 4 }}" y="{{ 110 - h }}" width="18" height="{{ h if h > 0 else 0.5 }}"
+                  rx="3" fill="var(--brand-primary)"><title>{{ v.day }}: {{ v.count }}</title></rect>
+            <text x="{{ loop.index0 * 26 + 13 }}" y="119" font-size="7" fill="#94a3b8" text-anchor="middle">{{ v.day }}</text>
+          {% endfor %}
+        </svg>
       {% else %}
-        <div>brak danych</div>
+        <p class="hint">Brak danych o synchronizacji do wykresu (jeszcze nic nie zsynchronizowano).</p>
       {% endif %}
     </div>
+
     <div class="card">
-      <div style="font-size:0.8rem;color:#64748b">Kolejka zadań</div>
-      <div>queued: {{ queue_depth.get("queued", 0) }} · running: {{ queue_depth.get("running", 0) }} · failed: {{ queue_depth.get("failed", 0) }}</div>
+      <h2>Synchronizacja — teraz</h2>
+      <p style="margin:0.2rem 0"><strong>{{ sync.running }}</strong> w toku
+        {% if sync.failed_recent %}· <span class="badge err">{{ sync.failed_recent }} błędów (24h)</span>{% endif %}
+      </p>
+      <p style="margin:0.2rem 0" class="hint">Ostatnia sync.: {{ sync.last_sync_at | dt }}</p>
+      <p style="margin:0.2rem 0" class="hint">Następna zaplanowana: <strong>{{ next_sync | dt }}</strong></p>
+      <p style="margin:0.2rem 0" class="hint">Kolejka: {{ queue_depth.get("queued",0) }} oczek. · {{ queue_depth.get("retrying",0) }} ponów · {{ queue_depth.get("failed",0) }} błąd</p>
+      <p style="margin:0.4rem 0 0"><span class="badge muted">Drift: {{ sync.drift_total }}</span> <span class="hint">zachowane mimo zniknięcia ze źródła</span></p>
     </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.1rem">
     <div class="card">
-      <div style="font-size:0.8rem;color:#64748b">Drift (zachowane mimo zniknięcia ze źródła)</div>
-      <div style="font-size:1.75rem;font-weight:700">{{ drift_total }}</div>
+      <h2>Throttling (wykorzystanie)</h2>
+      {% for key, lbl in [("minute","na minutę"), ("hour","na godzinę"), ("day","na dobę"), ("concurrent","równoległe")] %}
+        {% set t = throttle[key] %}
+        {% set pct = (t.used / t.max * 100) if t.max else 0 %}
+        <div style="margin-bottom:0.6rem">
+          <div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:0.2rem">
+            <span class="muted">{{ lbl }}</span><span><strong>{{ t.used }}</strong> / {{ t.max }}</span>
+          </div>
+          <div class="meter {{ 'err' if pct >= 100 else ('warn' if pct >= 75 else '') }}"><span style="width:{{ pct if pct < 100 else 100 }}%"></span></div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="card">
+      <h2>Serwer poczty (VM2)</h2>
+      {% if not vm2_status.configured %}
+        <p class="hint">Połączenie z VM2 nie jest skonfigurowane.</p>
+      {% else %}
+        <p style="margin:0.2rem 0">Health: {% if vm2_status.last_health_check_ok %}<span class="badge ok">OK</span>{% else %}<span class="badge err">problem</span>{% endif %}
+          <span class="hint">{{ vm2_status.last_health_check_at | dt }}</span></p>
+        {% if vm2_status.av %}
+          <p style="margin:0.2rem 0">ClamAV: {% if vm2_status.av.clamd_alive %}<span class="badge ok">aktywny</span>{% else %}<span class="badge err">nieaktywny</span>{% endif %}</p>
+        {% endif %}
+        {% if vm2_status.disk_usage %}
+          {% for dk, dlbl in [("os_disk","Dysk systemowy"), ("mail_disk","Dysk pocztowy")] %}
+            {% set d = vm2_status.disk_usage[dk] %}
+            <div style="margin-top:0.5rem">
+              <div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:0.2rem">
+                <span class="muted">{{ dlbl }}</span>
+                <span>{{ d.used_bytes | gb }} / {{ d.total_bytes | gb }} <span class="hint">(wolne {{ d.free_bytes | gb }})</span></span>
+              </div>
+              <div class="meter {{ 'err' if d.used_percent >= 90 else ('warn' if d.used_percent >= 75 else '') }}"><span style="width:{{ d.used_percent }}%"></span></div>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endif %}
     </div>
   </div>
 
   <div class="card">
-    <h2 style="margin-top:0">VM2</h2>
-    {% if not vm2_status.configured %}
-      <p>Połączenie z VM2 nie jest jeszcze skonfigurowane.</p>
-    {% else %}
-      <p>Health-check: {% if vm2_status.last_health_check_ok %}<span class="badge ok">OK</span>{% else %}<span class="badge err">problem</span>{% endif %}
-        {% if vm2_status.last_health_check_at %}(ostatnio: {{ vm2_status.last_health_check_at.strftime("%Y-%m-%d %H:%M") }}){% endif %}</p>
-      {% if vm2_status.disk_usage %}
-        <p>Dysk systemowy (/): <span class="{{ 'badge err' if vm2_status.disk_usage.os_disk.used_percent >= 90 else ('badge warn' if vm2_status.disk_usage.os_disk.used_percent >= 75 else 'badge ok') }}">{{ vm2_status.disk_usage.os_disk.used_percent }}% zajęte</span></p>
-        <p>Dysk pocztowy (/var/mail/vhosts): <span class="{{ 'badge err' if vm2_status.disk_usage.mail_disk.used_percent >= 90 else ('badge warn' if vm2_status.disk_usage.mail_disk.used_percent >= 75 else 'badge ok') }}">{{ vm2_status.disk_usage.mail_disk.used_percent }}% zajęte</span></p>
-      {% endif %}
-      {% if vm2_status.av %}
-        <p>ClamAV: {% if vm2_status.av.clamd_alive %}<span class="badge ok">aktywny</span>{% else %}<span class="badge err">nieaktywny</span>{% endif %}
-          {% if vm2_status.av.last_defs_update %} · definicje: {{ vm2_status.av.last_defs_update }}{% endif %}</p>
-      {% endif %}
-    {% endif %}
-  </div>
-
-  <div class="card">
-    <h2 style="margin-top:0">Ostatnie zdarzenia audytowe</h2>
-    <table>
-      <thead><tr><th>Kiedy</th><th>Akcja</th><th>Cel</th></tr></thead>
-      <tbody>
-        {% for a in recent_audit %}
-        <tr><td>{{ a.occurred_at.strftime("%Y-%m-%d %H:%M") }}</td><td>{{ a.action }}</td><td>{{ a.target_type or "" }} {{ a.target_id or "" }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    <p><a href="/admin/audit">Pełny audyt →</a></p>
+    <h2>Ostatnie zdarzenia audytowe</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Kiedy</th><th>Akcja</th><th>Cel</th><th>IP</th></tr></thead>
+        <tbody>
+          {% for a in recent_audit %}
+          <tr><td>{{ a.occurred_at | dt }}</td><td>{{ a.action }}</td><td>{{ a.target_type or "" }} {{ a.target_id or "" }}</td><td class="hint">{{ a.source_ip or "—" }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p style="margin:0.6rem 0 0"><a href="/admin/audit">Pełny audyt →</a></p>
   </div>
 {% endblock %}

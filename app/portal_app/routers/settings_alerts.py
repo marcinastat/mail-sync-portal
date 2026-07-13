@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
+from ..templating import templates
 from sqlalchemy.orm import Session
 
 from ..deps import client_ip, get_db, require_login, require_setup_complete
@@ -8,7 +8,6 @@ from ..models import AdminUser, AlertChannel
 from ..services.audit_service import record
 
 router = APIRouter(prefix="/admin/settings/alerts", tags=["settings-alerts"], dependencies=[Depends(require_setup_complete)])
-templates = Jinja2Templates(directory="portal_app/templates")
 
 AVAILABLE_EVENTS = ["sync_failed", "av_infected", "cert_expiring", "vm2_unhealthy", "audit_integrity_failed", "disk_low_space"]
 
