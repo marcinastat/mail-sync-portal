@@ -9,10 +9,9 @@ Pełny plan projektu: zobacz plik planu w `docs/technical/architecture.md` (kopi
 
 ## Instalacja
 
-1. Skopiuj `config/install.conf.example` do `config/install.conf` i uzupełnij wartości (podsieć admina, adres IP VM2, itd.).
-2. Na VM2: uruchom skrypty z `scripts/vm2/` w kolejności numerycznej (`00-preflight.sh`, `10-base-hardening.sh`, ...).
-3. Na VM1: uruchom skrypty z `scripts/vm1/` w kolejności numerycznej.
-4. Zaloguj się do `https://<VM1>/admin` i przejdź kreator pierwszego uruchomienia.
+Pełna instrukcja krok po kroku dla dwóch czystych VM Rocky Linux 10: **[INSTALL.md](INSTALL.md)**.
+
+Skrót: `config/install.conf` → skrypty `scripts/vm2/00..70` → skopiuj `ca/vm1-client.*` z VM2 na VM1 → skrypty `scripts/vm1/00..90` → `https://<VM1>/admin/setup`.
 
 Skrypty są idempotentne — ponowne uruchomienie nie powtarza już wykonanych kroków (patrz `scripts/lib/common.sh`).
 

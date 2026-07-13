@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}TLS — Ustawienia{% endblock %}
+{% block content %}
+  <h1>Certyfikat TLS</h1>
+  {% if error %}<p style="color:#dc2626">{{ error }}</p>{% endif %}
+
+  <div class="card">
+    <p>Aktualny tryb (wg bazy): <strong>{{ config.mode }}</strong></p>
+    <p style="font-size:0.85rem;color:#64748b">
+      Tryb <code>certbot</code> (DNS-01) konfiguruje się skryptem <code>scripts/vm1/certbot-setup.sh</code> na serwerze
+      (VM1 nie jest internet-facing, więc HTTP-01 nie zadziała) — patrz <code>docs/technical/tls-lifecycle.md</code>.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Wklej własny certyfikat (manual)</h2>
+    <form method="post" action="/admin/settings/tls/manual">
+      <label for="cert_pem">Certyfikat (PEM, fullchain)</label>
+      <textarea id="cert_pem" name="cert_pem" rows="8" required style="width:100%;font-family:monospace"></textarea>
+      <label for="key_pem">Klucz prywatny (PEM)</label>
+      <textarea id="key_pem" name="key_pem" rows="8" required style="width:100%;font-family:monospace"></textarea>
+      <p style="font-size:0.85rem;color:#64748b">Walidacja (dopasowanie klucza, ważność) i test <code>nginx -t</code> przed przełączeniem; w razie błędu automatyczny powrót do poprzedniego certyfikatu.</p>
+      <p style="margin-top:1rem"><button class="btn" type="submit">Zastosuj</button></p>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Wróć do self-signed</h2>
+    <form method="post" action="/admin/settings/tls/selfsigned">
+      <button class="btn secondary" type="submit">Przełącz na self-signed</button>
+    </form>
+  </div>
+{% endblock %}
