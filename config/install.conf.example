@@ -40,7 +40,7 @@ CERTBOT_EMAIL=""
 ROUNDCUBE_VERSION="1.7.2"
 
 # --- imapsync ------------------------------------------------------------------
-IMAPSYNC_GIT_TAG="v2.267"  # przypięty tag z github.com/imapsync/imapsync
+IMAPSYNC_GIT_TAG="imapsync-2.229"  # przypięty tag z github.com/imapsync/imapsync (format "imapsync-X.Y.Z")
 
 # --- Dysk pocztowy (VM2) ----------------------------------------------------------
 # VM2 MUSI mieć dwa dyski: jeden systemowy, jeden dedykowany na pocztę
