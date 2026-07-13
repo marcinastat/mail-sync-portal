@@ -21,11 +21,15 @@ server {
         root /var/www;
     }
 
-    # Roundcube ma pojedynczy punkt wejścia (index.php) dla logowania i
-    # reszty UI, więc rate-limit logowania obejmuje cały ruch PHP — izolacja
-    # samego /?_task=login na poziomie nginx wymagałaby parsowania query
-    # stringa, co nginx robi zawodnie. Realną izolację loginu daje
-    # portal-admin-auth / roundcube-auth w fail2ban (Faza 9).
+    # UWAGA: Roundcube ma pojedynczy punkt wejścia PHP (index.php) i serwuje
+    # przez PHP także WSZYSTKIE statyczne zasoby (static.php: CSS/JS/obrazy).
+    # Otwarcie jednej strony to kilkanaście-kilkadziesiąt żądań PHP naraz.
+    # Nałożenie tu nginx-owego limit_req (rate liczony w r/min) blokuje więc
+    # całą aplikację przy pierwszym wejściu — obserwowane wprost jako 429/499
+    # i wieczne ładowanie. Dlatego brute-force logowania do Roundcube chronimy
+    # WYŁĄCZNIE jailem roundcube-auth w fail2ban (parsuje log nieudanych
+    # logowań — właściwy sygnał), a nie rate-limitem nginx. Rate-limit nginx
+    # zostaje tylko na /admin/login (portal_app: osobny, pojedynczy endpoint).
     root /var/www/roundcube/public_html;
     index index.php;
 
@@ -34,7 +38,6 @@ server {
     }
 
     location ~ \.php$ {
-        limit_req zone=roundcube_login burst=10;
         fastcgi_pass unix:/run/php-fpm/roundcube.sock;
         fastcgi_index index.php;
         include fastcgi_params;
