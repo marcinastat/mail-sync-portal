@@ -33,7 +33,16 @@ for pair in "vm1-client.crt:client.crt" "vm1-client.key:client.key" "ca.crt:ca.c
         || die "Nie udało się pobrać ${remote_name} z VM2:${REMOTE_PATH}/ca/ — czy scripts/vm2/50-provisioning-api.sh już tam się wykonał?"
 done
 
+# Te pliki czyta proces portal-app (aplikacja /admin) w runtime, żeby zestawić
+# mTLS do VM2 — musi więc być ich właścicielem, inaczej dostaje
+# PermissionError na client.key (obserwowane na kroku 4 kreatora). Katalog
+# 0750 portal-app, klucz 0600 portal-app — nikt poza aplikacją (i rootem) go
+# nie odczyta.
+if id portal-app >/dev/null 2>&1; then
+    chown -R portal-app:portal-app "$LOCAL_DIR"
+    chmod 0750 "$LOCAL_DIR"
+fi
 chmod 0600 "$LOCAL_DIR/client.key"
-chmod 0644 "$LOCAL_DIR/client.crt" "$LOCAL_DIR/ca.crt"
+chmod 0640 "$LOCAL_DIR/client.crt" "$LOCAL_DIR/ca.crt"
 
 log_info "Certyfikat kliencki mTLS zainstalowany w $LOCAL_DIR — krok 4 kreatora (/admin/setup) powinien teraz przejść test połączenia z VM2."
