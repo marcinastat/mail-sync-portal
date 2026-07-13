@@ -1,0 +1,216 @@
+from datetime import datetime, timezone
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
+from fastapi.responses import PlainTextResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+
+from ..deps import client_ip, get_db, require_login, require_setup_complete
+from ..models import AdminUser, Domain, JobQueue, JobRun, Mailbox, SyncJob, Vm2Connection
+from ..services import vm2_client
+from ..services.audit_service import record
+from ..services.credential_crypto import encrypt_password
+
+router = APIRouter(prefix="/admin/mailboxes", tags=["mailboxes"], dependencies=[Depends(require_setup_complete)])
+templates = Jinja2Templates(directory="portal_app/templates")
+
+CONFIRM_PHRASE = "POTWIERDZAM"
+
+
+@router.get("")
+def list_mailboxes(request: Request, current_user: AdminUser = Depends(require_login), db: Session = Depends(get_db)):
+    mailboxes = (
+        db.query(Mailbox)
+        .join(Domain)
+        .order_by(Mailbox.destination_address)
+        .all()
+    )
+    sync_jobs = {sj.mailbox_id: sj for sj in db.query(SyncJob).all()}
+    return templates.TemplateResponse(
+        request,
+        "mailboxes/list.html",
+        {"active": "mailboxes", "current_user": current_user, "mailboxes": mailboxes, "sync_jobs": sync_jobs},
+    )
+
+
+@router.get("/{mailbox_id}")
+def mailbox_detail(
+    mailbox_id: int,
+    request: Request,
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    mailbox = db.get(Mailbox, mailbox_id)
+    if mailbox is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    sync_job = db.query(SyncJob).filter(SyncJob.mailbox_id == mailbox_id).first()
+    runs = db.query(JobRun).filter(JobRun.mailbox_id == mailbox_id).order_by(JobRun.id.desc()).limit(20).all()
+    running_now = any(r.status == "running" for r in runs)
+    return templates.TemplateResponse(
+        request,
+        "mailboxes/detail.html",
+        {
+            "active": "mailboxes",
+            "current_user": current_user,
+            "mailbox": mailbox,
+            "sync_job": sync_job,
+            "runs": runs,
+            "running_now": running_now,
+        },
+    )
+
+
+@router.post("/{mailbox_id}/sync-now")
+def sync_now(
+    mailbox_id: int,
+    request: Request,
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    mailbox = db.get(Mailbox, mailbox_id)
+    if mailbox is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    existing = (
+        db.query(JobQueue)
+        .filter(
+            JobQueue.job_type == "sync",
+            JobQueue.status.in_(["queued", "running", "retrying"]),
+            JobQueue.payload["mailbox_id"].astext == str(mailbox_id),
+        )
+        .first()
+    )
+    if existing is None:
+        db.add(JobQueue(job_type="sync", payload={"mailbox_id": mailbox_id}, run_after=datetime.now(timezone.utc)))
+        record(
+            db,
+            actor_admin_user_id=current_user.id,
+            action="sync.triggered_manually",
+            target_type="mailbox",
+            target_id=str(mailbox_id),
+            source_ip=client_ip(request),
+        )
+    return RedirectResponse(f"/admin/mailboxes/{mailbox_id}", status_code=303)
+
+
+@router.get("/{mailbox_id}/runs/{run_id}/log", response_class=PlainTextResponse)
+def view_run_log(
+    mailbox_id: int,
+    run_id: int,
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    run = db.get(JobRun, run_id)
+    if run is None or run.mailbox_id != mailbox_id or not run.imapsync_log_path:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    path = Path(run.imapsync_log_path)
+    if not path.exists():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Plik logu nie istnieje (mógł zostać zrotowany).")
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
+@router.post("/sync-config")
+async def bulk_sync_config(
+    request: Request,
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    form = await request.form()
+    mailbox_ids = {int(v) for k, v in form.multi_items() if k == "mailbox_ids"}
+    days_back = int(form.get("days_back", 365))
+    preserve_folder_structure = form.get("preserve_folder_structure") == "on"
+    delete_on_dest = form.get("delete_on_dest_when_missing_from_source") == "on"
+    is_enabled = form.get("is_enabled") == "on"
+    confirm_text = form.get("confirm_text", "")
+
+    if delete_on_dest and confirm_text != CONFIRM_PHRASE:
+        mailboxes = db.query(Mailbox).join(Domain).order_by(Mailbox.destination_address).all()
+        sync_jobs = {sj.mailbox_id: sj for sj in db.query(SyncJob).all()}
+        return templates.TemplateResponse(
+            request,
+            "mailboxes/list.html",
+            {
+                "active": "mailboxes",
+                "current_user": current_user,
+                "mailboxes": mailboxes,
+                "sync_jobs": sync_jobs,
+                "error": f"Włączenie kasowania na docelowym wymaga wpisania '{CONFIRM_PHRASE}' w polu potwierdzenia.",
+            },
+            status_code=400,
+        )
+
+    if not mailbox_ids:
+        return RedirectResponse("/admin/mailboxes", status_code=303)
+
+    sync_jobs = db.query(SyncJob).filter(SyncJob.mailbox_id.in_(mailbox_ids)).all()
+    for sj in sync_jobs:
+        sj.days_back = days_back
+        sj.preserve_folder_structure = preserve_folder_structure
+        sj.delete_on_dest_when_missing_from_source = delete_on_dest
+        sj.is_enabled = is_enabled
+        db.add(sj)
+
+    record(
+        db,
+        actor_admin_user_id=current_user.id,
+        action="sync_job.bulk_update",
+        target_type="mailbox",
+        details={
+            "mailbox_ids": sorted(mailbox_ids),
+            "days_back": days_back,
+            "preserve_folder_structure": preserve_folder_structure,
+            "delete_on_dest_when_missing_from_source": delete_on_dest,
+            "is_enabled": is_enabled,
+        },
+        source_ip=client_ip(request),
+    )
+    return RedirectResponse("/admin/mailboxes", status_code=303)
+
+
+@router.post("/{mailbox_id}/reset-password")
+def reset_password(
+    mailbox_id: int,
+    request: Request,
+    new_password: str = Form(...),
+    confirm_text: str = Form(...),
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    mailbox = db.get(Mailbox, mailbox_id)
+    if mailbox is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    if confirm_text != CONFIRM_PHRASE:
+        sync_job = db.query(SyncJob).filter(SyncJob.mailbox_id == mailbox_id).first()
+        return templates.TemplateResponse(
+            request,
+            "mailboxes/detail.html",
+            {
+                "active": "mailboxes",
+                "current_user": current_user,
+                "mailbox": mailbox,
+                "sync_job": sync_job,
+                "error": f"Reset hasła wymaga wpisania '{CONFIRM_PHRASE}' w polu potwierdzenia.",
+            },
+            status_code=400,
+        )
+    if not mailbox.vm2_mailbox_id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Skrzynka nie jest jeszcze zaprowizonowana na VM2.")
+
+    conn = db.query(Vm2Connection).first()
+    if conn is None:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Brak konfiguracji połączenia z VM2.")
+
+    vm2_client.reset_mailbox_password(conn, mailbox.vm2_mailbox_id, new_password)
+    mailbox.password_override = True
+    mailbox.destination_password_encrypted = encrypt_password(new_password)
+    db.add(mailbox)
+    record(
+        db,
+        actor_admin_user_id=current_user.id,
+        action="mailbox.reset_password",
+        target_type="mailbox",
+        target_id=str(mailbox.id),
+        details={},  # hasło nigdy nie trafia do audit logu
+        source_ip=client_ip(request),
+    )
+    return RedirectResponse(f"/admin/mailboxes/{mailbox_id}", status_code=303)

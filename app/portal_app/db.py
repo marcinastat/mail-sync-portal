@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from contextlib import contextmanager
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -27,3 +28,10 @@ def get_session() -> Iterator[Session]:
         except Exception:
             session.rollback()
             raise
+
+
+@contextmanager
+def session_scope() -> Iterator[Session]:
+    """Dla kontekstów spoza FastAPI (worker/scheduler) — te same gwarancje
+    commit/rollback co get_session(), ale użyte jako `with session_scope() as db:`."""
+    yield from get_session()

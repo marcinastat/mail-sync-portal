@@ -36,7 +36,7 @@ CERTBOT_EMAIL=""
 ROUNDCUBE_VERSION="1.7.4"
 
 # --- imapsync ------------------------------------------------------------------
-IMAPSYNC_VERSION="pinned-at-install"  # patrz scripts/vm1/60-imapsync.sh
+IMAPSYNC_GIT_TAG="v2.267"  # przypięty tag z github.com/imapsync/imapsync
 
 # --- ClamAV (VM2) ----------------------------------------------------------------
 CLAMAV_FRESHCLAM_INTERVAL_MIN="60"

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Przegląd importu — Portal Poczty{% endblock %}
+{% block content %}
+  <h1>Przegląd importu: {{ batch.original_filename }}</h1>
+
+  <form method="post" action="/admin/imports/{{ batch.id }}/commit">
+    <div class="card">
+      <label><input type="checkbox" onclick="document.querySelectorAll('input[name=row_ids]').forEach(c=>c.checked=this.checked)"> Zaznacz wszystkie poprawne, nie-duplikaty</label>
+    </div>
+    <div class="card">
+      <table>
+        <thead>
+          <tr><th></th><th>Domena</th><th>Login</th><th>Login docelowy</th><th>Dopasowanie</th><th>Walidacja</th></tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td>
+              {% if row.validation_status == "valid" and row.match_type != "duplicate_in_file" %}
+              <input type="checkbox" name="row_ids" value="{{ row.id }}" {% if row.match_type in ["new", "existing_updated"] %}checked{% endif %}>
+              {% endif %}
+            </td>
+            <td>{{ row.raw_row.source_domain }}</td>
+            <td>{{ row.raw_row.source_username }}</td>
+            <td>{{ row.raw_row.destination_username or "(z loginu źródłowego)" }}</td>
+            <td>
+              {% if row.match_type == "new" %}<span class="badge ok">nowa</span>
+              {% elif row.match_type == "duplicate_in_file" %}<span class="badge warn">duplikat w pliku</span>
+              {% elif row.match_type == "existing_unchanged" %}<span class="badge">bez zmian</span>
+              {% else %}<span class="badge warn">aktualizacja</span>{% endif %}
+            </td>
+            <td>
+              {% if row.validation_status == "valid" %}<span class="badge ok">OK</span>
+              {% else %}<span class="badge err">{{ row.validation_errors|join(", ") }}</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <button class="btn" type="submit">Zatwierdź zaznaczone</button>
+  </form>
+{% endblock %}

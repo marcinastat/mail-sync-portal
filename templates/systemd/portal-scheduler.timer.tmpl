@@ -1,0 +1,10 @@
+[Unit]
+Description=Uruchamia portal-scheduler.service co minutę
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Unit=portal-scheduler.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Import XLS — Portal Poczty{% endblock %}
+{% block content %}
+  <h1>Import skrzynek z XLS</h1>
+  {% if error %}<p style="color:#dc2626">{{ error }}</p>{% endif %}
+
+  <div class="card">
+    <h2 style="margin-top:0">Nowy import</h2>
+    <p style="font-size:0.85rem;color:#64748b">Archiwum ZIP lub 7z (RAR — best-effort, wymaga <code>unrar</code> na serwerze) zabezpieczone hasłem, zawierające dokładnie jeden plik XLS/XLSX z kolumnami: domena źródłowa, login, hasło (opcjonalnie: login docelowy, nazwa).</p>
+    <form method="post" action="/admin/imports" enctype="multipart/form-data">
+      <label for="archive">Archiwum</label>
+      <input type="file" id="archive" name="archive" required>
+      <label for="archive_password">Hasło archiwum</label>
+      <input type="password" id="archive_password" name="archive_password" required>
+      <p style="margin-top:1rem"><button class="btn" type="submit">Wgraj i przeanalizuj</button></p>
+    </form>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead><tr><th>Plik</th><th>Typ</th><th>Wierszy</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        {% for b in batches %}
+        <tr>
+          <td>{{ b.original_filename }}</td>
+          <td>{{ b.archive_type }}</td>
+          <td>{{ b.row_count }}</td>
+          <td>{{ b.status }}</td>
+          <td>{% if b.status == "parsed" %}<a class="btn" href="/admin/imports/{{ b.id }}/review">Przejrzyj</a>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

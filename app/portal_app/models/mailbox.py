@@ -1,7 +1,8 @@
 from sqlalchemy import Boolean, ForeignKey, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base, TimestampMixin
+from .domain import Domain
 
 
 class Credential(Base, TimestampMixin):
@@ -31,3 +32,10 @@ class Mailbox(Base, TimestampMixin):
     # True po ręcznym resecie hasła na VM2 — blokuje nadpisanie lustrzaną
     # kopią hasła źródłowego przy kolejnym imporcie/re-provisioningu.
     password_override: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Aktualne hasło DOCELOWE (VM2) — przy provisioningu to kopia hasła
+    # źródłowego, po ręcznym resecie to jedyne miejsce, gdzie nowe hasło jest
+    # w ogóle przechowywane (potrzebne, żeby imapsync mógł się nadal logować
+    # na VM2 po zmianie hasła). Nigdy nie trafia do audit logu.
+    destination_password_encrypted: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+
+    domain: Mapped["Domain"] = relationship()

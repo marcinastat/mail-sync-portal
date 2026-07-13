@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Skrzynki — Portal Poczty{% endblock %}
+{% block content %}
+  <h1>Skrzynki</h1>
+  {% if error %}<p style="color:#dc2626">{{ error }}</p>{% endif %}
+
+  <form method="post" action="/admin/mailboxes/sync-config">
+    <div class="card">
+      <label><input type="checkbox" onclick="document.querySelectorAll('input[name=mailbox_ids]').forEach(c=>c.checked=this.checked)"> Zaznacz wszystkie</label>
+      <table>
+        <thead><tr><th></th><th>Skrzynka docelowa</th><th>Domena</th><th>Provisioning</th><th>Sync</th></tr></thead>
+        <tbody>
+          {% for m in mailboxes %}
+          {% set sj = sync_jobs.get(m.id) %}
+          <tr>
+            <td><input type="checkbox" name="mailbox_ids" value="{{ m.id }}"></td>
+            <td><a href="/admin/mailboxes/{{ m.id }}">{{ m.destination_address }}</a></td>
+            <td>{{ m.domain.source_domain if m.domain else "" }}</td>
+            <td>
+              {% if m.provisioning_status == "active" %}<span class="badge ok">aktywna</span>
+              {% elif m.provisioning_status == "pending" %}<span class="badge warn">oczekuje</span>
+              {% else %}<span class="badge err">{{ m.provisioning_status }}</span>{% endif %}
+            </td>
+            <td>{% if sj and sj.is_enabled %}<span class="badge ok">włączona</span>{% else %}<span class="badge">wyłączona</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0">Konfiguracja synchronizacji dla zaznaczonych</h2>
+      <label for="days_back">Ile dni wstecz</label>
+      <input type="number" id="days_back" name="days_back" value="365" min="1">
+      <label><input type="checkbox" name="preserve_folder_structure" checked> Zachowaj strukturę folderów IMAP</label>
+      <label><input type="checkbox" name="is_enabled" checked> Synchronizacja włączona</label>
+      <label><input type="checkbox" name="delete_on_dest_when_missing_from_source"> Kasuj na docelowym, gdy zniknie ze źródła (domyślnie wyłączone — archiwum nie usuwa danych)</label>
+      <label for="confirm_text">Wpisz "POTWIERDZAM", jeśli włączasz kasowanie na docelowym</label>
+      <input type="text" id="confirm_text" name="confirm_text">
+      <p style="margin-top:1rem"><button class="btn" type="submit">Zastosuj do zaznaczonych</button></p>
+    </div>
+  </form>
+{% endblock %}

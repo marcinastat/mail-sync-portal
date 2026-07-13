@@ -69,11 +69,17 @@ visudo -cf /etc/sudoers.d/portal-app || die "Wygenerowany plik sudoers jest niep
 # --- Migracje bazy -------------------------------------------------------------
 sudo -u portal-app bash -c "cd '$APP_DIR' && venv/bin/alembic upgrade head"
 
-# --- systemd unit ----------------------------------------------------------------
+mkdir -p /run/portal-app/imapsync /run/portal-import
+chown -R portal-app:portal-app /run/portal-app /run/portal-import
+
+# --- systemd units -----------------------------------------------------------------
 export PGDG_MAJOR_VERSION
 render_template "$REPO_ROOT/templates/systemd/portal-gunicorn.service.tmpl" /etc/systemd/system/portal-gunicorn.service '$PGDG_MAJOR_VERSION'
+render_template "$REPO_ROOT/templates/systemd/portal-worker.service.tmpl" /etc/systemd/system/portal-worker.service '$PGDG_MAJOR_VERSION'
+render_template "$REPO_ROOT/templates/systemd/portal-scheduler.service.tmpl" /etc/systemd/system/portal-scheduler.service '$PGDG_MAJOR_VERSION'
+render_template "$REPO_ROOT/templates/systemd/portal-scheduler.timer.tmpl" /etc/systemd/system/portal-scheduler.timer
 systemctl daemon-reload
-systemctl enable --now portal-gunicorn
+systemctl enable --now portal-gunicorn portal-worker portal-scheduler.timer
 
 nginx -t && systemctl reload nginx || log_warn "nginx -t nie przeszło po starcie portal-gunicorn — sprawdź konfigurację."
 

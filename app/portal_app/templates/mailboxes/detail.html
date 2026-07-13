@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{{ mailbox.destination_address }} — Portal Poczty{% endblock %}
+{% block content %}
+  <h1>{{ mailbox.destination_address }}</h1>
+  {% if error %}<p style="color:#dc2626">{{ error }}</p>{% endif %}
+
+  <div class="card">
+    <h2 style="margin-top:0">Status</h2>
+    <p>Provisioning: {{ mailbox.provisioning_status }}</p>
+    <p>Adres źródłowy: {{ mailbox.source_address }}</p>
+    <p>Hasło nadpisane ręcznie: {{ "tak" if mailbox.password_override else "nie (lustrzana kopia hasła źródłowego)" }}</p>
+    <form method="post" action="/admin/mailboxes/{{ mailbox.id }}/sync-now">
+      <button class="btn" type="submit" {% if running_now %}disabled{% endif %}>
+        {% if running_now %}Synchronizacja w toku…{% else %}Synchronizuj teraz{% endif %}
+      </button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Historia synchronizacji</h2>
+    <table>
+      <thead><tr><th>Start</th><th>Status</th><th>Foldery</th><th>Wiadomości</th><th>Zachowane mimo zniknięcia ze źródła</th><th>Log</th></tr></thead>
+      <tbody>
+        {% for r in runs %}
+        <tr>
+          <td>{{ r.started_at.strftime("%Y-%m-%d %H:%M") if r.started_at else "" }}</td>
+          <td>
+            {% if r.status == "success" %}<span class="badge ok">sukces</span>
+            {% elif r.status == "running" %}<span class="badge warn">w toku</span>
+            {% elif r.status == "partial" %}<span class="badge warn">częściowy</span>
+            {% else %}<span class="badge err">błąd</span>{% endif %}
+          </td>
+          <td>{{ r.folders_synced }} / {{ r.folders_total }}</td>
+          <td>{{ r.messages_transferred }} / {{ r.messages_total }}</td>
+          <td>{{ r.messages_missing_from_source_retained }}</td>
+          <td>{% if r.imapsync_log_path %}<a href="/admin/mailboxes/{{ mailbox.id }}/runs/{{ r.id }}/log" target="_blank">surowy log</a>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Konfiguracja synchronizacji</h2>
+    <form method="post" action="/admin/mailboxes/sync-config">
+      <input type="hidden" name="mailbox_ids" value="{{ mailbox.id }}">
+      <label for="days_back">Ile dni wstecz</label>
+      <input type="number" id="days_back" name="days_back" value="{{ sync_job.days_back if sync_job else 365 }}" min="1">
+      <label><input type="checkbox" name="preserve_folder_structure" {% if not sync_job or sync_job.preserve_folder_structure %}checked{% endif %}> Zachowaj strukturę folderów IMAP</label>
+      <label><input type="checkbox" name="is_enabled" {% if not sync_job or sync_job.is_enabled %}checked{% endif %}> Synchronizacja włączona</label>
+      <label><input type="checkbox" name="delete_on_dest_when_missing_from_source" {% if sync_job and sync_job.delete_on_dest_when_missing_from_source %}checked{% endif %}> Kasuj na docelowym, gdy zniknie ze źródła</label>
+      <label for="confirm_text">Wpisz "POTWIERDZAM", jeśli włączasz kasowanie na docelowym</label>
+      <input type="text" id="confirm_text" name="confirm_text">
+      <p style="margin-top:1rem"><button class="btn" type="submit">Zapisz</button></p>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Ręczny reset hasła na VM2</h2>
+    <p style="font-size:0.85rem;color:#64748b">Nie wymaga znajomości obecnego hasła. Po tej operacji hasło nie będzie już automatycznie nadpisywane lustrzaną kopią hasła źródłowego.</p>
+    <form method="post" action="/admin/mailboxes/{{ mailbox.id }}/reset-password">
+      <label for="new_password">Nowe hasło</label>
+      <input type="password" id="new_password" name="new_password" required>
+      <label for="confirm_text2">Wpisz "POTWIERDZAM"</label>
+      <input type="text" id="confirm_text2" name="confirm_text" required>
+      <p style="margin-top:1rem"><button class="btn danger" type="submit">Zresetuj hasło</button></p>
+    </form>
+  </div>
+{% endblock %}

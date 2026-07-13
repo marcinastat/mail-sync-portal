@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Domeny — Portal Poczty{% endblock %}
+{% block content %}
+  <h1>Domeny</h1>
+  <p style="font-size:0.85rem;color:#64748b">Domeny źródłowe powstają automatycznie przy imporcie XLS. Tu można ustawić domenę docelową na VM2 (jeśli inna niż źródłowa) i wyłączyć domenę.</p>
+  <div class="card">
+    <table>
+      <thead><tr><th>Domena źródłowa</th><th>Serwer IMAP źródła</th><th>Port</th><th>Domena docelowa</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        {% for d in domains %}
+        <tr>
+          <form method="post" action="/admin/domains/{{ d.id }}">
+          <td>{{ d.source_domain }}</td>
+          <td><input type="text" name="source_imap_host" value="{{ d.source_imap_host }}"></td>
+          <td><input type="number" name="source_imap_port" value="{{ d.source_imap_port }}" style="width:5rem"></td>
+          <td><input type="text" name="destination_domain" value="{{ d.destination_domain }}"></td>
+          <td><label><input type="checkbox" name="is_active" {% if d.is_active %}checked{% endif %}> aktywna</label></td>
+          <td><button class="btn" type="submit">Zapisz</button></td>
+          </form>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}
