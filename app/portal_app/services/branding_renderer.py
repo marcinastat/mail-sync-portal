@@ -1,5 +1,6 @@
 import base64
 import io
+import logging
 import mimetypes
 import subprocess
 from pathlib import Path
@@ -8,6 +9,8 @@ from jinja2 import Environment, FileSystemLoader
 from PIL import Image
 
 from ..models import BrandingConfig
+
+logger = logging.getLogger("portal.branding")
 
 _TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates" / "branding"
 _STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
@@ -75,11 +78,20 @@ def render_all(branding: BrandingConfig) -> None:
         )
         (_STAGE_DIR / f"{code}.html").write_text(html, encoding="utf-8")
 
-    result = subprocess.run(
-        ["/usr/bin/sudo", "-n", "/opt/portal-app/bin/apply-branding.sh"],
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"apply-branding.sh nie powiodło się: {result.stderr}")
+    # Zastosowanie brandingu do stron błędów nginx (przez sudo helper) jest
+    # NAJMNIEJ krytyczną częścią — tokens.css (motyw panelu) i logo są już
+    # zapisane wyżej. Błąd tego kroku nie może wywalać całego kreatora
+    # (obserwowane: 500 na kroku brandingu), więc jest best-effort: logujemy
+    # ostrzeżenie zamiast rzucać wyjątek. Strony błędów można odświeżyć
+    # później ponowną zmianą brandingu.
+    try:
+        result = subprocess.run(
+            ["/usr/bin/sudo", "-n", "/opt/portal-app/bin/apply-branding.sh"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            logger.warning("apply-branding.sh nie powiodło się (branding stron błędów nginx pominięty): %s", result.stderr.strip())
+    except Exception as exc:
+        logger.warning("Nie udało się uruchomić apply-branding.sh (branding stron błędów nginx pominięty): %s", exc)
