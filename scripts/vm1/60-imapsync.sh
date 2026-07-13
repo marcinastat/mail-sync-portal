@@ -27,14 +27,20 @@ pkg_install_idempotent perl perl-App-cpanminus gcc perl-devel make \
     perl-IO-Socket-SSL perl-Digest-MD5 perl-Digest-HMAC \
     perl-File-Copy-Recursive perl-Unicode-String perl-Sys-MemInfo || true
 
-# Mail::IMAPClient i Encode::IMAPUTF7 są bezwzględnie wymagane (imapsync nie
-# odpali się bez żadnego z nich, nawet --version) — reszta niżej jest
-# opcjonalna (NTLM/OAuth2/monitoring, nieużywane przy auth samym hasłem).
-cpanm --notest --quiet Mail::IMAPClient Encode::IMAPUTF7 \
-    || die "Nie udało się zainstalować Mail::IMAPClient/Encode::IMAPUTF7 przez cpanm — imapsync nie będzie działać."
+# Pełna lista wynika wprost z `grep '^use [A-Z]' imapsync-2.229` — to
+# WSZYSTKO, czego skrypt potrzebuje żeby się w ogóle skompilować (moduły
+# rdzenia Perla jak Carp/Cwd/POSIX pomięte, bo są zawsze dostępne). Każdy
+# brakujący powodował BEGIN failed--compilation aborted przy kolejnym z rzędu
+# uruchomieniu — teraz instalujemy komplet za jednym razem.
+cpanm --notest --quiet \
+    Mail::IMAPClient Encode::IMAPUTF7 IO::Socket::INET6 IO::Tee \
+    Readonly Regexp::Common Term::ReadKey File::Tail Compress::Zlib \
+    || die "Nie udało się zainstalować wymaganych modułów Perl przez cpanm — imapsync nie będzie działać."
 
-cpanm --notest --quiet Term::ReadKey Data::Uniqid Authen::NTLM JSON::WebToken File::Tail 2>/dev/null \
-    || log_warn "Część opcjonalnych modułów Perl (NTLM/OAuth2/monitoring) nie zainstalowała się — nieużywane przy auth samym hasłem, można pominąć."
+# Używane tylko przez opcjonalne funkcje imapsync (NTLM/OAuth2/uniqid),
+# nieużywane przy naszym modelu auth samym hasłem — best-effort.
+cpanm --notest --quiet Data::Uniqid Authen::NTLM JSON::WebToken 2>/dev/null \
+    || log_warn "Część opcjonalnych modułów Perl (NTLM/OAuth2) nie zainstalowała się — nieużywane przy auth samym hasłem, można pominąć."
 
 if [[ ! -x "$IMAPSYNC_BIN" ]]; then
     log_info "Pobieram imapsync ${IMAPSYNC_TAG}..."
