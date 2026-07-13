@@ -10,6 +10,11 @@ Group=portal-app
 WorkingDirectory=/opt/portal-app
 RuntimeDirectory=portal-app
 RuntimeDirectoryMode=0750
+# /run/portal-app jest WSPÓŁDZIELONY z portal-gunicorn (gniazdo gunicorn.sock).
+# Domyślnie systemd kasuje RuntimeDirectory przy każdym stop/restart usługi —
+# restart workera skasowałby wtedy gniazdo gunicorna i wywalił cały panel (502).
+# Preserve=yes: katalog przeżywa restart którejkolwiek z usług.
+RuntimeDirectoryPreserve=yes
 
 LoadCredentialEncrypted=portal-secret-key:/etc/portal/creds/portal-secret-key.cred
 LoadCredentialEncrypted=portal-credential-key:/etc/portal/creds/portal-credential-key.cred

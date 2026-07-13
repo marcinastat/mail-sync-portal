@@ -23,7 +23,12 @@ RestartSec=5
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=/opt/vm2-api
+# /var/mail/vhosts MUSI być zapisywalny w namespace usługi: `doveadm quota get`
+# (backend quota-maildir) tworzy/aktualizuje plik `maildirsize` w Maildirze, by
+# policzyć zajętość — pod ProtectSystem=strict katalog jest read-only, doveadm
+# zwraca wtedy "error" i panel pokazuje 0 B zajętości skrzynki. Zapis dotyczy
+# tylko pliku licznika quoty; samych maili nie modyfikujemy.
+ReadWritePaths=/opt/vm2-api /var/mail/vhosts
 
 [Install]
 WantedBy=multi-user.target

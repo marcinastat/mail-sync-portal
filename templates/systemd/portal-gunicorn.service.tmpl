@@ -10,6 +10,11 @@ Group=portal-app
 WorkingDirectory=/opt/portal-app
 RuntimeDirectory=portal-app
 RuntimeDirectoryMode=0750
+# /run/portal-app jest WSPÓŁDZIELONY z portal-worker. Domyślnie systemd kasuje
+# RuntimeDirectory przy stop/restart usługi — restart workera skasowałby wtedy
+# nasze gniazdo gunicorn.sock i cały panel padłby na 502. Preserve=yes: katalog
+# (i gniazdo) przeżywa restart którejkolwiek z usług.
+RuntimeDirectoryPreserve=yes
 
 # systemd NIE konsultuje bazy semanage fcontext przy tworzeniu
 # RuntimeDirectory= (mimo trwałej reguły dodanej w scripts/vm1/50-portal-app.sh)
