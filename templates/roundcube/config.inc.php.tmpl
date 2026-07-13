@@ -27,13 +27,6 @@ $config['plugins'] = ['archive', 'zipdownload'];
 
 $config['skin'] = 'elastic';
 $config['language'] = 'pl_PL';
-// Roundcube serwuje skin_logo tylko z wnętrza skina (przez static.php) —
-// ścieżka względna do katalogu skina. Sam plik jest kopiowany do skina przez
-// apply-branding.sh przy każdej zmianie brandingu (bo katalog skina należy do
-// roundcube, a portal-app nie może tam pisać). Placeholder tworzy
-// scripts/vm1/40-roundcube.sh, żeby przed konfiguracją brandingu nie było
-// zepsutego obrazka.
-$config['skin_logo'] = 'images/portal-logo.png';
 
 // Logowanie nieudanych prób do dedykowanego pliku — konsumowane przez
 // fail2ban jail "roundcube-auth" (Faza 9).
@@ -43,3 +36,11 @@ $config['userlogins'] = true;
 
 $config['session_lifetime'] = 30;
 $config['ip_check'] = true;
+
+// Branding zarządzany z panelu admina (/admin/settings/branding): product_name
+// i skin_logo (jako data: URI) są zapisywane przez apply-branding.sh do
+// poniższego pliku, który nadpisuje wartości domyślne ustawione wyżej. Dzięki
+// temu zmiana logo/nazwy nie wymaga edycji tego pliku ani uprawnień do niego.
+if (file_exists('/etc/portal/roundcube-branding.php')) {
+    include('/etc/portal/roundcube-branding.php');
+}

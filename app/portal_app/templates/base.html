@@ -13,9 +13,8 @@
   <div class="topbar">
     {% if branding and branding.logo_path %}
       <img class="logo" src="/admin/static/branding/{{ branding.logo_path }}" alt="logo">
-    {% else %}
-      <strong>Portal Poczty</strong>
     {% endif %}
+    <strong>{{ branding.product_name if branding and branding.product_name else 'Portal Poczty' }}</strong>
     <div class="spacer"></div>
     {% if current_user %}
       <span>{{ current_user.username }}</span>

@@ -28,4 +28,14 @@ if [[ -f "$LOGO_SRC" && -d "$(dirname "$RC_SKIN_LOGO")" ]]; then
     install -m 0644 -o roundcube -g roundcube "$LOGO_SRC" "$RC_SKIN_LOGO"
 fi
 
+# Dynamiczna konfiguracja Roundcube (product_name + logo jako data: URI) —
+# wyrenderowana przez branding_renderer do stagingu, instalowana tu do
+# /etc/portal/ (root), skąd config.inc.php ją include'uje. Data: URI omija
+# problem z rozwiązywaniem skin_logo przez static.php.
+RC_BRANDING_STAGE="$STAGE_DIR/roundcube-branding.php"
+RC_BRANDING_TARGET="/etc/portal/roundcube-branding.php"
+if [[ -f "$RC_BRANDING_STAGE" ]]; then
+    install -m 0644 -o root -g root "$RC_BRANDING_STAGE" "$RC_BRANDING_TARGET"
+fi
+
 systemctl reload nginx
