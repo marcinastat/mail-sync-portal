@@ -48,7 +48,12 @@ RestartSec=5
 ProtectSystem=full
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=/var/log/portal /var/lib/portal-app /opt/portal-app/portal_app/static /var/www/errors /etc/portal/tls
+# /etc/portal potrzebne, bo apply-branding.sh (sudo, dziedziczy namespace tej
+# usługi) zapisuje /etc/portal/roundcube-branding.php, a apply-tls.sh operuje
+# na /etc/portal/tls. Bez tego zapis brandingu Roundcube z panelu po cichu
+# zawodził (ProtectSystem=full czyni /etc read-only). Katalog i tak jest
+# root-owned; realną granicą pozostaje wąski sudoers (tylko te 2 skrypty).
+ReadWritePaths=/var/log/portal /var/lib/portal-app /opt/portal-app/portal_app/static /var/www/errors /etc/portal
 
 [Install]
 WantedBy=multi-user.target
