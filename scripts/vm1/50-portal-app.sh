@@ -20,7 +20,7 @@ DB_PASS_FILE="/etc/portal/secrets/vm1-portal-db.pass"
 
 command -v systemd-creds >/dev/null 2>&1 || die "systemd-creds niedostępne — wymagany systemd >= 250 (Rocky 10 go ma domyślnie)."
 
-pkg_install_idempotent python3.12 python3.12-devel gcc sudo libffi-devel
+pkg_install_idempotent python3.12 python3.12-devel gcc sudo libffi-devel checkpolicy policycoreutils-python-utils
 
 if ! id portal-app >/dev/null 2>&1; then
     useradd --system --home-dir "$APP_DIR" --shell /sbin/nologin --create-home portal-app
@@ -105,6 +105,25 @@ fi
 if command -v semanage >/dev/null 2>&1; then
     semanage fcontext -a -t httpd_var_run_t "/run/portal-app(/.*)?" 2>/dev/null \
         || semanage fcontext -m -t httpd_var_run_t "/run/portal-app(/.*)?" 2>/dev/null || true
+fi
+
+# Etykieta pliku (wyżej) NIE wystarcza — SELinux osobno sprawdza "connectto"
+# między DOMENAMI procesów dla klasy unix_stream_socket: httpd_t (nginx) ->
+# unconfined_service_t (Gunicorn, generyczna domena usług systemd). Bez tego
+# modułu połączenie kończy się "Permission denied" mimo poprawnych etykiet
+# pliku i uprawnień DAC — potwierdzone wprost na działającym środowisku
+# (AVC: denied { connectto }, tclass=unix_stream_socket).
+if command -v checkmodule >/dev/null 2>&1 && command -v semodule_package >/dev/null 2>&1; then
+    SELINUX_BUILD_DIR="$(mktemp -d)"
+    checkmodule -M -m -o "$SELINUX_BUILD_DIR/portal_nginx_gunicorn.mod" \
+        "$REPO_ROOT/templates/selinux/portal_nginx_gunicorn.te"
+    semodule_package -o "$SELINUX_BUILD_DIR/portal_nginx_gunicorn.pp" \
+        -m "$SELINUX_BUILD_DIR/portal_nginx_gunicorn.mod"
+    semodule -i "$SELINUX_BUILD_DIR/portal_nginx_gunicorn.pp"
+    rm -rf "$SELINUX_BUILD_DIR"
+    log_info "Zainstalowano moduł SELinux portal_nginx_gunicorn (connectto httpd_t -> unconfined_service_t)."
+else
+    log_warn "Brak checkmodule/semodule_package (pakiet checkpolicy) — nginx może nie połączyć się z Gunicornem pod SELinux enforcing."
 fi
 
 # --- systemd units -----------------------------------------------------------------
