@@ -78,6 +78,17 @@ def render_all(branding: BrandingConfig) -> None:
         )
         (_STAGE_DIR / f"{code}.html").write_text(html, encoding="utf-8")
 
+    # Include konfiguracji Roundcube (product_name + logo). Logo jako data: URI
+    # — Roundcube używa go dosłownie, bez przepisywania ścieżki przez static.php
+    # (ścieżki względne/absolutne skin_logo są zawodne: albo 404, albo błędny
+    # prefiks skins/elastic). apply-branding.sh (root) instaluje ten plik do
+    # /etc/portal/roundcube-branding.php, a config.inc.php go include'uje.
+    product_name = (branding.product_name or "Portal Poczty").replace("'", "\\'")
+    rc_lines = ["<?php", f"$config['product_name'] = '{product_name}';"]
+    if logo_uri:
+        rc_lines.append(f"$config['skin_logo'] = '{logo_uri}';")
+    (_STAGE_DIR / "roundcube-branding.php").write_text("\n".join(rc_lines) + "\n", encoding="utf-8")
+
     # Zastosowanie brandingu do stron błędów nginx (przez sudo helper) jest
     # NAJMNIEJ krytyczną częścią — tokens.css (motyw panelu) i logo są już
     # zapisane wyżej. Błąd tego kroku nie może wywalać całego kreatora

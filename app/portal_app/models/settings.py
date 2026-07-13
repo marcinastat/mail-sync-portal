@@ -24,6 +24,7 @@ class BrandingConfig(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     logo_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    product_name: Mapped[str] = mapped_column(String(120), default="Portal Poczty")
     primary_color: Mapped[str] = mapped_column(String(7), default="#2563eb")
     secondary_color: Mapped[str] = mapped_column(String(7), default="#1e293b")
     accent_color: Mapped[str] = mapped_column(String(7), default="#f59e0b")

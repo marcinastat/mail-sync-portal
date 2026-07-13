@@ -11,6 +11,15 @@ $config['smtp_port'] = 587;
 $config['smtp_user'] = '%u';
 $config['smtp_pass'] = '%p';
 
+// Dovecot/Postfix na VM2 mają certyfikat self-signed (ruch wyłącznie
+// wewnętrzny VM1<->VM2 po prywatnej sieci). Roundcube nie ma go w truststore,
+// więc weryfikacja peera by zawsze padała. Wyłączamy ją dla tych połączeń —
+// VM2_HOSTNAME jest dodane do /etc/hosts na VM1 (scripts/vm1/40-roundcube.sh),
+// żeby nazwa w ogóle się rozwiązywała (brak wewnętrznego DNS).
+$ssl_opts = ['ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]];
+$config['imap_conn_options'] = $ssl_opts;
+$config['smtp_conn_options'] = $ssl_opts;
+
 $config['support_url'] = '';
 $config['product_name'] = 'Portal Poczty';
 $config['des_key'] = '${ROUNDCUBE_DES_KEY}';

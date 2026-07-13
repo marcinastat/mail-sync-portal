@@ -46,6 +46,13 @@ if [[ ! -f "$RC_SKIN_LOGO" && -f "$RC_ROOT/skins/elastic/thumbnail.png" ]]; then
     install -m 0644 -o roundcube -g roundcube "$RC_ROOT/skins/elastic/thumbnail.png" "$RC_SKIN_LOGO"
 fi
 
+# Roundcube łączy się z Dovecotem/Postfixem na VM2 po nazwie hosta (żeby
+# pasowała do CN self-signed certu VM2), a VM1 nie ma wewnętrznego DNS —
+# dodajemy wpis do /etc/hosts. Idempotentnie: usuwamy stary wpis dla tego
+# hosta i dopisujemy aktualny (IP może się zmienić między instalacjami).
+sed -i "/[[:space:]]${VM2_HOSTNAME}\$/d" /etc/hosts
+echo "${VM2_IP}    ${VM2_HOSTNAME}" >> /etc/hosts
+
 ensure_secret_file "$DES_KEY_FILE" 18  # base64(18 bajtów) daje 24 znaki wymagane przez Roundcube
 
 export ROUNDCUBE_DB_PASSWORD ROUNDCUBE_DES_KEY VM2_HOSTNAME
