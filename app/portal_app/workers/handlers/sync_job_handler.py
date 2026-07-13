@@ -90,6 +90,10 @@ def handle(payload: dict) -> None:
         job_run.folders_total = stats.get("folders_total", 0)
         job_run.messages_total = messages_total
         job_run.source_messages_total = stats.get("source_messages_total", 0)
+        job_run.dest_nb_messages = stats.get("dest_nb_messages", 0)
+        job_run.source_nb_messages = stats.get("source_nb_messages", 0)
+        job_run.source_duplicates = stats.get("source_duplicates", 0)
+        job_run.source_missing = stats.get("source_missing", 0)
         job_run.messages_missing_from_source_retained = drift
         job_run.error_summary = error_summary
         job_run.imapsync_log_path = log_path

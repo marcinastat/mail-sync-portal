@@ -154,6 +154,17 @@ _STATS_SINGLE = {
     #   "Host1 Total size:               7750159 bytes (7.391 MiB)"
     "source_bytes": re.compile(r"Host1 Total size:\s*(\d+)"),
     "dest_bytes_reported": re.compile(r"Host2 Total size:\s*(\d+)"),
+    # Autorytatywne liczniki imapsync z sekcji podsumowania — realny stan skrzynek
+    # (nie surowy SELECT). "Host2 Nb messages: 11812" to faktyczna liczba
+    # wiadomości u nas; różnica wobec źródła to głównie duplikaty na źródle.
+    "dest_nb_messages": re.compile(r"Host2 Nb messages:\s*(\d+)"),
+    "source_nb_messages": re.compile(r"Host1 Nb messages:\s*(\d+)"),
+    # Duplikaty na źródle — ten sam mail zapisany wielokrotnie; imapsync CELOWO
+    # nie tworzy ich kopii u nas, więc nie są ubytkiem.
+    "source_duplicates": re.compile(r"Messages found duplicate on host1\s*:\s*(\d+)"),
+    # NAJWAŻNIEJSZY wskaźnik kompletności: ile wiadomości jest na źródle, a nie
+    # ma ich u nas. 0 = sync kompletny, cokolwiek >0 = realnie brakuje.
+    "source_missing": re.compile(r"Messages found in host1 not in host2\s*:\s*(\d+)"),
 }
 _STATS_FOLDERS = re.compile(r"Folders synced\s*:\s*(\d+)\s*/\s*(\d+)")
 # Suma po WSZYSTKICH folderach host1 (źródło) — prawdziwa liczba wiadomości na
@@ -169,7 +180,8 @@ def _parse_stats(stdout: str) -> dict:
     do ręcznej weryfikacji (job_runs.imapsync_log_path)."""
     stats = {"messages_transferred": 0, "bytes_transferred": 0, "messages_total": 0,
              "folders_synced": 0, "folders_total": 0, "source_messages_total": 0,
-             "source_bytes": 0, "dest_bytes_reported": 0}
+             "source_bytes": 0, "dest_bytes_reported": 0, "dest_nb_messages": 0,
+             "source_nb_messages": 0, "source_duplicates": 0, "source_missing": 0}
     for key, pattern in _STATS_SINGLE.items():
         match = pattern.search(stdout)
         if match:
