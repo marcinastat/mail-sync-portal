@@ -188,13 +188,16 @@ def upsert_mailbox(
 
     mailbox = db.query(Mailbox).filter(Mailbox.credential_id == credential.id).first()
     if mailbox is None:
+        # Nowa skrzynka dziedziczy domyślną quotę domeny, chyba że podano jawnie
+        # inną (quota_mb > 0 z ręcznego dodania). 0 = użyj domyślnej domeny.
+        effective_quota = quota_mb if quota_mb else (domain.default_quota_mb or 0)
         mailbox = Mailbox(
             domain_id=domain.id,
             credential_id=credential.id,
             source_address=source_username if "@" in source_username else f"{source_username}@{source_domain}",
             destination_address=f"{destination_username}@{domain.destination_domain}",
             provisioning_status="pending",
-            quota_mb=quota_mb,
+            quota_mb=effective_quota,
         )
         db.add(mailbox)
         db.flush()

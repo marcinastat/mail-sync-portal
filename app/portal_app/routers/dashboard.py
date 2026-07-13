@@ -68,17 +68,18 @@ def _sync_summary(db: Session) -> dict:
 
 
 def _next_sync(db: Session) -> datetime | None:
+    # Najbliższe zaplanowane uruchomienie liczymy od TERAZ (nie od
+    # last_enqueued_at — to dawało czas w przeszłości, gdy scheduler był z tyłu
+    # albo gdy sync odpalano ręcznie). croniter od now zawsze zwraca przyszłość.
     now = datetime.now(timezone.utc)
     soonest = None
     for sj in db.query(SyncJob).filter(SyncJob.is_enabled.is_(True)).all():
-        base = sj.last_enqueued_at or (now - timedelta(days=1))
         try:
-            nxt = croniter(sj.schedule_cron, base).get_next(datetime)
+            nxt = croniter(sj.schedule_cron, now).get_next(datetime)
         except (ValueError, KeyError):
             continue
-        nxt = nxt.replace(tzinfo=timezone.utc) if nxt.tzinfo is None else nxt
-        if nxt < now:
-            nxt = now
+        if nxt.tzinfo is None:
+            nxt = nxt.replace(tzinfo=timezone.utc)
         if soonest is None or nxt < soonest:
             soonest = nxt
     return soonest

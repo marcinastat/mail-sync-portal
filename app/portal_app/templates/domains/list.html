@@ -1,25 +1,44 @@
 {% extends "base.html" %}
-{% block title %}Domeny — Portal Poczty{% endblock %}
+{% block title %}Domeny{% endblock %}
+{% block heading %}Domeny{% endblock %}
 {% block content %}
-  <h1>Domeny</h1>
-  <p style="font-size:0.85rem;color:#64748b">Domeny źródłowe powstają automatycznie przy imporcie XLS. Tu można ustawić domenę docelową na VM2 (jeśli inna niż źródłowa) i wyłączyć domenę.</p>
+  <h1>Domeny <span class="hint" style="font-size:0.9rem">({{ domains|length }})</span></h1>
+  <p class="hint">Domeny źródłowe powstają automatycznie przy imporcie. Tu ustawisz serwer IMAP źródła, domenę docelową na VM2 oraz domyślną quotę dla skrzynek domeny.</p>
+
+  {% for d in domains %}
   <div class="card">
-    <table>
-      <thead><tr><th>Domena źródłowa</th><th>Serwer IMAP źródła</th><th>Port</th><th>Domena docelowa</th><th>Status</th><th></th></tr></thead>
-      <tbody>
-        {% for d in domains %}
-        <tr>
-          <form method="post" action="/admin/domains/{{ d.id }}">
-          <td>{{ d.source_domain }}</td>
-          <td><input type="text" name="source_imap_host" value="{{ d.source_imap_host }}"></td>
-          <td><input type="number" name="source_imap_port" value="{{ d.source_imap_port }}" style="width:5rem"></td>
-          <td><input type="text" name="destination_domain" value="{{ d.destination_domain }}"></td>
-          <td><label><input type="checkbox" name="is_active" {% if d.is_active %}checked{% endif %}> aktywna</label></td>
-          <td><button class="btn" type="submit">Zapisz</button></td>
-          </form>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+      <h2 style="margin:0">{{ d.source_domain }}</h2>
+      <span class="hint">{{ counts.get(d.id, 0) }} skrzynek</span>
+    </div>
+    <form method="post" action="/admin/domains/{{ d.id }}">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:0.75rem">
+        <div>
+          <label>Serwer IMAP źródła</label>
+          <input type="text" name="source_imap_host" value="{{ d.source_imap_host }}">
+        </div>
+        <div>
+          <label>Port</label>
+          <input type="number" name="source_imap_port" value="{{ d.source_imap_port }}">
+        </div>
+        <div>
+          <label>Domena docelowa (VM2)</label>
+          <input type="text" name="destination_domain" value="{{ d.destination_domain }}">
+        </div>
+        <div>
+          <label>Domyślna quota (MB, 0 = bez limitu)</label>
+          <input type="number" name="default_quota_mb" value="{{ d.default_quota_mb }}" min="0">
+        </div>
+      </div>
+      <div style="display:flex;gap:1.25rem;align-items:center;margin-top:0.75rem;flex-wrap:wrap">
+        <label style="margin:0;font-weight:500"><input type="checkbox" name="is_active" {% if d.is_active %}checked{% endif %}> aktywna</label>
+        <label style="margin:0;font-weight:500"><input type="checkbox" name="apply_quota_to_all"> zastosuj tę quotę do <strong>wszystkich</strong> skrzynek domeny teraz</label>
+        <div class="spacer" style="flex:1"></div>
+        <button class="btn" type="submit">Zapisz</button>
+      </div>
+    </form>
   </div>
+  {% else %}
+  <div class="card"><p class="hint">Brak domen. Zaimportuj skrzynki lub dodaj ręcznie.</p></div>
+  {% endfor %}
 {% endblock %}
