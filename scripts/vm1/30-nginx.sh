@@ -71,6 +71,19 @@ if command -v setsebool >/dev/null 2>&1; then
     setsebool -P httpd_can_network_connect on || true
 fi
 
+# Pakiet nginx.org (w odróżnieniu od pakietu dystrybucyjnego) nie niesie
+# reguły SELinux etykietującej /run/nginx.pid jako httpd_var_run_t — bez
+# tego proces (domena httpd_t) dostaje AVC denied przy próbie zapisu pliku
+# pid i systemd zgłasza "did not take the steps required by its unit
+# configuration". Nadajemy etykietę z wyprzedzeniem, zanim nginx w ogóle
+# spróbuje utworzyć ten plik.
+if command -v semanage >/dev/null 2>&1; then
+    semanage fcontext -a -t httpd_var_run_t "/run/nginx.pid" 2>/dev/null \
+        || semanage fcontext -m -t httpd_var_run_t "/run/nginx.pid" 2>/dev/null || true
+    touch /run/nginx.pid
+    restorecon -v /run/nginx.pid || true
+fi
+
 systemctl enable --now nginx
 systemctl reload nginx
 
