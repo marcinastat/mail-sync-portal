@@ -23,6 +23,20 @@ def _run(argv: list[str], timeout: int) -> subprocess.CompletedProcess:
     return subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
 
 
+# Usługa działa pod ProtectSystem=strict — dnf uruchomiony bezpośrednio (nawet
+# przez sudo) dziedziczy namespace i nie ma zapisu do /usr, /var/cache, /var/log
+# ("Read-only file system: /var/log/dnf.log"), więc ani nie policzy, ani nie
+# zainstaluje aktualizacji. Uruchamiamy go więc jako transient unit przez
+# systemd-run — systemd (PID 1) spawnuje proces POZA naszym sandboxem. --quiet
+# tłumi własne komunikaty systemd-run, --pipe przekazuje stdout/stderr dnf.
+def _dnf(dnf_args: list[str], timeout: int) -> subprocess.CompletedProcess:
+    return _run(
+        ["/usr/bin/sudo", "-n", "/usr/bin/systemd-run", "--quiet", "--pipe", "--wait",
+         "--collect", "/usr/bin/dnf", *dnf_args],
+        timeout=timeout,
+    )
+
+
 def run_health_check() -> dict:
     results = {}
     for unit in _HEALTH_UNITS:
@@ -41,11 +55,7 @@ def get_available_updates() -> dict:
     """Ile aktualizacji czeka, ze szczególnym uwzględnieniem BEZPIECZEŃSTWA.
     Nie wymaga roota (czyta metadane z cache dnf). `check-update` zwraca kod 100
     gdy są aktualizacje, 0 gdy brak — obu NIE traktujemy jako błąd."""
-    # Przez sudo: `dnf check-update` jako konto usługi nie ma dostępu do
-    # systemowego cache metadanych (utrzymywanego przez dnf-makecache.timer) i
-    # albo błędnie zwraca 0, albo próbuje budować własny cache (wisi). Root ma
-    # gotowy cache — szybko i wiarygodnie. To operacja tylko-do-odczytu.
-    sec = _run(["/usr/bin/sudo", "-n", "/usr/bin/dnf", "-q", "check-update", "--security"], timeout=180)
+    sec = _dnf(["-q", "check-update", "--security"], timeout=180)
     security_packages = []
     if sec.returncode in (0, 100):
         for line in sec.stdout.splitlines():
@@ -58,7 +68,7 @@ def get_available_updates() -> dict:
             if len(parts) >= 3 and "." in parts[0]:
                 security_packages.append(parts[0])
 
-    allpkgs = _run(["/usr/bin/sudo", "-n", "/usr/bin/dnf", "-q", "check-update"], timeout=180)
+    allpkgs = _dnf(["-q", "check-update"], timeout=180)
     all_count = 0
     if allpkgs.returncode in (0, 100):
         for line in allpkgs.stdout.splitlines():
@@ -69,7 +79,7 @@ def get_available_updates() -> dict:
             if len(parts) >= 3 and "." in parts[0]:
                 all_count += 1
 
-    summary = _run(["/usr/bin/sudo", "-n", "/usr/bin/dnf", "-q", "updateinfo", "summary", "--available"], timeout=180)
+    summary = _dnf(["-q", "updateinfo", "summary", "--available"], timeout=180)
     return {
         "security_count": len(security_packages),
         "security_packages": sorted(set(security_packages))[:100],
@@ -83,11 +93,11 @@ def run_dnf_update(security_only: bool = True) -> dict:
     # Domyślnie TYLKO łatki bezpieczeństwa (--security) — świadomie unikamy
     # pełnego `dnf update`, który mógłby przeskoczyć wersje i coś rozłożyć.
     # Pełny update jest możliwy, ale tylko na wyraźne żądanie (security_only=False).
-    argv = ["/usr/bin/sudo", "-n", "/usr/bin/dnf", "-y"]
+    dnf_args = ["-y"]
     if security_only:
-        argv.append("--security")
-    argv.append("update")
-    result = _run(argv, timeout=1800)
+        dnf_args.append("--security")
+    dnf_args.append("update")
+    result = _dnf(dnf_args, timeout=1800)
     if result.returncode != 0:
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY,
