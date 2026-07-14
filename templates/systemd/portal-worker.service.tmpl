@@ -30,13 +30,23 @@ ExecStart=/opt/portal-app/venv/bin/python -m portal_app.workers.worker_main
 Restart=on-failure
 RestartSec=5
 
-NoNewPrivileges=true
-ProtectSystem=strict
+# NoNewPrivileges celowo NIE ustawione: worker wywołuje sudo dla wąsko
+# zdefiniowanych helperów aktualizacji systemu (apply-system-update.sh
+# backup|update|health|reboot-check) — aktualizacje idą w tle przez workera, bo
+# długi dnf zabiłby żądanie web (gunicorn --timeout). NoNewPrivileges=true
+# blokuje jakąkolwiek eskalację przez setuid (sudo pada z "no new privileges").
+# Realną granicą jest wąski /etc/sudoers.d/portal-app (tylko te helpery,
+# root-owned 0700) — identyczny kompromis jak w portal-gunicorn.service.
+# ProtectSystem=full (nie strict): /usr,/boot,/etc read-only, ale /var
+# zapisywalny — helper backupu pisze /var/lib/portal-config-backups, a dnf i tak
+# escape'uje sandbox przez systemd-run (transient unit na hoście).
+ProtectSystem=full
 ProtectHome=true
 PrivateTmp=true
 # /run/portal-app i /run/portal-import są RuntimeDirectory (automatycznie
-# zapisywalne, wyłączone z ProtectSystem) — nie muszą być w ReadWritePaths.
-ReadWritePaths=/var/log/portal /var/lib/portal-app
+# zapisywalne). /var jest zapisywalny pod ProtectSystem=full — kopie konfiguracji
+# trafiają do /var/lib/portal-config-backups.
+ReadWritePaths=/var/log/portal /var/lib/portal-app /var/lib/portal-config-backups
 
 [Install]
 WantedBy=multi-user.target

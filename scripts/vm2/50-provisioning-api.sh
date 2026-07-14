@@ -66,6 +66,10 @@ log_info "Certyfikat kliencki dla VM1 gotowy w $REPO_ROOT/ca/vm1-client.{crt,key
 # nadpisać skrypt uruchamiany jako root i eskalować uprawnienia. Stąd /usr/local/sbin.
 install -m 0755 -o root -g root "$REPO_ROOT/vm2_api/bin/delete-maildir.sh" /usr/local/sbin/vm2-delete-maildir.sh
 install -m 0755 -o root -g root "$REPO_ROOT/vm2_api/bin/vm2-dnf.sh" /usr/local/sbin/vm2-dnf.sh
+# Kopia configów przed aktualizacją + narzędzie ratunkowe na konsolę.
+install -m 0755 -o root -g root "$REPO_ROOT/vm2_api/bin/vm2-config-backup.sh" /usr/local/sbin/vm2-config-backup.sh
+install -m 0755 -o root -g root "$REPO_ROOT/vm2_api/bin/vm2-config-recovery.sh" /usr/local/sbin/vm2-config-recovery.sh
+install -d -m 0700 -o root -g root /var/lib/vm2-config-backups
 
 # --- sudoers.d (jedyna realna granica uprawnień, patrz komentarz w unicie) ----
 # vm2-api.tmpl jest statyczny (brak ${VAR}), więc render_template go tylko kopiuje.

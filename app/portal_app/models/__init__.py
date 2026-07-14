@@ -16,6 +16,7 @@ from .settings import (
     Vm2Connection,
 )
 from .sync import JobQueue, JobRun, SyncJob
+from .system_update import SystemUpdateRun
 
 __all__ = [
     "AdminUser",
@@ -39,4 +40,5 @@ __all__ = [
     "JobQueue",
     "JobRun",
     "SyncJob",
+    "SystemUpdateRun",
 ]

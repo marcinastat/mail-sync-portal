@@ -34,9 +34,15 @@ ExecStartPre=+/usr/sbin/restorecon -R /run/portal-app
 LoadCredentialEncrypted=portal-secret-key:/etc/portal/creds/portal-secret-key.cred
 LoadCredentialEncrypted=portal-credential-key:/etc/portal/creds/portal-credential-key.cred
 
+# --timeout 120: sprawdzanie dostępnych łatek (AJAX /settings/updates/*/check)
+# woła `dnf check-update`, które przy zimnym cache pobiera metadane repo i może
+# przekroczyć domyślne 30 s gunicorna (worker byłby zabity → 502). Samo
+# STOSOWANIE aktualizacji idzie przez portal-worker, więc nie potrzebuje tu
+# długiego timeoutu.
 ExecStart=/opt/portal-app/venv/bin/gunicorn portal_app.app:app \
     --workers 2 \
     --worker-class uvicorn.workers.UvicornWorker \
+    --timeout 120 \
     --bind unix:/run/portal-app/gunicorn.sock \
     --access-logfile - --error-logfile -
 Restart=on-failure

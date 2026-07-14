@@ -30,10 +30,25 @@ def _run(argv: list[str], timeout: int) -> subprocess.CompletedProcess:
 # plik + cat — patrz komentarz w bin/vm2-dnf.sh (bezpośrednie systemd-run --pipe
 # gubi output, gdy wołającym jest asyncio uvicorna).
 _DNF_HELPER = "/usr/local/sbin/vm2-dnf.sh"
+_BACKUP_HELPER = "/usr/local/sbin/vm2-config-backup.sh"
 
 
 def _dnf(mode: str, timeout: int) -> subprocess.CompletedProcess:
     return _run(["/usr/bin/sudo", "-n", _DNF_HELPER, mode], timeout=timeout)
+
+
+def _config_backup() -> str | None:
+    """Kopia configów VM2 przed aktualizacją (przez root-helper, systemd-run
+    escape). Zwraca ścieżkę kopii albo None (backup best-effort — jego brak nie
+    blokuje aktualizacji, ale jest widoczny w wyniku)."""
+    try:
+        res = _run(["/usr/bin/sudo", "-n", _BACKUP_HELPER], timeout=300)
+    except Exception:
+        return None
+    for line in res.stdout.splitlines():
+        if line.startswith("backup_path="):
+            return line.split("=", 1)[1].strip()
+    return None
 
 
 def run_health_check() -> dict:
@@ -92,6 +107,9 @@ def run_dnf_update(security_only: bool = True) -> dict:
     # Domyślnie TYLKO łatki bezpieczeństwa (--security) — świadomie unikamy
     # pełnego `dnf update`, który mógłby przeskoczyć wersje i coś rozłożyć.
     # Pełny update jest możliwy, ale tylko na wyraźne żądanie (security_only=False).
+    # Najpierw kopia configów — żeby po nieudanej aktualizacji dało się je
+    # przywrócić narzędziem konsolowym vm2-config-recovery.sh.
+    backup_path = _config_backup()
     result = _dnf("update-security" if security_only else "update-all", timeout=1800)
     if result.returncode != 0:
         raise HTTPException(
@@ -111,6 +129,7 @@ def run_dnf_update(security_only: bool = True) -> dict:
         "reboot_needed": reboot_needed,
         "reboot_confirm_token": token,
         "security_only": security_only,
+        "backup_path": backup_path,
     }
 
 

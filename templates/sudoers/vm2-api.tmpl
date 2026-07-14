@@ -10,6 +10,8 @@ vm2-api ALL=(root) NOPASSWD: /usr/local/sbin/vm2-dnf.sh update-security
 vm2-api ALL=(root) NOPASSWD: /usr/local/sbin/vm2-dnf.sh update-all
 vm2-api ALL=(root) NOPASSWD: /usr/bin/systemctl reboot
 vm2-api ALL=(root) NOPASSWD: /usr/bin/needs-restarting -r
+# Kopia configów przed aktualizacją (root-helper, systemd-run escape jak vm2-dnf.sh).
+vm2-api ALL=(root) NOPASSWD: /usr/local/sbin/vm2-config-backup.sh
 vm2-api ALL=(root) NOPASSWD: /usr/bin/clamdscan --ping 1 -c /etc/clamd.d/scan.conf
 vm2-api ALL=(root) NOPASSWD: /usr/bin/clamdscan --version -c /etc/clamd.d/scan.conf
 vm2-api ALL=(root) NOPASSWD: /usr/bin/clamdscan --fdpass --multiscan -c /etc/clamd.d/scan.conf /var/mail/vhosts/*

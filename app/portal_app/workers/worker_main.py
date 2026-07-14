@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from ..db import session_scope
 from ..models import JobQueue
 from ..services import throttle_service
-from .handlers import provision_handler, sync_job_handler
+from .handlers import provision_handler, sync_job_handler, system_update_handler
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("portal.worker")
@@ -18,6 +18,7 @@ WORKER_ID = f"{socket.gethostname()}-{os.getpid()}"
 HANDLERS = {
     "provision": provision_handler.handle,
     "sync": sync_job_handler.handle,
+    "system_update": system_update_handler.handle,
 }
 
 

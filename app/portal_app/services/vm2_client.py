@@ -7,118 +7,89 @@ class Vm2ApiError(RuntimeError):
     pass
 
 
-def _client(conn: Vm2Connection) -> httpx.Client:
+def _client(conn: Vm2Connection, timeout: float = 15.0) -> httpx.Client:
     base_url = f"https://{conn.vm2_host}:{conn.vm2_api_port}"
     return httpx.Client(
         base_url=base_url,
         cert=(conn.client_cert_path, conn.client_key_path),
         verify=conn.ca_cert_path,
-        timeout=15.0,
+        timeout=timeout,
     )
 
 
-def check_health(conn: Vm2Connection) -> dict:
+def _request(conn: Vm2Connection, method: str, path: str, *, timeout: float = 15.0, **kwargs) -> dict:
+    """Jedno miejsce, które KAŻDY błąd transportu/HTTP (VM2 wyłączona,
+    connection refused, timeout, 5xx) zamienia na Vm2ApiError. Bez tego surowe
+    httpx.ConnectError wyciekało z disk_usage()/av_status() i wywalało dashboard
+    na 500, gdy VM2 była zgaszona (wołający łapał tylko Vm2ApiError)."""
     try:
-        with _client(conn) as client:
-            resp = client.get("/health")
+        with _client(conn, timeout=timeout) as client:
+            resp = client.request(method, path, **kwargs)
             resp.raise_for_status()
             return resp.json()
     except httpx.HTTPError as exc:
         raise Vm2ApiError(str(exc)) from exc
 
 
+def check_health(conn: Vm2Connection) -> dict:
+    return _request(conn, "GET", "/health")
+
+
 def create_domain(conn: Vm2Connection, name: str) -> dict:
-    with _client(conn) as client:
-        resp = client.post("/domains", json={"name": name})
-        resp.raise_for_status()
-        return resp.json()
+    return _request(conn, "POST", "/domains", json={"name": name})
 
 
 def create_mailbox(conn: Vm2Connection, *, domain: str, local_part: str, password: str, quota_mb: int = 0) -> dict:
-    with _client(conn) as client:
-        resp = client.post(
-            "/mailboxes",
-            json={"domain": domain, "local_part": local_part, "password": password, "quota_mb": quota_mb},
-        )
-        resp.raise_for_status()
-        return resp.json()
+    return _request(
+        conn, "POST", "/mailboxes",
+        json={"domain": domain, "local_part": local_part, "password": password, "quota_mb": quota_mb},
+    )
 
 
 def reset_mailbox_password(conn: Vm2Connection, mailbox_id: str, new_password: str) -> dict:
-    with _client(conn) as client:
-        resp = client.post(f"/mailboxes/{mailbox_id}/reset-password", json={"new_password": new_password})
-        resp.raise_for_status()
-        return resp.json()
+    return _request(conn, "POST", f"/mailboxes/{mailbox_id}/reset-password", json={"new_password": new_password})
 
 
 def delete_mailbox(conn: Vm2Connection, mailbox_id: str) -> dict:
     """Trwałe usunięcie skrzynki docelowej na VM2 (rekord + maildir). Źródła
     nie dotyka. Wołane po potwierdzeniu w panelu (routers/mailboxes.py)."""
-    with _client(conn) as client:
-        resp = client.delete(f"/mailboxes/{mailbox_id}")
-        resp.raise_for_status()
-        return resp.json()
+    return _request(conn, "DELETE", f"/mailboxes/{mailbox_id}")
 
 
 def get_mailbox_status(conn: Vm2Connection, mailbox_id: str) -> dict:
-    with _client(conn) as client:
-        resp = client.get(f"/mailboxes/{mailbox_id}/status")
-        resp.raise_for_status()
-        return resp.json()
+    return _request(conn, "GET", f"/mailboxes/{mailbox_id}/status")
 
 
 def get_mailbox_quota(conn: Vm2Connection, mailbox_id: str) -> dict:
-    with _client(conn) as client:
-        resp = client.get(f"/mailboxes/{mailbox_id}/quota")
-        resp.raise_for_status()
-        return resp.json()
+    return _request(conn, "GET", f"/mailboxes/{mailbox_id}/quota")
 
 
 def update_mailbox_quota(conn: Vm2Connection, mailbox_id: str, quota_mb: int) -> dict:
-    with _client(conn) as client:
-        resp = client.patch(f"/mailboxes/{mailbox_id}", json={"quota_mb": quota_mb})
-        resp.raise_for_status()
-        return resp.json()
+    return _request(conn, "PATCH", f"/mailboxes/{mailbox_id}", json={"quota_mb": quota_mb})
 
 
 def av_scan(conn: Vm2Connection, *, domain: str, local_part: str) -> dict:
-    with _client(conn) as client:
-        resp = client.post("/av/scan", json={"domain": domain, "local_part": local_part})
-        resp.raise_for_status()
-        return resp.json()
+    return _request(conn, "POST", "/av/scan", json={"domain": domain, "local_part": local_part})
 
 
 def av_status(conn: Vm2Connection) -> dict:
-    with _client(conn) as client:
-        resp = client.get("/av/status")
-        resp.raise_for_status()
-        return resp.json()
+    return _request(conn, "GET", "/av/status")
 
 
 def get_system_updates(conn: Vm2Connection) -> dict:
-    with _client(conn) as client:
-        resp = client.get("/system/updates")
-        resp.raise_for_status()
-        return resp.json()
+    # check-update może pobierać metadane — dłuższy timeout niż domyślny.
+    return _request(conn, "GET", "/system/updates", timeout=180.0)
 
 
 def system_update(conn: Vm2Connection, security_only: bool = True) -> dict:
-    with _client(conn) as client:
-        # dłuższy timeout — dnf update potrafi trwać
-        resp = client.post("/system/update", json={"security_only": security_only}, timeout=1800.0)
-        resp.raise_for_status()
-        return resp.json()
+    # Wołane z workera (nie z żądania web) — dnf update potrafi trwać, stąd
+    # długi timeout. Worker nie ma limitu gunicorna, więc może czekać.
+    return _request(conn, "POST", "/system/update", json={"security_only": security_only}, timeout=1800.0)
 
 
 def disk_usage(conn: Vm2Connection) -> dict:
-    with _client(conn) as client:
-        resp = client.get("/system/disk-usage")
-        resp.raise_for_status()
-        return resp.json()
+    return _request(conn, "GET", "/system/disk-usage")
 
 
 def system_reboot(conn: Vm2Connection, confirm_token: str) -> dict:
-    with _client(conn) as client:
-        resp = client.post("/system/reboot", json={"confirm_token": confirm_token})
-        resp.raise_for_status()
-        return resp.json()
+    return _request(conn, "POST", "/system/reboot", json={"confirm_token": confirm_token})
