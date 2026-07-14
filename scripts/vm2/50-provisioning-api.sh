@@ -65,6 +65,7 @@ log_info "Certyfikat kliencki dla VM1 gotowy w $REPO_ROOT/ca/vm1-client.{crt,key
 # MUSZĄ leżeć poza /opt/vm2-api (własność vm2-api) — inaczej konto usługi mogłoby
 # nadpisać skrypt uruchamiany jako root i eskalować uprawnienia. Stąd /usr/local/sbin.
 install -m 0755 -o root -g root "$REPO_ROOT/vm2_api/bin/delete-maildir.sh" /usr/local/sbin/vm2-delete-maildir.sh
+install -m 0755 -o root -g root "$REPO_ROOT/vm2_api/bin/vm2-dnf.sh" /usr/local/sbin/vm2-dnf.sh
 
 # --- sudoers.d (jedyna realna granica uprawnień, patrz komentarz w unicie) ----
 # vm2-api.tmpl jest statyczny (brak ${VAR}), więc render_template go tylko kopiuje.
