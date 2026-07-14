@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Aktualizacje systemu — Portal Poczty{% endblock %}
+{% block heading %}Aktualizacje systemu{% endblock %}
+{% macro host_card(title, sub, data, action, mode_field_id) %}
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <h2 style="margin:0">{{ title }}</h2>
+      <span class="hint">{{ sub }}</span>
+    </div>
+    {% if data is none %}
+      <p class="hint">Brak skonfigurowanego połączenia.</p>
+    {% elif data.error %}
+      <p style="color:#b91c1c">Nie udało się sprawdzić: {{ data.error }}</p>
+    {% else %}
+      <div class="stat-grid" style="margin:0.75rem 0">
+        <div class="stat">
+          <div class="label">Łatki bezpieczeństwa</div>
+          <div class="value">{{ data.security_count }}
+            {% if data.security_count and data.security_count > 0 %}<span class="badge err">do zainstalowania</span>
+            {% else %}<span class="badge ok">brak</span>{% endif %}
+          </div>
+        </div>
+        <div class="stat">
+          <div class="label">Wszystkie aktualizacje</div>
+          <div class="value" style="font-size:1.5rem">{{ data.total_count if data.total_count is defined else "—" }}</div>
+          {% if data.reboot_needed %}<div class="sub"><span class="badge warn">wymagany reboot</span></div>{% endif %}
+        </div>
+      </div>
+      <form method="post" action="{{ action }}" style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap"
+            onsubmit="return confirm('Uruchomić aktualizację na: {{ title }}? Zalecany tryb: tylko bezpieczeństwo.');">
+        <select name="mode" id="{{ mode_field_id }}">
+          <option value="security">Tylko łatki bezpieczeństwa (zalecane)</option>
+          <option value="all">Wszystkie aktualizacje (pełny dnf update)</option>
+        </select>
+        <button class="btn" type="submit">Zainstaluj aktualizacje</button>
+      </form>
+    {% endif %}
+  </div>
+{% endmacro %}
+{% block content %}
+  <p style="margin-top:0"><a href="/admin/settings" class="hint">← Ustawienia</a></p>
+  <h1>Aktualizacje systemu</h1>
+  <p class="hint" style="max-width:75ch">
+    Instaluj aktualizacje wprost z portalu. Domyślnie stosowane są <strong>tylko łatki bezpieczeństwa</strong>
+    (<code>dnf --security update</code>) — świadomie unikamy pełnego <code>dnf update</code>, który mógłby
+    przeskoczyć wersje i coś rozłożyć. Po aktualizacji uruchamiany jest health-check kluczowych usług,
+    a jeśli jądro/biblioteki tego wymagają — sygnalizujemy potrzebę restartu.
+  </p>
+
+  {% if result %}
+  <div class="card" style="border-color:{{ '#16a34a' if result.healthy else '#dc2626' }}">
+    <h2 style="margin-top:0">Wynik: {{ result.host }}
+      {% if result.healthy %}<span class="badge ok">usługi OK</span>{% else %}<span class="badge err">sprawdź usługi</span>{% endif %}
+      {% if result.reboot_needed %}<span class="badge warn">zalecany reboot</span>{% endif %}
+      <span class="hint">tryb: {{ "bezpieczeństwo" if result.security_only else "pełny" }}</span>
+    </h2>
+    <pre style="white-space:pre-wrap;font-size:0.8rem;max-height:320px;overflow:auto;background:#0b1220;color:#cbd5e1;padding:0.75rem;border-radius:8px">{{ result.output_tail }}</pre>
+  </div>
+  {% endif %}
+
+  {{ host_card("VM1 (portal)", "host aplikacji, nginx, PostgreSQL", vm1, "/admin/settings/updates/vm1", "mode_vm1") }}
+  {{ host_card("VM2 (serwer poczty)", "Postfix, Dovecot, ClamAV", vm2, "/admin/settings/updates/vm2", "mode_vm2") }}
+{% endblock %}

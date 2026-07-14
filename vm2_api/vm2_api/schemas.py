@@ -46,11 +46,17 @@ class AvScanRequest(BaseModel):
     local_part: str
 
 
+class SystemUpdateRequest(BaseModel):
+    # Domyślnie tylko łatki bezpieczeństwa — pełny update wymaga jawnego false.
+    security_only: bool = True
+
+
 class SystemUpdateResult(BaseModel):
     dnf_output_tail: str
     health_check: dict
     reboot_needed: bool
     reboot_confirm_token: str | None
+    security_only: bool = True
 
 
 class SystemRebootRequest(BaseModel):

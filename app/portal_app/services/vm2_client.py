@@ -95,9 +95,17 @@ def av_status(conn: Vm2Connection) -> dict:
         return resp.json()
 
 
-def system_update(conn: Vm2Connection) -> dict:
+def get_system_updates(conn: Vm2Connection) -> dict:
     with _client(conn) as client:
-        resp = client.post("/system/update")
+        resp = client.get("/system/updates")
+        resp.raise_for_status()
+        return resp.json()
+
+
+def system_update(conn: Vm2Connection, security_only: bool = True) -> dict:
+    with _client(conn) as client:
+        # dłuższy timeout — dnf update potrafi trwać
+        resp = client.post("/system/update", json={"security_only": security_only}, timeout=1800.0)
         resp.raise_for_status()
         return resp.json()
 

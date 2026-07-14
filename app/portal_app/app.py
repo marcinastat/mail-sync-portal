@@ -19,6 +19,7 @@ from .routers import (
     settings_network,
     settings_throttle,
     settings_tls,
+    settings_updates,
     settings_users,
     setup_wizard,
 )
@@ -57,4 +58,5 @@ app.include_router(settings_network.router)
 app.include_router(settings_throttle.router)
 app.include_router(settings_alerts.router)
 app.include_router(settings_tls.router)
+app.include_router(settings_updates.router)
 app.include_router(settings_users.router)
