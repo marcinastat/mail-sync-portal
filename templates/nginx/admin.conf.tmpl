@@ -67,6 +67,11 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-Proto https;
+        # Zamień surowe odpowiedzi błędów z aplikacji (FastAPI 404/500 itd.) na
+        # nasze branded strony z /errors/. Dotyczy tylko kodów wymienionych w
+        # error_page (403/404/429/500/502/503/504) — 400/401/303 przechodzą bez
+        # zmian, więc walidacja formularzy i przekierowania auth działają normalnie.
+        proxy_intercept_errors on;
     }
 
     location /admin/static/ {

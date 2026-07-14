@@ -17,7 +17,7 @@ LOGO_SRC="/opt/portal-app/portal_app/static/branding/logo.png"
 # ustawione na 'images/portal-logo.png' (względne do skina).
 RC_SKIN_LOGO="/var/www/roundcube/skins/elastic/images/portal-logo.png"
 
-for name in 404 429 500; do
+for name in 403 404 429 500; do
     src="$STAGE_DIR/${name}.html"
     if [[ -f "$src" ]]; then
         install -m 0644 -o root -g root "$src" "$TARGET_DIR/${name}.html"
