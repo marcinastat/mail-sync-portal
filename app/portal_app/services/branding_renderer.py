@@ -18,10 +18,34 @@ _STAGE_DIR = Path("/var/lib/portal-app/branding-stage")
 
 _env = Environment(loader=FileSystemLoader(str(_TEMPLATES_DIR)), autoescape=True)
 
+# (tytuł, krótki komunikat, wyjaśnienie „co się dzieje / co zrobić")
 _ERROR_PAGES = {
-    "404": ("Nie znaleziono", "Strona nie została znaleziona."),
-    "429": ("Zbyt wiele prób", "Zbyt wiele prób logowania. Spróbuj ponownie za chwilę."),
-    "500": ("Błąd serwera", "Wystąpił błąd serwera. Spróbuj ponownie później."),
+    "403": (
+        "Brak dostępu",
+        "Nie masz uprawnień do tej strony.",
+        "Ta sekcja wymaga zalogowania lub wyższych uprawnień. Jeśli sądzisz, że to pomyłka, "
+        "zaloguj się ponownie albo skontaktuj się z administratorem portalu.",
+    ),
+    "404": (
+        "Nie znaleziono",
+        "Ta strona nie istnieje.",
+        "Adres jest błędny lub zasób został przeniesiony. Sprawdź link albo wróć do panelu i "
+        "przejdź do właściwej sekcji z menu.",
+    ),
+    "429": (
+        "Zbyt wiele prób",
+        "Chwilowo zablokowano dalsze próby.",
+        "Wykryliśmy zbyt wiele żądań w krótkim czasie (ochrona przed atakami na logowanie). "
+        "Odczekaj minutę i spróbuj ponownie. Przy uporczywych próbach adres może zostać "
+        "czasowo zablokowany przez fail2ban.",
+    ),
+    "500": (
+        "Błąd serwera",
+        "Coś poszło nie tak po naszej stronie.",
+        "To nie jest problem z Twoimi danymi — wystąpił nieoczekiwany błąd aplikacji. Spróbuj "
+        "ponownie za chwilę. Jeśli błąd się powtarza, przekaż administratorowi przybliżony czas "
+        "zdarzenia — szczegóły są w logach portalu.",
+    ),
 }
 
 
@@ -93,11 +117,13 @@ def render_all(branding: BrandingConfig) -> None:
 
     _STAGE_DIR.mkdir(parents=True, exist_ok=True)
     template = _env.get_template("error_page.html.j2")
-    for code, (title, message) in _ERROR_PAGES.items():
+    for code, (title, message, explanation) in _ERROR_PAGES.items():
         html = template.render(
             code=code,
             title=title,
             message=message,
+            explanation=explanation,
+            product_name=branding.product_name or "Portal Poczty",
             logo_data_uri=logo_uri,
             primary_color=branding.primary_color,
             secondary_color=branding.secondary_color,

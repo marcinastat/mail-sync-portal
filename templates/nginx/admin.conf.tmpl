@@ -13,6 +13,7 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers on;
 
+    error_page 403 /errors/403.html;
     error_page 404 /errors/404.html;
     error_page 429 /errors/429.html;
     error_page 500 502 503 504 /errors/500.html;

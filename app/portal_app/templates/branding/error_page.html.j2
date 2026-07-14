@@ -2,20 +2,53 @@
 <html lang="pl">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ code }} — {{ title }}</title>
 <style>
-  body{font-family:system-ui,sans-serif;background:{{ secondary_color }};color:#e2e8f0;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0}
-  .box{text-align:center}
-  img.logo{max-height:56px;margin-bottom:1rem}
-  h1{font-size:3rem;margin:0;color:{{ accent_color }}}
-  p{color:#cbd5e1}
+  :root{
+    --bg:{{ secondary_color }};
+    --accent:{{ accent_color }};
+    --primary:{{ primary_color }};
+  }
+  *{box-sizing:border-box}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:linear-gradient(160deg,var(--bg) 0%,#0b1220 100%);
+    color:#e2e8f0;margin:0;min-height:100vh;
+    display:flex;align-items:center;justify-content:center;padding:1.5rem;
+  }
+  .card{
+    background:rgba(15,23,42,.72);border:1px solid rgba(148,163,184,.18);
+    border-radius:18px;max-width:560px;width:100%;padding:2.5rem 2.25rem;
+    box-shadow:0 20px 60px rgba(0,0,0,.45);text-align:center;
+    backdrop-filter:blur(6px);
+  }
+  img.logo{max-height:52px;margin-bottom:1.25rem}
+  .code{
+    display:inline-block;font-size:.8rem;font-weight:700;letter-spacing:.12em;
+    text-transform:uppercase;color:#0b1220;background:var(--accent);
+    padding:.28rem .7rem;border-radius:999px;margin-bottom:1rem;
+  }
+  h1{font-size:1.7rem;margin:.2rem 0 .6rem;color:#f8fafc}
+  p.lead{font-size:1.05rem;color:#cbd5e1;margin:.2rem 0 1rem}
+  p.explain{font-size:.94rem;line-height:1.6;color:#94a3b8;margin:0 0 1.5rem}
+  a.btn{
+    display:inline-block;text-decoration:none;font-weight:600;
+    background:var(--accent);color:#0b1220;padding:.6rem 1.3rem;border-radius:10px;
+  }
+  a.btn:hover{filter:brightness(1.08)}
+  .foot{margin-top:1.6rem;font-size:.8rem;color:#64748b}
 </style>
 </head>
 <body>
-  <div class="box">
+  <div class="card">
     {% if logo_data_uri %}<img class="logo" src="{{ logo_data_uri }}" alt="logo">{% endif %}
-    <h1>{{ code }}</h1>
-    <p>{{ message }}</p>
+    <div class="code">Błąd {{ code }}</div>
+    <h1>{{ title }}</h1>
+    <p class="lead">{{ message }}</p>
+    <p class="explain">{{ explanation }}</p>
+    <a class="btn" href="/admin/">Wróć do panelu</a>
+    <div class="foot">{{ product_name }}</div>
   </div>
 </body>
 </html>
