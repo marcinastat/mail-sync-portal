@@ -51,6 +51,15 @@ def reset_mailbox_password(conn: Vm2Connection, mailbox_id: str, new_password: s
         return resp.json()
 
 
+def delete_mailbox(conn: Vm2Connection, mailbox_id: str) -> dict:
+    """Trwałe usunięcie skrzynki docelowej na VM2 (rekord + maildir). Źródła
+    nie dotyka. Wołane po potwierdzeniu w panelu (routers/mailboxes.py)."""
+    with _client(conn) as client:
+        resp = client.delete(f"/mailboxes/{mailbox_id}")
+        resp.raise_for_status()
+        return resp.json()
+
+
 def get_mailbox_status(conn: Vm2Connection, mailbox_id: str) -> dict:
     with _client(conn) as client:
         resp = client.get(f"/mailboxes/{mailbox_id}/status")

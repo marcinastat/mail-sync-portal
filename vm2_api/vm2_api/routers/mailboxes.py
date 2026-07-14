@@ -94,6 +94,26 @@ def reset_password(
     return _to_out(row)
 
 
+@router.delete("/{mailbox_id}")
+def delete_mailbox(
+    mailbox_id: int,
+    request: Request,
+    actor: str = Depends(require_vm1_ip),
+    conn: psycopg.Connection = Depends(get_conn),
+):
+    result = pda.delete_mailbox(conn, mailbox_id)
+    insert_audit_log(
+        conn,
+        actor=actor,
+        action="mailbox.delete",
+        target_type="mailbox",
+        target_id=str(mailbox_id),
+        details={"domain": result["domain"], "local_part": result["local_part"]},
+        source_ip=request.client.host if request.client else None,
+    )
+    return {"deleted": True, **result}
+
+
 @router.get("/{mailbox_id}/status", response_model=MailboxOut)
 def get_mailbox_status(
     mailbox_id: int,

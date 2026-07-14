@@ -7,3 +7,6 @@ vm2-api ALL=(root) NOPASSWD: /usr/bin/clamdscan --version -c /etc/clamd.d/scan.c
 vm2-api ALL=(root) NOPASSWD: /usr/bin/clamdscan --fdpass --multiscan -c /etc/clamd.d/scan.conf /var/mail/vhosts/*
 vm2-api ALL=(clamscan) NOPASSWD: /usr/bin/freshclam
 vm2-api ALL=(root) NOPASSWD: /usr/bin/doveadm quota get -u *
+# Kasowanie maildira usuniętej skrzynki — helper waliduje argumenty (brak
+# path-traversal), więc wieloznacznik jest bezpieczny. Patrz bin/delete-maildir.sh.
+vm2-api ALL=(root) NOPASSWD: /opt/vm2-api/bin/delete-maildir.sh *

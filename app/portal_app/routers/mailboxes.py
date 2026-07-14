@@ -341,3 +341,77 @@ def reset_password(
         source_ip=client_ip(request),
     )
     return RedirectResponse(f"/admin/mailboxes/{mailbox_id}", status_code=303)
+
+
+@router.post("/{mailbox_id}/delete")
+def delete_mailbox(
+    mailbox_id: int,
+    request: Request,
+    confirm_text: str = Form(...),
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    """Trwałe, potwierdzone usunięcie skrzynki DOCELOWEJ. Wymaga wpisania
+    dokładnego adresu skrzynki (silniejsze niż 'POTWIERDZAM' — chroni przed
+    pomyłką co do której skrzynki kasujemy). Kasuje na VM2 (rekord + maildir),
+    a lokalnie: przebiegi, kolejkę, konfigurację sync i sam rekord. Serwera
+    ŹRÓDŁOWEGO nie dotyka — imapsync jest jednokierunkowy."""
+    mailbox = db.get(Mailbox, mailbox_id)
+    if mailbox is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+
+    if confirm_text.strip() != mailbox.destination_address:
+        sync_job = db.query(SyncJob).filter(SyncJob.mailbox_id == mailbox_id).first()
+        return templates.TemplateResponse(
+            request,
+            "mailboxes/detail.html",
+            {
+                "active": "mailboxes",
+                "current_user": current_user,
+                "mailbox": mailbox,
+                "sync_job": sync_job,
+                "error": f"Usunięcie wymaga wpisania dokładnego adresu skrzynki: {mailbox.destination_address}",
+            },
+            status_code=400,
+        )
+
+    # Najpierw VM2 (rekord + maildir). Gdyby padło — przerywamy i NIE kasujemy
+    # lokalnie, żeby stan po obu stronach się nie rozjechał (skrzynka nadal
+    # widoczna w panelu, można ponowić).
+    if mailbox.vm2_mailbox_id:
+        conn = db.query(Vm2Connection).first()
+        if conn is None:
+            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Brak konfiguracji połączenia z VM2.")
+        vm2_client.delete_mailbox(conn, mailbox.vm2_mailbox_id)
+
+    deleted_address = mailbox.destination_address
+    credential_id = mailbox.credential_id
+
+    # Lokalne sprzątanie. JobRun/SyncJob mają ondelete=CASCADE (FK do mailboxes),
+    # ale JobQueue trzyma mailbox_id tylko w payload (JSONB, bez FK) — czyścimy
+    # ręcznie ewentualne niezakończone zadania tej skrzynki.
+    db.query(JobQueue).filter(
+        JobQueue.job_type == "sync",
+        JobQueue.payload["mailbox_id"].astext == str(mailbox_id),
+    ).delete(synchronize_session=False)
+    db.delete(mailbox)
+    db.flush()
+
+    # Credential usuwamy tylko, jeśli nie współdzieli go inna skrzynka.
+    if credential_id is not None:
+        still_used = db.query(Mailbox).filter(Mailbox.credential_id == credential_id).count()
+        if still_used == 0:
+            cred = db.get(Credential, credential_id)
+            if cred is not None:
+                db.delete(cred)
+
+    record(
+        db,
+        actor_admin_user_id=current_user.id,
+        action="mailbox.delete",
+        target_type="mailbox",
+        target_id=str(mailbox_id),
+        details={"destination_address": deleted_address},
+        source_ip=client_ip(request),
+    )
+    return RedirectResponse("/admin/mailboxes", status_code=303)

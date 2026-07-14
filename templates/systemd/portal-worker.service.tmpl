@@ -8,12 +8,19 @@ Type=simple
 User=portal-app
 Group=portal-app
 WorkingDirectory=/opt/portal-app
-RuntimeDirectory=portal-app
+# Oba katalogi tworzone przez systemd PRZED montowaniem namespace (ProtectSystem):
+#  portal-app    — współdzielony z gunicornem (gniazdo gunicorn.sock)
+#  portal-import — tmpfs na strumieniowe rozpakowanie archiwów importu (config.py
+#                  IMPORT_TMP_DIR). KLUCZOWE: po reboocie/`dnf update` /run (tmpfs)
+#                  jest czyszczony; gdyby /run/portal-import było tylko w
+#                  ReadWritePaths (a nie RuntimeDirectory), worker padłby na
+#                  226/NAMESPACE ("Failed to set up mount namespacing: ... No such
+#                  file or directory"). RuntimeDirectory gwarantuje ich istnienie
+#                  przy każdym starcie — także pierwszym po reboocie.
+RuntimeDirectory=portal-app portal-import
 RuntimeDirectoryMode=0750
-# /run/portal-app jest WSPÓŁDZIELONY z portal-gunicorn (gniazdo gunicorn.sock).
-# Domyślnie systemd kasuje RuntimeDirectory przy każdym stop/restart usługi —
-# restart workera skasowałby wtedy gniazdo gunicorna i wywalił cały panel (502).
-# Preserve=yes: katalog przeżywa restart którejkolwiek z usług.
+# Preserve=yes: katalogi przeżywają restart którejkolwiek z usług (restart workera
+# nie skasuje wtedy gniazda gunicorna → koniec z 502 po restarcie workera).
 RuntimeDirectoryPreserve=yes
 
 LoadCredentialEncrypted=portal-secret-key:/etc/portal/creds/portal-secret-key.cred
@@ -27,7 +34,9 @@ NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=/var/log/portal /var/lib/portal-app /run/portal-app /run/portal-import
+# /run/portal-app i /run/portal-import są RuntimeDirectory (automatycznie
+# zapisywalne, wyłączone z ProtectSystem) — nie muszą być w ReadWritePaths.
+ReadWritePaths=/var/log/portal /var/lib/portal-app
 
 [Install]
 WantedBy=multi-user.target

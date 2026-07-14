@@ -136,6 +136,28 @@ def update_mailbox(
     return get_mailbox(conn, mailbox_id)
 
 
+def delete_mailbox(conn: psycopg.Connection, mailbox_id: int) -> dict:
+    """Trwale usuwa skrzynkę DOCELOWĄ (VM2): rekord z mail_db oraz jej maildir
+    z dysku. NIE dotyka serwera źródłowego (imapsync jest jednokierunkowy —
+    źródła nigdy nie modyfikujemy). Zwraca tożsamość usuniętej skrzynki.
+    Kolejność: najpierw kasujemy dane na dysku (root helper), potem rekord —
+    gdyby rm padł, skrzynka nadal jest w bazie i można ponowić."""
+    import subprocess
+
+    row = get_mailbox(conn, mailbox_id)  # 404 jeśli brak
+    domain_name = row["domain_name"]
+    local_part = row["local_part"]
+
+    # Usunięcie maildira wymaga roota (vmail:vmail 0700) — wąski helper + sudoers.
+    subprocess.run(
+        ["/usr/bin/sudo", "-n", "/opt/vm2-api/bin/delete-maildir.sh", domain_name, local_part],
+        capture_output=True, text=True, timeout=60, check=True,
+    )
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM virtual_mailboxes WHERE id = %s", (mailbox_id,))
+    return {"id": mailbox_id, "domain": domain_name, "local_part": local_part}
+
+
 def reset_password(conn: psycopg.Connection, mailbox_id: int, new_password_plain: str) -> dict:
     get_mailbox(conn, mailbox_id)
     password_hash = hash_password(new_password_plain)

@@ -8,12 +8,15 @@ Type=simple
 User=portal-app
 Group=portal-app
 WorkingDirectory=/opt/portal-app
-RuntimeDirectory=portal-app
+# portal-app  — gniazdo gunicorn.sock (współdzielone z workerem)
+# portal-import — tmpfs na upload archiwów importu (gunicorn odbiera plik z
+#   przeglądarki i strumieniuje go tu; worker potem przetwarza). RuntimeDirectory
+#   gwarantuje istnienie po reboocie/`dnf update` (tmpfs /run czyszczony) — patrz
+#   analogiczny komentarz w portal-worker.service.
+RuntimeDirectory=portal-app portal-import
 RuntimeDirectoryMode=0750
-# /run/portal-app jest WSPÓŁDZIELONY z portal-worker. Domyślnie systemd kasuje
-# RuntimeDirectory przy stop/restart usługi — restart workera skasowałby wtedy
-# nasze gniazdo gunicorn.sock i cały panel padłby na 502. Preserve=yes: katalog
-# (i gniazdo) przeżywa restart którejkolwiek z usług.
+# Preserve=yes: /run/portal-app (i gniazdo) przeżywa restart którejkolwiek z usług
+# — bez tego restart workera kasował gniazdo gunicorna i panel padał na 502.
 RuntimeDirectoryPreserve=yes
 
 # systemd NIE konsultuje bazy semanage fcontext przy tworzeniu
