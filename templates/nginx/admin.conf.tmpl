@@ -1,12 +1,18 @@
 server {
     listen 80;
-    server_name ${VM1_HOSTNAME};
+    # `_` jako druga nazwa = catch-all, gdy VM1_HOSTNAME jest pusty (dostęp po
+    # samym IP, wewnętrznie). Bez tego pusty ${VM1_HOSTNAME} dałby "server_name ;"
+    # (błąd składni nginx: brak argumentu).
+    server_name ${VM1_HOSTNAME} _;
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl;
-    server_name ${VM1_HOSTNAME};
+    # `_` jako druga nazwa = catch-all, gdy VM1_HOSTNAME jest pusty (dostęp po
+    # samym IP, wewnętrznie). Bez tego pusty ${VM1_HOSTNAME} dałby "server_name ;"
+    # (błąd składni nginx: brak argumentu).
+    server_name ${VM1_HOSTNAME} _;
 
     ssl_certificate     /etc/portal/tls/active/fullchain.pem;
     ssl_certificate_key /etc/portal/tls/active/privkey.pem;
