@@ -80,7 +80,31 @@ def save_logo(upload_bytes: bytes) -> str:
     # Trwała kopia poza /opt — źródło samonaprawy po deployu (patrz wyżej).
     _STAGE_DIR.mkdir(parents=True, exist_ok=True)
     image.convert("RGBA").save(_STAGE_LOGO, format="PNG")
+    # Favicon prosto z wgranego logo — portal sam przeskalowuje (można wgrać
+    # logo w dowolnej, także większej rozdzielczości). Zapisujemy do static/
+    # (serwowane) i do stagingu (samonaprawa po deployu, jak logo.png).
+    _generate_favicons(upload_bytes, branding_dir)
     return "logo.png"
+
+
+_FAVICON_PNGS = [(32, "favicon-32.png"), (180, "apple-touch-icon.png")]
+
+
+def _generate_favicons(upload_bytes: bytes, branding_dir) -> None:
+    """Tworzy favicon.ico (16+32) i apple-touch-icon (180) ze skalowania logo.
+    Best-effort — brak favicona nie może wywalić zapisu brandingu."""
+    try:
+        for size, name in _FAVICON_PNGS:
+            ico = Image.open(io.BytesIO(upload_bytes)).convert("RGBA")
+            ico.thumbnail((size, size))
+            ico.save(branding_dir / name, format="PNG")
+            ico.save(_STAGE_DIR / name, format="PNG")
+        # Klasyczny favicon.ico z osadzonymi rozmiarami 16 i 32 (kompatybilność).
+        base = Image.open(io.BytesIO(upload_bytes)).convert("RGBA")
+        base.save(branding_dir / "favicon.ico", format="ICO", sizes=[(16, 16), (32, 32)])
+        base.save(_STAGE_DIR / "favicon.ico", format="ICO", sizes=[(16, 16), (32, 32)])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Nie udało się wygenerować favicona z logo: %s", exc)
 
 
 def ensure_panel_logo() -> None:
@@ -89,12 +113,17 @@ def ensure_panel_logo() -> None:
     odtwarzamy je. Wołane przy starcie aplikacji (app.py). Best-effort — brak
     logo nie może wywalić startu usługi."""
     try:
-        panel_logo = _STATIC_DIR / "branding" / "logo.png"
+        branding_dir = _STATIC_DIR / "branding"
+        panel_logo = branding_dir / "logo.png"
         if panel_logo.exists() or not _STAGE_LOGO.exists():
             return
-        panel_logo.parent.mkdir(parents=True, exist_ok=True)
-        panel_logo.write_bytes(_STAGE_LOGO.read_bytes())
-        logger.info("Odtworzono logo panelu ze stagingu po deployu: %s", panel_logo)
+        branding_dir.mkdir(parents=True, exist_ok=True)
+        # Odtwórz logo ORAZ favicony z trwałej kopii (te same pliki co save_logo).
+        for name in ["logo.png", "favicon.ico", "favicon-32.png", "apple-touch-icon.png"]:
+            src = _STAGE_DIR / name
+            if src.exists():
+                (branding_dir / name).write_bytes(src.read_bytes())
+        logger.info("Odtworzono logo/favicony panelu ze stagingu po deployu.")
     except Exception as exc:  # noqa: BLE001 — logo to nie funkcja krytyczna
         logger.warning("Nie udało się odtworzyć logo panelu ze stagingu: %s", exc)
 

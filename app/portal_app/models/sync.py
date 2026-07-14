@@ -18,6 +18,10 @@ class SyncJob(Base, TimestampMixin):
     delete_on_dest_when_missing_from_source: Mapped[bool] = mapped_column(Boolean, default=False)
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     last_enqueued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Dodatkowe flagi imapsync SPECYFICZNE dla tej skrzynki (np. --exclude "^Spam$").
+    # Walidowane allowlistą (services/imapsync_flags.py) — dokładają się do flag
+    # globalnych z ImapsyncConfig.
+    custom_flags: Mapped[str] = mapped_column(String(1000), default="")
 
 
 class JobQueue(Base, TimestampMixin):

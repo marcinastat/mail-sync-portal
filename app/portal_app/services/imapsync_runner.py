@@ -21,7 +21,10 @@ class ImapsyncSafetyError(RuntimeError):
     """Nigdy nie powinno się zdarzyć — zabezpieczenie przed regresją w kodzie."""
 
 
-_FORBIDDEN_SOURCE_FLAGS = re.compile(r"^--(delete1|expunge1|delete1duplicates|search1|noexpunge1)\b")
+_FORBIDDEN_SOURCE_FLAGS = re.compile(
+    r"^--(delete1\w*|expunge1\w*|search1|noexpunge1|"
+    r"pipemess|pipemesscheck|exec|execafter|execbefore)\b"
+)
 
 
 def _write_passfile(password: str, tmp_dir: Path) -> Path:
@@ -46,6 +49,7 @@ def build_argv(
     preserve_folder_structure: bool,
     delete_on_dest_when_missing_from_source: bool,
     dry_run: bool = False,
+    extra_flags: list[str] | None = None,
 ) -> list[str]:
     argv = [
         IMAPSYNC_BIN,
@@ -83,6 +87,14 @@ def build_argv(
     if dry_run:
         argv.append("--dry")
 
+    # Dodatkowe flagi z portalu (globalne z ImapsyncConfig + per-skrzynka z
+    # SyncJob.custom_flags). Są JUŻ przefiltrowane allowlistą w
+    # services/imapsync_flags.py, ale nie ufamy temu na słowo: poniższa pętla
+    # (ostateczny bezpiecznik) i tak przeskanuje CAŁE argv pod kątem flag
+    # mutujących źródło. Redundancja jest celowa.
+    if extra_flags:
+        argv += extra_flags
+
     for flag in argv:
         if _FORBIDDEN_SOURCE_FLAGS.match(flag):
             raise ImapsyncSafetyError(f"Wykryto zabronioną flagę mutującą źródło: {flag}")
@@ -105,6 +117,7 @@ def run_sync(
     preserve_folder_structure: bool,
     delete_on_dest_when_missing_from_source: bool,
     dry_run: bool = False,
+    extra_flags: list[str] | None = None,
     tmp_dir: Path = Path("/run/portal-app/imapsync"),
 ) -> dict:
     source_passfile = _write_passfile(source_password, tmp_dir)
@@ -123,6 +136,7 @@ def run_sync(
             preserve_folder_structure=preserve_folder_structure,
             delete_on_dest_when_missing_from_source=delete_on_dest_when_missing_from_source,
             dry_run=dry_run,
+            extra_flags=extra_flags,
         )
         result = subprocess.run(argv, capture_output=True, text=True, timeout=3600)
     finally:

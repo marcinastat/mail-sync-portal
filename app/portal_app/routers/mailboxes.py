@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..deps import client_ip, get_db, require_login, require_setup_complete
 from ..models import AdminUser, Credential, Domain, JobQueue, JobRun, Mailbox, SyncJob, Vm2Connection
-from ..services import import_service, vm2_client
+from ..services import imapsync_flags, import_service, vm2_client
 from ..services.audit_service import record
 from ..services.credential_crypto import encrypt_password
 
@@ -338,6 +338,50 @@ def reset_password(
         target_type="mailbox",
         target_id=str(mailbox.id),
         details={},  # hasło nigdy nie trafia do audit logu
+        source_ip=client_ip(request),
+    )
+    return RedirectResponse(f"/admin/mailboxes/{mailbox_id}", status_code=303)
+
+
+@router.post("/{mailbox_id}/custom-flags")
+def update_custom_flags(
+    mailbox_id: int,
+    request: Request,
+    custom_flags: str = Form(""),
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    """Zapisuje dodatkowe flagi imapsync SPECYFICZNE dla tej skrzynki (np.
+    --exclude jakiegoś folderu). Walidowane allowlistą — flagi mutujące źródło
+    lub uruchamiające kod są odrzucane. Dokładają się do flag globalnych."""
+    mailbox = db.get(Mailbox, mailbox_id)
+    if mailbox is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    sync_job = db.query(SyncJob).filter(SyncJob.mailbox_id == mailbox_id).first()
+
+    try:
+        imapsync_flags.validate_custom_flags(custom_flags)
+    except imapsync_flags.ImapsyncFlagError as exc:
+        return templates.TemplateResponse(
+            request,
+            "mailboxes/detail.html",
+            {"active": "mailboxes", "current_user": current_user, "mailbox": mailbox,
+             "sync_job": sync_job, "error": str(exc)},
+            status_code=400,
+        )
+
+    if sync_job is None:
+        sync_job = SyncJob(mailbox_id=mailbox_id)
+        db.add(sync_job)
+    sync_job.custom_flags = custom_flags.strip()
+    db.add(sync_job)
+    record(
+        db,
+        actor_admin_user_id=current_user.id,
+        action="mailbox.custom_flags",
+        target_type="mailbox",
+        target_id=str(mailbox_id),
+        details={"custom_flags": sync_job.custom_flags},
         source_ip=client_ip(request),
     )
     return RedirectResponse(f"/admin/mailboxes/{mailbox_id}", status_code=303)
