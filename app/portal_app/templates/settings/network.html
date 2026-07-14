@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Strefy dostępu sieci — Portal Poczty{% endblock %}
+{% block heading %}Strefy dostępu sieci{% endblock %}
+{% block content %}
+  <p style="margin-top:0"><a href="/admin/settings" class="hint">← Ustawienia</a></p>
+  <h1>Strefy dostępu sieci</h1>
+  <p class="hint" style="max-width:70ch">
+    Ogranicz, z jakich sieci można dosięgnąć <strong>panelu administracyjnego</strong> i <strong>webmaila Roundcube</strong> —
+    niezależnie. Reguły działają na poziomie nginx (allow/deny wg adresu klienta), jako <em>druga</em> warstwa
+    ponad zaporą firewalld. Podaj adresy lub sieci w notacji CIDR, jeden wpis na linię lub po przecinku
+    (np. <code>192.168.88.0/24</code>, <code>10.8.0.5</code>). <strong>Puste pole = brak dodatkowego ograniczenia</strong>
+    (obowiązuje tylko firewalld).
+  </p>
+
+  {% if saved %}<div class="card" style="border-color:#16a34a;color:#15803d">Zapisano i zastosowano w nginx.</div>{% endif %}
+  {% if error %}<div class="card" style="border-color:#dc2626;color:#991b1b">{{ error }}</div>{% endif %}
+
+  <div class="card" style="border-color:#d97706;color:#92400e">
+    <strong>⚠ Uwaga:</strong> jeśli wpiszesz sieć, która <em>nie</em> obejmuje Twojego obecnego adresu,
+    możesz odciąć sobie dostęp do panelu. Zmiana jest testowana (<code>nginx -t</code>) i wycofywana przy błędzie
+    składni, ale nie chroni przed poprawną-składniowo, lecz zbyt wąską listą. W razie zablokowania: popraw plik
+    <code>/etc/portal/nginx/admin-access.conf</code> na serwerze i przeładuj nginx.
+  </div>
+
+  <form method="post" action="/admin/settings/network">
+    <div class="card">
+      <h2 style="margin-top:0">Panel administracyjny <span class="hint">(/admin)</span></h2>
+      <label for="admin_networks">Dozwolone sieci (CIDR)</label>
+      <textarea id="admin_networks" name="admin_networks" rows="4"
+                style="width:100%;font-family:monospace"
+                placeholder="np. 192.168.88.0/24">{{ cfg.admin_networks }}</textarea>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0">Webmail Roundcube <span class="hint">(/)</span></h2>
+      <label for="webmail_networks">Dozwolone sieci (CIDR)</label>
+      <textarea id="webmail_networks" name="webmail_networks" rows="4"
+                style="width:100%;font-family:monospace"
+                placeholder="np. 192.168.88.0/24, 10.8.0.0/24">{{ cfg.webmail_networks }}</textarea>
+    </div>
+
+    <p><button class="btn" type="submit">Zapisz i zastosuj</button>
+      {% if cfg.applied_at %}<span class="hint" style="margin-left:0.75rem">Ostatnio zastosowano: {{ cfg.applied_at | dt }}</span>{% endif %}
+    </p>
+  </form>
+{% endblock %}

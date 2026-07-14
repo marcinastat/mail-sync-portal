@@ -57,9 +57,19 @@ fi
 
 # --- Strony błędów (placeholder — nadpisywane przez branding_renderer w Fazie 6) ---
 mkdir -p /var/www/errors
-install -m 0644 "$REPO_ROOT/templates/nginx/error-pages/404.html" /var/www/errors/404.html
-install -m 0644 "$REPO_ROOT/templates/nginx/error-pages/429.html" /var/www/errors/429.html
-install -m 0644 "$REPO_ROOT/templates/nginx/error-pages/500.html" /var/www/errors/500.html
+for code in 403 404 429 500; do
+    install -m 0644 "$REPO_ROOT/templates/nginx/error-pages/${code}.html" /var/www/errors/${code}.html
+done
+
+# --- Include'y stref dostępu (allow/deny per location) --------------------------
+# MUSZĄ istnieć zanim admin.conf je zaincluduje, inaczej nginx się nie uruchomi.
+# Domyślnie puste (= brak ograniczenia poza firewalld); portal je nadpisuje przez
+# apply-network-access.sh (Ustawienia → Strefy dostępu sieci).
+mkdir -p /etc/portal/nginx
+for f in admin-access.conf webmail-access.conf; do
+    [[ -f /etc/portal/nginx/$f ]] || printf '# domyslnie brak ograniczenia sieci (obowiazuje firewalld)\n' > /etc/portal/nginx/$f
+    chmod 0644 /etc/portal/nginx/$f
+done
 
 # --- Konfiguracja ---------------------------------------------------------------
 render_template "$REPO_ROOT/templates/nginx/nginx.conf.tmpl" /etc/nginx/nginx.conf

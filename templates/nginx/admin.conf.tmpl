@@ -35,6 +35,9 @@ server {
     index index.php;
 
     location / {
+        # Strefa dostępu webmaila Roundcube — konfigurowalna z portalu
+        # (Ustawienia → Sieć). Puste = bez ograniczenia poza firewalld.
+        include /etc/portal/nginx/webmail-access.conf;
         try_files $uri $uri/ /index.php?$args;
     }
 
@@ -46,6 +49,9 @@ server {
     # fastcgi_split_path_info rozdziela /static.php + /skins/...css, żeby
     # PHP-FPM dostał poprawny SCRIPT_FILENAME i PATH_INFO.
     location ~ \.php(/|$) {
+        # Roundcube serwuje zasoby przez PHP (static.php) — strefa webmaila musi
+        # obejmować także tę lokację, inaczej ograniczenie /-> byłoby omijane.
+        include /etc/portal/nginx/webmail-access.conf;
         fastcgi_split_path_info ^(.+?\.php)(/.*)$;
         fastcgi_pass unix:/run/php-fpm/roundcube.sock;
         fastcgi_index index.php;
@@ -55,6 +61,8 @@ server {
     }
 
     location = /admin/login {
+        # Strefa dostępu panelu /admin — konfigurowalna z portalu.
+        include /etc/portal/nginx/admin-access.conf;
         limit_req zone=admin_login burst=10;
         proxy_pass http://unix:/run/portal-app/gunicorn.sock:;
         proxy_set_header Host $host;
@@ -63,6 +71,7 @@ server {
     }
 
     location /admin/ {
+        include /etc/portal/nginx/admin-access.conf;
         proxy_pass http://unix:/run/portal-app/gunicorn.sock:;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -75,6 +84,7 @@ server {
     }
 
     location /admin/static/ {
+        include /etc/portal/nginx/admin-access.conf;
         alias /opt/portal-app/portal_app/static/;
     }
 }
