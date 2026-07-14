@@ -7,8 +7,9 @@ import subprocess
 
 def _count_packages(argv: list[str]) -> int:
     """Liczy pakiety w wyjściu `dnf check-update`. Kody 0/100 to nie błąd
-    (100 = są aktualizacje, 0 = brak)."""
-    res = subprocess.run(argv, capture_output=True, text=True, timeout=180)
+    (100 = są aktualizacje, 0 = brak). Uruchamiane przez sudo — konto portal-app
+    nie ma dostępu do systemowego cache dnf (patrz analogiczny komentarz na VM2)."""
+    res = subprocess.run(["/usr/bin/sudo", "-n", *argv], capture_output=True, text=True, timeout=180)
     if res.returncode not in (0, 100):
         return 0
     count = 0

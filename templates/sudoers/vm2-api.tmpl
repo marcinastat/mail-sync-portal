@@ -1,6 +1,11 @@
 Defaults:vm2-api !requiretty
 vm2-api ALL=(root) NOPASSWD: /usr/bin/dnf -y update
 vm2-api ALL=(root) NOPASSWD: /usr/bin/dnf -y --security update
+# Sprawdzanie dostępnych aktualizacji (read-only) — konto usługi nie ma dostępu
+# do systemowego cache metadanych dnf, więc liczymy przez sudo (root).
+vm2-api ALL=(root) NOPASSWD: /usr/bin/dnf -q check-update
+vm2-api ALL=(root) NOPASSWD: /usr/bin/dnf -q check-update --security
+vm2-api ALL=(root) NOPASSWD: /usr/bin/dnf -q updateinfo summary --available
 vm2-api ALL=(root) NOPASSWD: /usr/bin/systemctl reboot
 vm2-api ALL=(root) NOPASSWD: /usr/bin/needs-restarting -r
 vm2-api ALL=(root) NOPASSWD: /usr/bin/clamdscan --ping 1 -c /etc/clamd.d/scan.conf
