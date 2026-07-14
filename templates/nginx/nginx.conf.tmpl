@@ -20,6 +20,18 @@ http {
     keepalive_timeout 65;
     client_max_body_size 64m;  # XLS import w zaszyfrowanym archiwum
 
+    # --- Hardening ogólny -----------------------------------------------------
+    server_tokens off;  # nie ujawniaj wersji nginx (Server: nginx, bez X.Y.Z)
+
+    # --- Parametry TLS (wspólne dla wszystkich server-bloków) -----------------
+    # Zestaw jak "Mozilla intermediate": tylko AEAD (GCM/ChaCha20) na ECDHE/DHE —
+    # PFS, bez CBC/RC4/3DES. Protokoły (TLSv1.2/1.3) ustawia server-blok w admin.conf.
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;  # bez ticketów — pełne PFS między sesjami
+
     # Rate-limiting logowania — stosowany WYŁĄCZNIE na /admin/login (portal_app,
     # osobny pojedynczy endpoint). Roundcube NIE jest tu limitowany, bo serwuje
     # wszystkie zasoby przez PHP i limit blokowałby całą aplikację — jego
