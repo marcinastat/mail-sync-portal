@@ -15,7 +15,10 @@ case "$mode" in
 esac
 
 echo "=== dnf ${args[*]} ==="
-/usr/bin/dnf "${args[@]}" 2>&1 | tail -c 4000
+# Helper dziedziczy namespace usługi portal-gunicorn (ProtectSystem=full -> /usr
+# read-only), więc bezpośredni dnf nie mógłby zainstalować pakietów. Uruchamiamy
+# go jako transient unit przez systemd-run — POZA sandboxem usługi.
+/usr/bin/systemd-run --quiet --pipe --wait --collect /usr/bin/dnf "${args[@]}" 2>&1 | tail -c 4000
 
 echo "=== health-check kluczowych usług ==="
 rc=0
