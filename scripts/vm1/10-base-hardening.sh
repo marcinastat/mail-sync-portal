@@ -27,5 +27,22 @@ systemctl enable --now fail2ban
 mkdir -p /etc/portal/secrets
 chmod 0700 /etc/portal/secrets
 
+# --- Utwardzenie SSH: tylko klucze (root wyłącznie kluczem) -------------------
+# ZABEZPIECZENIE: instalujemy TYLKO jeśli root ma już wgrany klucz publiczny —
+# inaczej wyłączenie logowania hasłem odcięłoby dostęp do świeżej maszyny.
+REPO_ROOT="$(repo_root)"
+if [[ -s /root/.ssh/authorized_keys ]]; then
+    install -m 0600 -o root -g root "$REPO_ROOT/templates/ssh/00-portal-hardening.conf" /etc/ssh/sshd_config.d/00-portal-hardening.conf
+    if sshd -t; then
+        systemctl reload sshd
+        log_info "SSH utwardzony: tylko klucze, root prohibit-password."
+    else
+        rm -f /etc/ssh/sshd_config.d/00-portal-hardening.conf
+        log_warn "sshd -t nie przeszedł po dodaniu hardeningu SSH — cofnięto zmianę."
+    fi
+else
+    log_warn "Pomijam utwardzenie SSH: brak /root/.ssh/authorized_keys (najpierw wgraj klucz roota, inaczej stracisz dostęp)."
+fi
+
 log_info "Hardening bazowy VM1 zakończony (firewalld/fail2ban zainstalowane, reguły w kolejnych krokach)."
 mark_step_done "$STEP_NAME"
