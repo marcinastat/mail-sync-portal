@@ -82,6 +82,16 @@ chown root:root "$CREDS_DIR"/*.cred
 install -D -m 0700 -o root -g root "$APP_DIR/portal_app/bin/apply-branding.sh" "$APP_DIR/bin/apply-branding.sh"
 install -D -m 0700 -o root -g root "$APP_DIR/portal_app/bin/apply-tls.sh" "$APP_DIR/bin/apply-tls.sh"
 install -D -m 0700 -o root -g root "$APP_DIR/portal_app/bin/apply-network-access.sh" "$APP_DIR/bin/apply-network-access.sh"
+# Helper aktualizacji systemu (wołany fazami przez portal-worker) — root-owned
+# 0700, POZA katalogami zapisywalnymi dla konta usługi (brak eskalacji).
+install -D -m 0700 -o root -g root "$APP_DIR/portal_app/bin/apply-system-update.sh" "$APP_DIR/bin/apply-system-update.sh"
+# Narzędzie ratunkowe na konsolę (przywraca kopię configów sprzed aktualizacji).
+install -m 0700 -o root -g root "$APP_DIR/portal_app/bin/portal-config-recovery.sh" /usr/local/sbin/portal-config-recovery.sh
+# Katalog na kopie konfiguracji robione przed aktualizacją (retencja w helperze).
+install -d -m 0700 -o root -g root /var/lib/portal-config-backups
+# needs-restarting (dnf-utils) — bez niego reboot-check nie potrafi rzetelnie
+# stwierdzić, czy restart jest wymagany (raportowałby "unknown", nie zgaduje "yes").
+pkg_install_idempotent dnf-utils
 render_template "$REPO_ROOT/templates/sudoers/portal-app.tmpl" /etc/sudoers.d/portal-app
 chmod 0440 /etc/sudoers.d/portal-app
 visudo -cf /etc/sudoers.d/portal-app || die "Wygenerowany plik sudoers jest niepoprawny składniowo — przerywam."

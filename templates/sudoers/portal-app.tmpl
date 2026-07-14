@@ -4,8 +4,14 @@ portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-tls.sh manual
 portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-tls.sh certbot
 portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-tls.sh selfsigned
 portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-network-access.sh
-portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-system-update.sh security
-portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-system-update.sh all
+# Aktualizacje systemu — helper wieloetapowy (worker woła każdą fazę osobno, by
+# modal pokazywał postęp). Każda komenda enumerowana OSOBNO (bez wolnych argów).
+portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-system-update.sh backup
+portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-system-update.sh update security
+portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-system-update.sh update all
+portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-system-update.sh health
+portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-system-update.sh reboot-check
+portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-system-update.sh reboot
 # Sprawdzanie dostępnych aktualizacji (read-only) — konto portal-app nie ma
 # dostępu do systemowego cache metadanych dnf, więc liczymy przez sudo.
 portal-app ALL=(root) NOPASSWD: /usr/bin/dnf -q check-update

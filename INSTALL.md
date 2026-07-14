@@ -162,4 +162,11 @@ Z komputera znajdującego się w podsieci `ADMIN_SUBNET_CIDR`:
   `No supported database files found` — to znak, że masz starszą wersję repo
   sprzed poprawki uprawnień `/var/lib/clamav`; zrób `git pull` i uruchom
   ponownie `sudo scripts/vm2/40-clamav.sh`.
+- **Aktualizacje systemu** robisz z panelu: **Ustawienia → Aktualizacje systemu**
+  (domyślnie tylko łatki bezpieczeństwa, w tle, z podglądem postępu). Szczegóły:
+  `docs/user/system-updates.md`.
+- Gdyby aktualizacja coś rozłożyła — przed każdą robiona jest **kopia
+  konfiguracji**, a na konsoli jest narzędzie ratunkowe:
+  `sudo portal-config-recovery.sh list|restore <znacznik>` (VM1) oraz
+  `sudo vm2-config-recovery.sh …` (VM2).
 - Pełny status faz projektu: `docs/technical/build-status.md`.

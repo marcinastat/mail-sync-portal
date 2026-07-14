@@ -14,17 +14,64 @@ Strona pokazuje dla każdej maszyny:
 
 - liczbę oczekujących **łatek bezpieczeństwa** (czerwony znacznik, jeśli >0),
 - liczbę **wszystkich** dostępnych aktualizacji,
-- czy po aktualizacji będzie wymagany **restart** (np. nowy kernel).
+- czy jest wymagany **restart** (np. nowy kernel).
 
-## Jak to działa pod spodem
+Liczby dociągają się w tle zaraz po wejściu na stronę (widać krótkie „sprawdzam…"),
+bo `dnf` musi najpierw pobrać metadane repozytoriów — dzięki temu sama strona
+otwiera się natychmiast, bez czekania.
 
-Aktualizacje nie mogą być instalowane bezpośrednio przez usługę portalu ani API VM2,
-bo obie działają w piaskownicy systemd (`ProtectSystem`), która blokuje zapis do
-`/usr` i `/var`. Dlatego `dnf` jest uruchamiany jako **jednostka przejściowa** przez
-`systemd-run` — poza piaskownicą usługi. Po zakończeniu portal automatycznie wykonuje
-**health-check** kluczowych usług (na VM1: PostgreSQL, nginx, gunicorn, worker, PHP-FPM,
-fail2ban; na VM2: PostgreSQL, Dovecot, Postfix, ClamAV, API) i pokazuje wynik oraz
-ewentualną potrzebę restartu.
+## Przebieg aktualizacji — widać postęp na żywo
+
+Po kliknięciu **Zainstaluj aktualizacje** aktualizacja rusza **w tle** (wykonuje ją
+worker portalu), a na ekranie pojawia się okno postępu pokazujące kolejne fazy:
+
+1. **Kopia zapasowa konfiguracji** — przed czymkolwiek robiony jest backup plików
+   konfiguracyjnych (patrz niżej).
+2. **Pobieranie i instalacja pakietów** (`dnf`) — najdłuższa faza.
+3. **Test kluczowych usług** (health-check) — sprawdzenie, czy wszystko wstało.
+4. **Sprawdzenie, czy wymagany restart.**
+
+Okno można zamknąć i wrócić później — po ponownym wejściu na stronę, jeśli
+aktualizacja nadal trwa, okno postępu otworzy się samo. Aktualizacja **nie**
+blokuje już przeglądarki ani panelu.
+
+## Kopia konfiguracji przed aktualizacją + narzędzie ratunkowe
+
+Przed każdą aktualizacją portal robi **kopię plików konfiguracyjnych** (nginx,
+portal, sudoers, systemd, PostgreSQL `*.conf` na VM1; Postfix, Dovecot, ClamAV,
+PostgreSQL na VM2). Kopie trafiają do:
+
+- VM1: `/var/lib/portal-config-backups/<znacznik-czasu>/`
+- VM2: `/var/lib/vm2-config-backups/<znacznik-czasu>/`
+
+(trzymane jest 10 ostatnich). Gdyby po aktualizacji coś przestało działać, na
+**konsoli maszyny** (SSH/lokalnie, jako root) jest narzędzie ratunkowe:
+
+```
+# VM1
+sudo portal-config-recovery.sh list                 # pokaż dostępne kopie
+sudo portal-config-recovery.sh show   <znacznik>     # co jest w kopii
+sudo portal-config-recovery.sh restore <znacznik>    # przywróć (z potwierdzeniem)
+
+# VM2
+sudo vm2-config-recovery.sh list / show / restore <znacznik>
+```
+
+`restore` najpierw zapisuje bieżący stan (kopia `pre-restore-…`), potem przywraca
+wybraną kopię, przeładowuje systemd i restartuje kluczowe usługi.
+
+## Restart po aktualizacji
+
+Jeśli po aktualizacji wymagany jest restart (zwykle po kernelu lub kluczowych
+bibliotekach), w oknie postępu **oraz** na karcie maszyny pojawia się przycisk
+**Uruchom ponownie**. Restart jest osobną, świadomą decyzją — nie następuje
+automatycznie. Wszystkie usługi są `enabled` i wstają po restarcie; dysk pocztowy
+VM2 jest w `fstab` z `nofail`.
+
+> Wykrywanie „czy wymagany restart" opiera się na `needs-restarting -r` (pakiet
+> `dnf-utils`, instalowany na obu VM). Gdy narzędzia brak, portal pokazuje stan
+> „nieznany" — **nie** zgaduje na siłę „wymagany" (to był wcześniejszy błąd, przez
+> który restart wydawał się wymagany także tuż po restarcie).
 
 ## Wersje kluczowych pakietów są zablokowane
 
@@ -32,10 +79,11 @@ PostgreSQL 17 (obie VM) oraz nginx (VM1) mają **versionlock** — pełny `dnf u
 nie przeskoczy ich na nową wersję major i nie rozłoży bazy ani serwera WWW. Dovecot,
 Postfix i ClamAV są aktualizowane w ramach wydań point-release systemu (bezpieczne).
 
-## Restart po aktualizacji
+## Jak to działa pod spodem
 
-Jeśli portal zasygnalizuje „zalecany reboot" (zwykle po aktualizacji kernela lub
-kluczowych bibliotek), zrestartuj maszynę w dogodnym oknie. Wszystkie usługi są
-`enabled` i wstają samoczynnie po restarcie; dysk pocztowy VM2 jest w `fstab`
-z opcją `nofail`. Po restarcie warto zajrzeć na [Pulpit](/admin/) i potwierdzić,
-że synchronizacja i połączenie z VM2 działają.
+Aktualizacje nie mogą być instalowane bezpośrednio przez usługę portalu ani API VM2,
+bo obie działają w piaskownicy systemd (`ProtectSystem`), która blokuje zapis do
+`/usr` i `/var`. Dlatego `dnf` jest uruchamiany jako **jednostka przejściowa** przez
+`systemd-run` — poza piaskownicą usługi. Całość orkiestruje **worker** portalu (nie
+proces web), bo pełny `dnf` trwa minuty — dłużej niż limit czasu żądania HTTP
+gunicorna, który wcześniej zabijał operację (stąd „aktualizacja nie działała").
