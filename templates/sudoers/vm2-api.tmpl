@@ -1,12 +1,13 @@
 Defaults:vm2-api !requiretty
-# dnf uruchamiamy przez systemd-run (transient unit POZA namespace usługi —
-# ProtectSystem=strict blokuje zapis do /usr,/var, więc bezpośredni sudo dnf pada
-# na "Read-only file system"). Enumerujemy dokładne komendy — sudo dopuszcza tylko te.
-vm2-api ALL=(root) NOPASSWD: /usr/bin/systemd-run --quiet --pipe --wait --collect /usr/bin/dnf -y update
-vm2-api ALL=(root) NOPASSWD: /usr/bin/systemd-run --quiet --pipe --wait --collect /usr/bin/dnf -y --security update
-vm2-api ALL=(root) NOPASSWD: /usr/bin/systemd-run --quiet --pipe --wait --collect /usr/bin/dnf -q check-update
-vm2-api ALL=(root) NOPASSWD: /usr/bin/systemd-run --quiet --pipe --wait --collect /usr/bin/dnf -q check-update --security
-vm2-api ALL=(root) NOPASSWD: /usr/bin/systemd-run --quiet --pipe --wait --collect /usr/bin/dnf -q updateinfo summary --available
+# Aktualizacje systemu przez root-helper vm2-dnf.sh (uruchamia dnf jako transient
+# unit POZA namespace usługi — ProtectSystem=strict blokuje zapis do /usr,/var).
+# Dozwolone tylko ustalone tryby, helper leży w /usr/local/sbin (root:root, poza
+# /opt/vm2-api należącym do vm2-api — brak możliwości podmiany i eskalacji).
+vm2-api ALL=(root) NOPASSWD: /usr/local/sbin/vm2-dnf.sh check-security
+vm2-api ALL=(root) NOPASSWD: /usr/local/sbin/vm2-dnf.sh check-all
+vm2-api ALL=(root) NOPASSWD: /usr/local/sbin/vm2-dnf.sh updateinfo
+vm2-api ALL=(root) NOPASSWD: /usr/local/sbin/vm2-dnf.sh update-security
+vm2-api ALL=(root) NOPASSWD: /usr/local/sbin/vm2-dnf.sh update-all
 vm2-api ALL=(root) NOPASSWD: /usr/bin/systemctl reboot
 vm2-api ALL=(root) NOPASSWD: /usr/bin/needs-restarting -r
 vm2-api ALL=(root) NOPASSWD: /usr/bin/clamdscan --ping 1 -c /etc/clamd.d/scan.conf
