@@ -6,3 +6,7 @@ portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-tls.sh selfsigned
 portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-network-access.sh
 portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-system-update.sh security
 portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-system-update.sh all
+# Sprawdzanie dostępnych aktualizacji (read-only) — konto portal-app nie ma
+# dostępu do systemowego cache metadanych dnf, więc liczymy przez sudo.
+portal-app ALL=(root) NOPASSWD: /usr/bin/dnf -q check-update
+portal-app ALL=(root) NOPASSWD: /usr/bin/dnf -q check-update --security

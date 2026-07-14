@@ -41,7 +41,11 @@ def get_available_updates() -> dict:
     """Ile aktualizacji czeka, ze szczególnym uwzględnieniem BEZPIECZEŃSTWA.
     Nie wymaga roota (czyta metadane z cache dnf). `check-update` zwraca kod 100
     gdy są aktualizacje, 0 gdy brak — obu NIE traktujemy jako błąd."""
-    sec = _run(["/usr/bin/dnf", "-q", "check-update", "--security"], timeout=180)
+    # Przez sudo: `dnf check-update` jako konto usługi nie ma dostępu do
+    # systemowego cache metadanych (utrzymywanego przez dnf-makecache.timer) i
+    # albo błędnie zwraca 0, albo próbuje budować własny cache (wisi). Root ma
+    # gotowy cache — szybko i wiarygodnie. To operacja tylko-do-odczytu.
+    sec = _run(["/usr/bin/sudo", "-n", "/usr/bin/dnf", "-q", "check-update", "--security"], timeout=180)
     security_packages = []
     if sec.returncode in (0, 100):
         for line in sec.stdout.splitlines():
@@ -54,7 +58,7 @@ def get_available_updates() -> dict:
             if len(parts) >= 3 and "." in parts[0]:
                 security_packages.append(parts[0])
 
-    allpkgs = _run(["/usr/bin/dnf", "-q", "check-update"], timeout=180)
+    allpkgs = _run(["/usr/bin/sudo", "-n", "/usr/bin/dnf", "-q", "check-update"], timeout=180)
     all_count = 0
     if allpkgs.returncode in (0, 100):
         for line in allpkgs.stdout.splitlines():
@@ -65,7 +69,7 @@ def get_available_updates() -> dict:
             if len(parts) >= 3 and "." in parts[0]:
                 all_count += 1
 
-    summary = _run(["/usr/bin/dnf", "-q", "updateinfo", "summary", "--available"], timeout=180)
+    summary = _run(["/usr/bin/sudo", "-n", "/usr/bin/dnf", "-q", "updateinfo", "summary", "--available"], timeout=180)
     return {
         "security_count": len(security_packages),
         "security_packages": sorted(set(security_packages))[:100],
