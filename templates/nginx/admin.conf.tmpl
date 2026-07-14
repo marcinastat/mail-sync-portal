@@ -17,7 +17,18 @@ server {
     ssl_certificate     /etc/portal/tls/active/fullchain.pem;
     ssl_certificate_key /etc/portal/tls/active/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_prefer_server_ciphers on;
+    # ssl_ciphers / session cache / tickets — wspólnie w nginx.conf (http).
+
+    # --- Nagłówki bezpieczeństwa ---------------------------------------------
+    # `always` = wysyłane też przy odpowiedziach błędów. UWAGA (nginx): jeśli
+    # KTÓRAKOLWIEK z location doda własny add_header, nadpisze WSZYSTKIE z tego
+    # poziomu — dlatego trzymamy je tu i nie używamy add_header w location.
+    # HSTS: dla dostępu po IP przeglądarki go ignorują; zaczyna działać przy
+    # dostępie po nazwie hosta z zaufanym certem (docelowo certbot/manual).
+    add_header Strict-Transport-Security "max-age=15768000" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
     error_page 403 /errors/403.html;
     error_page 404 /errors/404.html;
