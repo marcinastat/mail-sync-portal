@@ -1,7 +1,12 @@
 {% extends "auth_base.html" %}
 {% block title %}Logowanie — Portal Poczty{% endblock %}
 {% block content %}
-  <h2>Logowanie</h2>
+  <h2>{{ (branding.product_name if branding and branding.product_name else "Portal Poczty") }}</h2>
+  <p class="hint" style="margin-top:-0.35rem;margin-bottom:1.1rem;line-height:1.5">
+    Panel administracyjny do zarządzania <strong>synchronizacją i archiwizacją skrzynek pocztowych</strong>
+    (jednokierunkowe kopiowanie ze źródłowych serwerów IMAP na serwer zapasowy).
+    Dostęp wyłącznie dla administratorów — logowanie chronione dwuskładnikowo (kod TOTP w kolejnym kroku).
+  </p>
   {% if error %}<p style="color:#dc2626">{{ error }}</p>{% endif %}
   <form method="post" action="/admin/login">
     <label for="username">Login</label>
