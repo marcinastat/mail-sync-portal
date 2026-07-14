@@ -43,5 +43,21 @@ add_rich_rule "rule family='ipv4' source address='${VM1_IP}/32' port port='${VM2
 
 firewall-cmd --reload
 
+# --- Utwardzenie SSH: tylko klucze (root wyłącznie kluczem) -------------------
+# ZABEZPIECZENIE: tylko jeśli root ma już wgrany klucz — inaczej lockout.
+REPO_ROOT="$(repo_root)"
+if [[ -s /root/.ssh/authorized_keys ]]; then
+    install -m 0600 -o root -g root "$REPO_ROOT/templates/ssh/00-portal-hardening.conf" /etc/ssh/sshd_config.d/00-portal-hardening.conf
+    if sshd -t; then
+        systemctl reload sshd
+        log_info "SSH utwardzony: tylko klucze, root prohibit-password."
+    else
+        rm -f /etc/ssh/sshd_config.d/00-portal-hardening.conf
+        log_warn "sshd -t nie przeszedł po dodaniu hardeningu SSH — cofnięto zmianę."
+    fi
+else
+    log_warn "Pomijam utwardzenie SSH: brak /root/.ssh/authorized_keys."
+fi
+
 log_info "Firewalld VM2 skonfigurowany (domyślna polityka: drop)."
 mark_step_done "$STEP_NAME"
