@@ -64,6 +64,24 @@ class Vm2Connection(Base, TimestampMixin):
     last_health_check_ok: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
 
+class ImapsyncConfig(Base, TimestampMixin):
+    """Globalne, bezpieczne opcje imapsync stosowane do KAŻDEJ synchronizacji
+    (skrzynka może dołożyć własne w SyncJob.custom_flags). Pole `custom_flags`
+    jest walidowane allowlistą — patrz services/imapsync_flags.py."""
+
+    __tablename__ = "imapsync_config"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # Weryfikacja certyfikatu TLS serwera źródłowego (domyślnie WŁĄCZONA —
+    # decyzja: bezpieczniej; można wyłączyć dla źródeł z self-signed).
+    verify_source_ssl: Mapped[bool] = mapped_column(Boolean, default=True)
+    add_missing_headers: Mapped[bool] = mapped_column(Boolean, default=False)   # --addheader
+    max_size_mb: Mapped[int] = mapped_column(Integer, default=0)                # --maxsize (0=bez limitu)
+    timeout_seconds: Mapped[int] = mapped_column(Integer, default=0)            # --timeout (0=domyślny)
+    allow_size_mismatch: Mapped[bool] = mapped_column(Boolean, default=False)   # --allowsizemismatch
+    custom_flags: Mapped[str] = mapped_column(String(1000), default="")         # walidowane allowlistą
+
+
 class NetworkAccessConfig(Base, TimestampMixin):
     """Dozwolone sieci źródłowe (CIDR) osobno dla panelu /admin i dla webmaila
     Roundcube. Egzekwowane na poziomie nginx (allow/deny per location) — nie

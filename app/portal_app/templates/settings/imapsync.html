@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Opcje imapsync — Portal Poczty{% endblock %}
+{% block heading %}Opcje imapsync{% endblock %}
+{% block content %}
+  <p style="margin-top:0"><a href="/admin/settings" class="hint">← Ustawienia</a></p>
+  <h1>Opcje imapsync (globalne)</h1>
+  <p class="hint" style="max-width:75ch">
+    Te opcje stosują się do <strong>każdej</strong> synchronizacji. Pojedyncza skrzynka może dołożyć
+    własne parametry na swojej stronie (np. wykluczyć folder). Ze względów bezpieczeństwa pole „dodatkowe
+    parametry" przyjmuje <strong>tylko flagi z listy bezpiecznych</strong> — flagi mogące skasować cokolwiek
+    na serwerze źródłowym lub uruchomić kod są odrzucane.
+  </p>
+
+  {% if saved %}<div class="card" style="border-color:#16a34a;color:#15803d">Zapisano.</div>{% endif %}
+  {% if error %}<div class="card" style="border-color:#dc2626;color:#991b1b">{{ error }}</div>{% endif %}
+
+  <form method="post" action="/admin/settings/imapsync">
+    <div class="card">
+      <h2 style="margin-top:0">Bezpieczeństwo połączenia</h2>
+      <label><input type="checkbox" name="verify_source_ssl" {% if cfg.verify_source_ssl %}checked{% endif %}>
+        Weryfikuj certyfikat SSL serwera <strong>źródłowego</strong></label>
+      <p class="hint" style="margin-top:0.25rem">Zalecane. Wyłącz tylko, jeśli źródło ma certyfikat self-signed
+        lub niepasujący do nazwy — inaczej synchronizacja padnie na etapie połączenia TLS.</p>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0">Zachowanie transferu</h2>
+      <label><input type="checkbox" name="add_missing_headers" {% if cfg.add_missing_headers %}checked{% endif %}>
+        Dodawaj brakujące nagłówki (<code>--addheader</code>) — ratuje wiadomości z zepsutymi/niekompletnymi nagłówkami na źródle</label>
+      <label><input type="checkbox" name="allow_size_mismatch" {% if cfg.allow_size_mismatch %}checked{% endif %}>
+        Dopuszczaj niezgodność rozmiaru (<code>--allowsizemismatch</code>) — częste przy konwersji formatów</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:0.75rem">
+        <div>
+          <label for="max_size_mb">Maks. rozmiar wiadomości (MB, 0 = bez limitu)</label>
+          <input type="number" id="max_size_mb" name="max_size_mb" min="0" value="{{ cfg.max_size_mb }}">
+        </div>
+        <div>
+          <label for="timeout_seconds">Timeout połączenia (s, 0 = domyślny)</label>
+          <input type="number" id="timeout_seconds" name="timeout_seconds" min="0" value="{{ cfg.timeout_seconds }}">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0">Dodatkowe parametry (zaawansowane)</h2>
+      <label for="custom_flags">Flagi imapsync — jedna linia, np. <code>--exclude "^Spam$" --nofoldersizes</code></label>
+      <textarea id="custom_flags" name="custom_flags" rows="2" style="width:100%;font-family:monospace">{{ cfg.custom_flags }}</textarea>
+      <details style="margin-top:0.5rem">
+        <summary class="hint">Dozwolone flagi (allowlista)</summary>
+        <p class="hint" style="font-family:monospace;line-height:1.7">{{ allowed | join("  ") }}</p>
+        <p class="hint">Zablokowane są m.in. wszystkie flagi <code>*1</code> kasujące źródło oraz <code>--pipemess</code>/<code>--exec*</code>.</p>
+      </details>
+    </div>
+
+    <p><button class="btn" type="submit">Zapisz</button></p>
+  </form>
+{% endblock %}

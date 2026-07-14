@@ -4,6 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Portal Poczty{% endblock %}</title>
+  {% if branding and branding.logo_path %}
+  <link rel="icon" href="/admin/static/branding/favicon.ico?v={{ branding.generated_at }}" sizes="any">
+  <link rel="icon" type="image/png" href="/admin/static/branding/favicon-32.png?v={{ branding.generated_at }}" sizes="32x32">
+  <link rel="apple-touch-icon" href="/admin/static/branding/apple-touch-icon.png?v={{ branding.generated_at }}">
+  {% endif %}
   <link rel="stylesheet" href="/admin/static/css/tokens.css">
   <link rel="stylesheet" href="/admin/static/css/app.css">
   <script src="/admin/static/js/htmx.min.js" defer></script>

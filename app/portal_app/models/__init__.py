@@ -7,6 +7,7 @@ from .mailbox import Credential, Mailbox
 from .settings import (
     AlertChannel,
     BrandingConfig,
+    ImapsyncConfig,
     InstanceState,
     NetworkAccessConfig,
     ThrottlePolicy,
@@ -27,6 +28,7 @@ __all__ = [
     "Mailbox",
     "AlertChannel",
     "BrandingConfig",
+    "ImapsyncConfig",
     "InstanceState",
     "NetworkAccessConfig",
     "ThrottlePolicy",

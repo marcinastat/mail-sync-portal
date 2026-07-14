@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
 from ...db import session_scope
-from ...models import Credential, Domain, JobRun, Mailbox, SyncJob, Vm2Connection
-from ...services import imapsync_runner, vm2_client
+from ...models import Credential, Domain, ImapsyncConfig, JobRun, Mailbox, SyncJob, Vm2Connection
+from ...services import imapsync_flags, imapsync_runner, vm2_client
 from ...services.alert_service import dispatch as dispatch_alert
 from ...services.audit_service import record
 from ...services.credential_crypto import decrypt_password
@@ -34,6 +35,21 @@ def handle(payload: dict) -> None:
         preserve = sync_job.preserve_folder_structure
         delete_on_dest = sync_job.delete_on_dest_when_missing_from_source
 
+        # Flagi imapsync: globalne (ImapsyncConfig) + per-skrzynka (sync_job.custom_flags).
+        # Odczytujemy wartości TERAZ (sesja otwarta) do prostego obiektu, żeby
+        # zbudować argv poza transakcją. Brak konfiguracji = bezpieczny domyślny
+        # (weryfikacja SSL włączona).
+        _cfg = db.query(ImapsyncConfig).first()
+        imap_cfg = SimpleNamespace(
+            verify_source_ssl=_cfg.verify_source_ssl if _cfg else True,
+            add_missing_headers=_cfg.add_missing_headers if _cfg else False,
+            max_size_mb=_cfg.max_size_mb if _cfg else 0,
+            timeout_seconds=_cfg.timeout_seconds if _cfg else 0,
+            allow_size_mismatch=_cfg.allow_size_mismatch if _cfg else False,
+            custom_flags=_cfg.custom_flags if _cfg else "",
+        )
+        mailbox_custom_flags = sync_job.custom_flags or ""
+
         job_run = JobRun(sync_job_id=sync_job.id, mailbox_id=mailbox.id, status="running", started_at=datetime.now(timezone.utc))
         db.add(job_run)
         db.flush()
@@ -49,6 +65,11 @@ def handle(payload: dict) -> None:
     # imapsync trwa poza otwartą transakcją bazodanową (do godziny) — patrz
     # docs/technical/architecture.md, uzasadnienie w services/imapsync_runner.py.
     try:
+        # Złożenie flag: globalne + per-skrzynka. Walidacja allowlistą jest tu
+        # ponawiana (obrona w głąb — router waliduje przy zapisie); błąd = sync
+        # kończy się jako failed z czytelnym komunikatem, źródło i tak nietknięte.
+        extra_flags = imapsync_flags.build_global_flags(imap_cfg)
+        extra_flags += imapsync_flags.validate_custom_flags(mailbox_custom_flags)
         result = imapsync_runner.run_sync(
             mailbox_id=mailbox.id,
             source_host=source_host,
@@ -62,6 +83,7 @@ def handle(payload: dict) -> None:
             days_back=days_back,
             preserve_folder_structure=preserve,
             delete_on_dest_when_missing_from_source=delete_on_dest,
+            extra_flags=extra_flags,
         )
         error_summary = None if result["returncode"] == 0 else f"imapsync zakończył się kodem {result['returncode']}"
         status = "success" if result["returncode"] == 0 else "failed"
