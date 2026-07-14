@@ -19,12 +19,13 @@ echo "=== dnf ${args[*]} ==="
 # read-only), więc bezpośredni dnf nie mógłby zainstalować pakietów. Uruchamiamy
 # go jako transient unit przez systemd-run — POZA sandboxem usługi. Wynik przez
 # plik + cat (nie --pipe: fd-passing bywa zawodne spod długo działającej usługi).
-dnf_out="$(mktemp /run/portal-dnf.XXXXXX)"
+# Stała ścieżka pisana przez transient unit (host), czytana przez helper — patrz
+# obszerny komentarz w vm2_api/bin/vm2-dnf.sh (namespace może mieć /run read-only).
+dnf_out="/run/portal-dnf-${mode}.out"
 /usr/bin/systemd-run --quiet --wait --collect \
-    -p "StandardOutput=file:$dnf_out" -p "StandardError=journal" \
+    -p "StandardOutput=truncate:$dnf_out" -p "StandardError=journal" \
     /usr/bin/dnf "${args[@]}"
-tail -c 4000 "$dnf_out"
-rm -f "$dnf_out"
+tail -c 4000 "$dnf_out" 2>/dev/null
 
 echo "=== health-check kluczowych usług ==="
 rc=0

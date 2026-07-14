@@ -18,13 +18,16 @@ case "$mode" in
     *) echo "vm2-dnf: nieznany tryb '$mode'" >&2; exit 2 ;;
 esac
 
-tmp="$(mktemp /run/vm2-dnf.XXXXXX)"
-trap 'rm -f "$tmp"' EXIT
-# --collect sprząta jednostkę po zakończeniu; StandardOutput=file: kieruje stdout
-# transient unitu do pliku (dostępnego dla wołającego przez współdzielony /run).
+# WAŻNE: helper działa w namespace usługi vm2-api, gdzie /run jest READ-ONLY
+# (ProtectSystem=strict) — NIE możemy tu utworzyć pliku (mktemp by padł). Ale
+# transient unit systemd-run działa na HOŚCIE (poza sandboxem), gdzie /run jest
+# zapisywalny, a namespace ma read-only WIDOK tego samego /run. Dlatego to
+# transient unit tworzy/zapisuje plik pod STAŁĄ ścieżką, a helper tylko go CZYTA.
+out="/run/vm2-dnf-${mode}.out"
+# StandardOutput=truncate: nadpisuje plik przy każdym uruchomieniu (nie narasta).
 /usr/bin/systemd-run --quiet --wait --collect \
-    -p "StandardOutput=file:$tmp" -p "StandardError=journal" \
+    -p "StandardOutput=truncate:$out" -p "StandardError=journal" \
     /usr/bin/dnf "${args[@]}"
 rc=$?
-cat "$tmp"
+cat "$out" 2>/dev/null
 exit "$rc"
