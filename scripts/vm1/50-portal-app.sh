@@ -81,6 +81,7 @@ chown root:root "$CREDS_DIR"/*.cred
 # --- sudoers.d (branding -> apply-branding.sh jako root) ----------------------
 install -D -m 0700 -o root -g root "$APP_DIR/portal_app/bin/apply-branding.sh" "$APP_DIR/bin/apply-branding.sh"
 install -D -m 0700 -o root -g root "$APP_DIR/portal_app/bin/apply-tls.sh" "$APP_DIR/bin/apply-tls.sh"
+install -D -m 0700 -o root -g root "$APP_DIR/portal_app/bin/apply-network-access.sh" "$APP_DIR/bin/apply-network-access.sh"
 render_template "$REPO_ROOT/templates/sudoers/portal-app.tmpl" /etc/sudoers.d/portal-app
 chmod 0440 /etc/sudoers.d/portal-app
 visudo -cf /etc/sudoers.d/portal-app || die "Wygenerowany plik sudoers jest niepoprawny składniowo — przerywam."

@@ -16,6 +16,7 @@ from .routers import (
     settings_alerts,
     settings_branding,
     settings_index,
+    settings_network,
     settings_throttle,
     settings_tls,
     settings_users,
@@ -52,6 +53,7 @@ app.include_router(reports.router)
 app.include_router(docs.router)
 app.include_router(settings_index.router)
 app.include_router(settings_branding.router)
+app.include_router(settings_network.router)
 app.include_router(settings_throttle.router)
 app.include_router(settings_alerts.router)
 app.include_router(settings_tls.router)

@@ -64,6 +64,21 @@ class Vm2Connection(Base, TimestampMixin):
     last_health_check_ok: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
 
+class NetworkAccessConfig(Base, TimestampMixin):
+    """Dozwolone sieci źródłowe (CIDR) osobno dla panelu /admin i dla webmaila
+    Roundcube. Egzekwowane na poziomie nginx (allow/deny per location) — nie
+    firewalld, bo obie usługi dzielą port 443 i trzeba je rozróżnić po ścieżce.
+    Puste pole = brak dodatkowego ograniczenia (obowiązuje tylko firewalld).
+    Listy CIDR trzymane jako tekst: jeden wpis na linię lub po przecinku."""
+
+    __tablename__ = "network_access_config"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    admin_networks: Mapped[str] = mapped_column(String(2000), default="")
+    webmail_networks: Mapped[str] = mapped_column(String(2000), default="")
+    applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class AlertChannel(Base, TimestampMixin):
     __tablename__ = "alert_channels"
 
