@@ -13,6 +13,9 @@ DEST_IMAP_PORT = 993
 
 def handle(payload: dict) -> None:
     mailbox_id = payload["mailbox_id"]
+    # Skąd przyszła ta synchronizacja: "manual" (przycisk w panelu) lub
+    # "scheduled" (scheduler wg globalnego interwału). Trafia do audit logu.
+    trigger = payload.get("trigger", "scheduled")
 
     with session_scope() as db:
         mailbox = db.get(Mailbox, mailbox_id)
@@ -138,16 +141,30 @@ def handle(payload: dict) -> None:
                         pass
             db.add(mb)
 
+        # Audyt KAŻDEJ synchronizacji (nie tylko nieudanej) — żeby w logu audytu
+        # było widać: kiedy, skąd (ręcznie/harmonogram), ile trwała i z jakim
+        # wynikiem. Czas trwania z started_at/finished_at przebiegu.
+        duration_seconds = None
+        if job_run.started_at and job_run.finished_at:
+            duration_seconds = round((job_run.finished_at - job_run.started_at).total_seconds())
+        record(
+            db,
+            actor_admin_user_id=None,
+            action="sync.completed",
+            target_type="mailbox",
+            target_id=str(mailbox_id),
+            details={
+                "trigger": trigger,                       # manual | scheduled
+                "source": "worker",
+                "status": status,                         # success | failed
+                "duration_seconds": duration_seconds,
+                "messages_transferred": stats.get("messages_transferred", 0),
+                "job_run_id": job_run_id,
+                "error": error_summary,
+            },
+            source_ip=None,
+        )
         if status == "failed":
-            record(
-                db,
-                actor_admin_user_id=None,
-                action="sync.failed",
-                target_type="mailbox",
-                target_id=str(mailbox_id),
-                details={"error": error_summary, "job_run_id": job_run_id},
-                source_ip=None,
-            )
             dispatch_alert(
                 db,
                 event="sync_failed",

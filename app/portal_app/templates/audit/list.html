@@ -14,14 +14,24 @@
   </div>
   <div class="card">
     <table>
-      <thead><tr><th>Kiedy (UTC)</th><th>Użytkownik</th><th>Akcja</th><th>Cel</th><th>IP</th></tr></thead>
+      <thead><tr><th>Kiedy</th><th>Użytkownik</th><th>Akcja</th><th>Cel</th><th>Szczegóły</th><th>IP</th></tr></thead>
       <tbody>
         {% for e in entries %}
         <tr>
-          <td>{{ e.occurred_at.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+          <td>{{ e.occurred_at | dt("%Y-%m-%d %H:%M:%S") }}</td>
           <td>{{ e.actor_admin_user_id or "system" }}</td>
           <td>{{ e.action }}</td>
           <td>{{ e.target_type or "" }} {{ e.target_id or "" }}</td>
+          <td class="hint" style="font-size:0.85rem">
+            {%- if e.details -%}
+              {%- if e.details.trigger %}{{ "ręcznie" if e.details.trigger == "manual" else "harmonogram" }}{% endif -%}
+              {%- if e.details.status %} · <span class="{{ 'ok' if e.details.status == 'success' else 'err' }}">{{ e.details.status }}</span>{% endif -%}
+              {%- if e.details.duration_seconds is not none and e.details.duration_seconds != None %} · {{ e.details.duration_seconds }} s{% endif -%}
+              {%- if e.details.messages_transferred %} · +{{ e.details.messages_transferred }} wiad.{% endif -%}
+              {%- if e.details.interval_minutes %} · co {{ e.details.interval_minutes }} min{% endif -%}
+              {%- if e.details.error %} · <span class="err">{{ e.details.error | truncate(50) }}</span>{% endif -%}
+            {%- endif -%}
+          </td>
           <td>{{ e.source_ip or "" }}</td>
         </tr>
         {% endfor %}

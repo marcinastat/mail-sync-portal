@@ -1,32 +1,31 @@
 import logging
 from datetime import datetime, timedelta, timezone
 
-from croniter import croniter
-
 from ..db import session_scope
-from ..models import JobQueue, SyncJob
+from ..models import JobQueue, SyncScheduleConfig, SyncJob
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("portal.scheduler")
 
+DEFAULT_INTERVAL_MINUTES = 60
 
-def _is_due(sync_job: SyncJob, now: datetime) -> bool:
-    base = sync_job.last_enqueued_at or (now - timedelta(days=1))
-    try:
-        next_run = croniter(sync_job.schedule_cron, base).get_next(datetime)
-    except (ValueError, KeyError):
-        logger.warning("Nieprawidłowy schedule_cron dla sync_job %s: %r", sync_job.id, sync_job.schedule_cron)
-        return False
-    return next_run.replace(tzinfo=timezone.utc) <= now
+
+def _interval(db) -> timedelta:
+    cfg = db.query(SyncScheduleConfig).first()
+    minutes = cfg.interval_minutes if cfg and cfg.interval_minutes and cfg.interval_minutes > 0 else DEFAULT_INTERVAL_MINUTES
+    return timedelta(minutes=minutes)
 
 
 def run_once() -> int:
+    """Globalny interwał: kolejkuje synchronizację skrzynki, gdy od ostatniego
+    zakolejkowania minął ustawiony czas (Ustawienia → Harmonogram synchronizacji)."""
     enqueued = 0
     now = datetime.now(timezone.utc)
     with session_scope() as db:
+        interval = _interval(db)
         sync_jobs = db.query(SyncJob).filter(SyncJob.is_enabled.is_(True)).all()
         for sync_job in sync_jobs:
-            if not _is_due(sync_job, now):
+            if sync_job.last_enqueued_at is not None and (now - sync_job.last_enqueued_at) < interval:
                 continue
             already_pending = (
                 db.query(JobQueue)
@@ -39,7 +38,11 @@ def run_once() -> int:
             )
             if already_pending:
                 continue
-            db.add(JobQueue(job_type="sync", payload={"mailbox_id": sync_job.mailbox_id}, run_after=now))
+            db.add(JobQueue(
+                job_type="sync",
+                payload={"mailbox_id": sync_job.mailbox_id, "trigger": "scheduled"},
+                run_after=now,
+            ))
             sync_job.last_enqueued_at = now
             db.add(sync_job)
             enqueued += 1

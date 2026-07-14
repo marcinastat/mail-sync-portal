@@ -46,6 +46,12 @@ def _fmt_dt(value, fmt: str = "%Y-%m-%d %H:%M") -> str:
     if not value:
         return "—"
     try:
+        # Ujednolicenie stref: daty z bazy wracają w czasie lokalnym serwera, a
+        # niektóre (np. następny sync liczony croniterem) są aware-UTC. Bez
+        # konwersji „następny sync" wychodził w UTC i wyglądał na wcześniejszy
+        # niż „ostatni sync". astimezone() bez argumentu -> lokalna strefa serwera.
+        if getattr(value, "tzinfo", None) is not None:
+            value = value.astimezone()
         return value.strftime(fmt)
     except (AttributeError, ValueError):
         return str(value)
