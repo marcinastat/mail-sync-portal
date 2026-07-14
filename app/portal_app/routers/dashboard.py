@@ -1,14 +1,23 @@
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from croniter import croniter
 from cryptography import x509
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..deps import get_db, require_login, require_setup_complete
-from ..models import AdminUser, AuditLog, JobQueue, JobRun, Mailbox, SyncJob, ThrottlePolicy, Vm2Connection
+from ..models import (
+    AdminUser,
+    AuditLog,
+    JobQueue,
+    JobRun,
+    Mailbox,
+    SyncJob,
+    SyncScheduleConfig,
+    ThrottlePolicy,
+    Vm2Connection,
+)
 from ..services import vm2_client
 from ..services.throttle_service import get_global_policy
 from ..templating import templates
@@ -68,18 +77,23 @@ def _sync_summary(db: Session) -> dict:
 
 
 def _next_sync(db: Session) -> datetime | None:
-    # Najbliższe zaplanowane uruchomienie liczymy od TERAZ (nie od
-    # last_enqueued_at — to dawało czas w przeszłości, gdy scheduler był z tyłu
-    # albo gdy sync odpalano ręcznie). croniter od now zawsze zwraca przyszłość.
+    # Globalny interwał (Ustawienia → Harmonogram synchronizacji). Najbliższe
+    # uruchomienie skrzynki = last_enqueued_at + interwał; jeśli już zaległe albo
+    # skrzynka nigdy nie była kolejkowana — najbliższy tick schedulera (~teraz).
+    # Zwracamy aware-UTC; filtr `dt` konwertuje do czasu lokalnego przy wyświetlaniu.
     now = datetime.now(timezone.utc)
+    cfg = db.query(SyncScheduleConfig).first()
+    minutes = cfg.interval_minutes if cfg and cfg.interval_minutes and cfg.interval_minutes > 0 else 60
+    interval = timedelta(minutes=minutes)
     soonest = None
     for sj in db.query(SyncJob).filter(SyncJob.is_enabled.is_(True)).all():
-        try:
-            nxt = croniter(sj.schedule_cron, now).get_next(datetime)
-        except (ValueError, KeyError):
-            continue
-        if nxt.tzinfo is None:
-            nxt = nxt.replace(tzinfo=timezone.utc)
+        if sj.last_enqueued_at is None:
+            nxt = now
+        else:
+            base = sj.last_enqueued_at
+            if base.tzinfo is None:
+                base = base.replace(tzinfo=timezone.utc)
+            nxt = max(base + interval, now)
         if soonest is None or nxt < soonest:
             soonest = nxt
     return soonest

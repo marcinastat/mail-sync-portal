@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Harmonogram synchronizacji — Portal Poczty{% endblock %}
+{% block heading %}Harmonogram synchronizacji{% endblock %}
+{% block content %}
+  <p style="margin-top:0"><a href="/admin/settings" class="hint">← Ustawienia</a></p>
+  <h1>Harmonogram synchronizacji</h1>
+  <p class="hint" style="max-width:70ch">
+    Co ile scheduler ma automatycznie kolejkować synchronizację <strong>każdej włączonej skrzynki</strong>.
+    Przycisk „Synchronizuj teraz" na stronie skrzynki działa niezależnie od tego ustawienia.
+    Zbyt krótki interwał przy wielu skrzynkach może obciążać serwery źródłowe — patrz też
+    <a href="/admin/settings/throttle">throttling</a>.
+  </p>
+
+  {% if saved %}<div class="card" style="border-color:#16a34a;color:#15803d">Zapisano.</div>{% endif %}
+
+  <form method="post" action="/admin/settings/schedule">
+    <div class="card">
+      <label for="interval_minutes">Interwał (minuty)</label>
+      <input type="number" id="interval_minutes" name="interval_minutes" min="5" max="10080"
+             value="{{ cfg.interval_minutes }}" style="max-width:200px">
+      <p class="hint" style="margin-top:0.4rem">Dozwolone: 5 min – 7 dni. Obecnie:
+        <strong>co {{ cfg.interval_minutes }} min</strong>{% if cfg.interval_minutes % 60 == 0 %}
+        ({{ (cfg.interval_minutes // 60) }} godz.){% endif %}.</p>
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.5rem">
+        {% for p in presets %}
+        <button type="submit" name="interval_minutes" value="{{ p }}" class="btn"
+                style="background:{{ '#2563eb' if p == cfg.interval_minutes else '#475569' }}">
+          {% if p < 60 %}{{ p }} min{% elif p == 1440 %}24 godz.{% else %}{{ (p // 60) }} godz.{% endif %}
+        </button>
+        {% endfor %}
+      </div>
+      <p style="margin-top:1rem"><button class="btn" type="submit">Zapisz interwał</button></p>
+    </div>
+  </form>
+{% endblock %}

@@ -176,7 +176,7 @@ def sync_now(
         .first()
     )
     if existing is None:
-        db.add(JobQueue(job_type="sync", payload={"mailbox_id": mailbox_id}, run_after=datetime.now(timezone.utc)))
+        db.add(JobQueue(job_type="sync", payload={"mailbox_id": mailbox_id, "trigger": "manual"}, run_after=datetime.now(timezone.utc)))
         record(
             db,
             actor_admin_user_id=current_user.id,

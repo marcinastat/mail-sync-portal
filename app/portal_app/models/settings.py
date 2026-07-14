@@ -64,6 +64,17 @@ class Vm2Connection(Base, TimestampMixin):
     last_health_check_ok: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
 
+class SyncScheduleConfig(Base, TimestampMixin):
+    """Globalny harmonogram synchronizacji — co ile minut scheduler kolejkuje
+    synchronizację KAŻDEJ włączonej skrzynki. Jedna wartość dla całości (prosto
+    i czytelnie); ręczny „Synchronizuj teraz" działa niezależnie."""
+
+    __tablename__ = "sync_schedule_config"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    interval_minutes: Mapped[int] = mapped_column(Integer, default=60)  # domyślnie co godzinę
+
+
 class ImapsyncConfig(Base, TimestampMixin):
     """Globalne, bezpieczne opcje imapsync stosowane do KAŻDEJ synchronizacji
     (skrzynka może dołożyć własne w SyncJob.custom_flags). Pole `custom_flags`
