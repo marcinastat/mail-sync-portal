@@ -17,3 +17,15 @@ Zainstaluj na serwerze pakiet `unrar` (EPEL) — obsługa RAR jest wtedy dostęp
 
 **Ile skrzynek obsłuży to środowisko?**
 Zaprojektowane i przetestowane założeniowo pod małą skalę (do ~50 skrzynek). Przy większej skali warto rozważyć oddzielenie instancji PostgreSQL i przegląd limitów throttlingu.
+
+**Jak trwale usunąć skrzynkę?**
+Na stronie skrzynki (`/admin/mailboxes/<id>`), w sekcji „Strefa niebezpieczna", wpisując dokładny adres skrzynki jako potwierdzenie. Usuwa to skrzynkę **docelową** na VM2 (rekord i całą zarchiwizowaną pocztę) oraz jej konfigurację w portalu. Serwer **źródłowy pozostaje nietknięty**. Operacji nie da się cofnąć — jeśli chcesz tylko wstrzymać pobieranie, zamiast usuwać wyłącz synchronizację.
+
+**Dlaczego liczba wiadomości „u nas / źródło" się nie zgadza?**
+To zwykle nie ubytek. imapsync po deduplikacji liczy unikalne wiadomości, a surowy licznik folderów źródła bywa wyższy (np. duplikaty tego samego maila na źródle, których celowo nie kopiujemy). Panel pokazuje realny stan docelowej skrzynki i znacznik „komplet · 0 brakujących"; dopóki „brakujących" = 0, wszystko jest zsynchronizowane.
+
+**Jak ograniczyć, kto może wejść na panel/webmail?**
+[Ustawienia → Strefy dostępu sieci](/admin/docs/user/network-access-zones) — osobne listy CIDR dla panelu i Roundcube.
+
+**Jak zainstalować aktualizacje?**
+[Ustawienia → Aktualizacje systemu](/admin/docs/user/system-updates) — domyślnie tylko łatki bezpieczeństwa, z health-checkiem po instalacji.
