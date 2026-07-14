@@ -8,5 +8,7 @@ vm2-api ALL=(root) NOPASSWD: /usr/bin/clamdscan --fdpass --multiscan -c /etc/cla
 vm2-api ALL=(clamscan) NOPASSWD: /usr/bin/freshclam
 vm2-api ALL=(root) NOPASSWD: /usr/bin/doveadm quota get -u *
 # Kasowanie maildira usuniętej skrzynki — helper waliduje argumenty (brak
-# path-traversal), więc wieloznacznik jest bezpieczny. Patrz bin/delete-maildir.sh.
-vm2-api ALL=(root) NOPASSWD: /opt/vm2-api/bin/delete-maildir.sh *
+# path-traversal), więc wieloznacznik jest bezpieczny. Skrypt leży w
+# /usr/local/sbin (root:root 0755), POZA drzewem /opt/vm2-api należącym do
+# vm2-api — inaczej konto usługi mogłoby go nadpisać i eskalować uprawnienia.
+vm2-api ALL=(root) NOPASSWD: /usr/local/sbin/vm2-delete-maildir.sh *

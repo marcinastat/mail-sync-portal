@@ -149,8 +149,11 @@ def delete_mailbox(conn: psycopg.Connection, mailbox_id: int) -> dict:
     local_part = row["local_part"]
 
     # Usunięcie maildira wymaga roota (vmail:vmail 0700) — wąski helper + sudoers.
+    # Helper leży w /usr/local/sbin (root:root 0755) — POZA /opt/vm2-api, który
+    # należy do vm2-api; inaczej konto usługi mogłoby nadpisać skrypt uruchamiany
+    # jako root i eskalować uprawnienia.
     subprocess.run(
-        ["/usr/bin/sudo", "-n", "/opt/vm2-api/bin/delete-maildir.sh", domain_name, local_part],
+        ["/usr/bin/sudo", "-n", "/usr/local/sbin/vm2-delete-maildir.sh", domain_name, local_part],
         capture_output=True, text=True, timeout=60, check=True,
     )
     with conn.cursor() as cur:

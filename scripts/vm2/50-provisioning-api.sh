@@ -61,6 +61,11 @@ install -m 0640 -o vm2-api -g vm2-api "$REPO_ROOT/ca/ca.crt" "$TLS_DIR/ca.crt"
 
 log_info "Certyfikat kliencki dla VM1 gotowy w $REPO_ROOT/ca/vm1-client.{crt,key} (+ $REPO_ROOT/ca/ca.crt) — skopiuj oba na VM1 do /etc/portal/vm1-client/{client.crt,client.key,ca.crt}. Możesz użyć scripts/vm1/fetch-vm2-client-cert.sh (patrz INSTALL.md)."
 
+# --- root-owned helpery uruchamiane przez vm2-api przez sudo -----------------
+# MUSZĄ leżeć poza /opt/vm2-api (własność vm2-api) — inaczej konto usługi mogłoby
+# nadpisać skrypt uruchamiany jako root i eskalować uprawnienia. Stąd /usr/local/sbin.
+install -m 0755 -o root -g root "$REPO_ROOT/vm2_api/bin/delete-maildir.sh" /usr/local/sbin/vm2-delete-maildir.sh
+
 # --- sudoers.d (jedyna realna granica uprawnień, patrz komentarz w unicie) ----
 # vm2-api.tmpl jest statyczny (brak ${VAR}), więc render_template go tylko kopiuje.
 render_template "$REPO_ROOT/templates/sudoers/vm2-api.tmpl" /etc/sudoers.d/vm2-api
