@@ -29,3 +29,12 @@ To zwykle nie ubytek. imapsync po deduplikacji liczy unikalne wiadomości, a sur
 
 **Jak zainstalować aktualizacje?**
 [Ustawienia → Aktualizacje systemu](/admin/docs/user/system-updates) — domyślnie tylko łatki bezpieczeństwa, z health-checkiem po instalacji.
+
+**Serwer źródłowy ma self-signed certyfikat i synchronizacja pada — co zrobić?**
+Domyślnie weryfikujemy certyfikat SSL źródła. Wyłącz weryfikację w [Ustawienia → Opcje imapsync](/admin/docs/user/imapsync-options) (globalnie) albo tylko dla tej skrzynki wpisując `--sslargs1 SSL_verify_mode=0` w jej dodatkowych flagach.
+
+**Czy mogę dodać własne parametry imapsync (np. wykluczyć folder)?**
+Tak — globalnie lub per skrzynka. Ze względów bezpieczeństwa przyjmowane są tylko flagi z listy bezpiecznych; nie da się dodać flagi kasującej cokolwiek na źródle. Szczegóły: [Opcje imapsync](/admin/docs/user/imapsync-options).
+
+**Czy logo staje się też ikoną karty przeglądarki (favicon)?**
+Tak — po wgraniu logo portal automatycznie generuje z niego favicon (i ikonę Apple), skalując do właściwych rozmiarów. Wystarczy wgrać logo w [Ustawieniach → Branding](/admin/settings/branding).
