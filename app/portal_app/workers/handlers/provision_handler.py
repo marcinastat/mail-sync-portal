@@ -1,5 +1,7 @@
+from datetime import datetime, timezone
+
 from ...db import session_scope
-from ...models import Credential, Domain, Mailbox, Vm2Connection
+from ...models import Credential, Domain, JobQueue, Mailbox, Vm2Connection
 from ...services import vm2_client
 from ...services.audit_service import record
 from ...services.credential_crypto import decrypt_password, encrypt_password
@@ -43,3 +45,14 @@ def handle(payload: dict) -> None:
             details={"vm2_mailbox_id": mailbox.vm2_mailbox_id},
             source_ip=None,
         )
+
+        # Zaraz po zaprowizonowaniu — INWENTARYZACJA: przebieg imapsync w trybie
+        # dry (nic nie przenosi), tylko zbiera ile jest do zebrania (liczby/rozmiar
+        # źródła) i uzupełnia bazę. Dopiero KOLEJNY przebieg (harmonogram) robi
+        # realną synchronizację. Dzięki temu panel od razu pokazuje skalę skrzynki.
+        db.add(JobQueue(
+            job_type="sync",
+            payload={"mailbox_id": mailbox.id, "trigger": "assess", "mode": "assess"},
+            status="queued",
+            run_after=datetime.now(timezone.utc),
+        ))
