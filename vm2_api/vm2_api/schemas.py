@@ -62,4 +62,7 @@ class SystemUpdateResult(BaseModel):
 
 
 class SystemRebootRequest(BaseModel):
-    confirm_token: str
+    # Opcjonalny — restart to jawne żądanie z portalu (mTLS + IP allowlist +
+    # potwierdzenie admina). Efemeryczny token ginął przy restarcie usługi, więc
+    # nie może być twardym warunkiem. Gdy podany i ważny — konsumujemy go.
+    confirm_token: str | None = None

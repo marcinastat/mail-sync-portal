@@ -91,5 +91,6 @@ def disk_usage(conn: Vm2Connection) -> dict:
     return _request(conn, "GET", "/system/disk-usage")
 
 
-def system_reboot(conn: Vm2Connection, confirm_token: str) -> dict:
-    return _request(conn, "POST", "/system/reboot", json={"confirm_token": confirm_token})
+def system_reboot(conn: Vm2Connection, confirm_token: str | None = None) -> dict:
+    body = {"confirm_token": confirm_token} if confirm_token else {}
+    return _request(conn, "POST", "/system/reboot", json=body)

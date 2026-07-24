@@ -183,12 +183,12 @@ def get_disk_usage() -> dict:
     }
 
 
-def reboot(confirm_token: str) -> None:
-    expiry = _pending_reboot_token.get(confirm_token)
-    if expiry is None or expiry < time.monotonic():
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            "Token potwierdzający reboot jest nieprawidłowy lub wygasł — najpierw wywołaj POST /system/update.",
-        )
-    del _pending_reboot_token[confirm_token]
+def reboot(confirm_token: str | None = None) -> None:
+    # Token jest już tylko wskazówką (jednorazowa konsumpcja, jeśli podany i
+    # ważny) — NIE blokuje restartu. Restart to jawne, uwierzytelnione żądanie z
+    # VM1 (mTLS + IP allowlist, egzekwowane w routerze). Twardy warunek tokenu
+    # powodował, że po restarcie usługi vm2-api (deploy) token ginął z pamięci i
+    # przycisk restartu w portalu przestawał działać.
+    if confirm_token:
+        _pending_reboot_token.pop(confirm_token, None)
     subprocess.Popen(["/usr/bin/sudo", "-n", "/usr/bin/systemctl", "reboot"])
