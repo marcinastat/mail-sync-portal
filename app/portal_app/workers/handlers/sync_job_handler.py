@@ -14,9 +14,13 @@ DEST_IMAP_PORT = 993
 
 def handle(payload: dict) -> None:
     mailbox_id = payload["mailbox_id"]
-    # Skąd przyszła ta synchronizacja: "manual" (przycisk w panelu) lub
-    # "scheduled" (scheduler wg globalnego interwału). Trafia do audit logu.
+    # Skąd przyszła ta synchronizacja: "manual" (przycisk w panelu),
+    # "scheduled" (scheduler) lub "assess" (inwentaryzacja po dodaniu skrzynki).
     trigger = payload.get("trigger", "scheduled")
+    # Tryb inwentaryzacji: imapsync --dry (NIC nie przenosi), tylko zbiera ile
+    # jest do zebrania (liczby/rozmiar źródła) i uzupełnia bazę. Realny transfer
+    # robi dopiero kolejny (normalny) przebieg.
+    assess = payload.get("mode") == "assess"
 
     with session_scope() as db:
         mailbox = db.get(Mailbox, mailbox_id)
@@ -95,6 +99,7 @@ def handle(payload: dict) -> None:
             delete_on_dest_when_missing_from_source=delete_on_dest,
             extra_flags=extra_flags,
             log_path=Path(live_log_path),
+            dry_run=assess,  # inwentaryzacja = --dry (nic nie przenosi)
         )
         error_summary = None if result["returncode"] == 0 else f"imapsync zakończył się kodem {result['returncode']}"
         status = "success" if result["returncode"] == 0 else "failed"
