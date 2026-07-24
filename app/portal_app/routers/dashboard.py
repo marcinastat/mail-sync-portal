@@ -159,6 +159,10 @@ def dashboard(
             vm2_status["av"] = vm2_client.av_status(conn)
         except vm2_client.Vm2ApiError:
             vm2_status["av"] = None
+        try:
+            vm2_status["findings"] = vm2_client.av_findings(conn, limit=8)
+        except vm2_client.Vm2ApiError:
+            vm2_status["findings"] = None
 
     volume = _daily_volume(db)
     return templates.TemplateResponse(

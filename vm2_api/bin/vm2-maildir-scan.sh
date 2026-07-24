@@ -71,6 +71,10 @@ while IFS= read -r line; do
     esac
 done < "$OUT"
 
+# findings.jsonl musi być czytelne dla API (vm2-api) — panel je pobiera.
+chgrp vm2-api "$FINDINGS" 2>/dev/null || true
+chmod 0640 "$FINDINGS" 2>/dev/null || true
+
 echo "$(ts_now) koniec skan ${SCAN_KIND}: wykryto ${FOUND}, rc=${rc}" >> "$LOG"
 # Marker przesuwamy tylko po udanym skanie (rc 0=czysto, 1=znaleziono) — rc>=2
 # to błąd, wtedy NIE przesuwamy, żeby następny przebieg spróbował ponownie.

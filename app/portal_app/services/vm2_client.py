@@ -76,6 +76,10 @@ def av_status(conn: Vm2Connection) -> dict:
     return _request(conn, "GET", "/av/status")
 
 
+def av_findings(conn: Vm2Connection, since_id: int = 0, limit: int = 100) -> dict:
+    return _request(conn, "GET", "/av/findings", params={"since_id": since_id, "limit": limit})
+
+
 def get_system_updates(conn: Vm2Connection) -> dict:
     # check-update może pobierać metadane — dłuższy timeout niż domyślny.
     return _request(conn, "GET", "/system/updates", timeout=180.0)

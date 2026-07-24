@@ -5,7 +5,7 @@ from ..audit import insert_audit_log
 from ..auth.ip_allowlist import require_vm1_ip
 from ..db import get_conn
 from ..schemas import AvScanRequest
-from ..services import clamav_control
+from ..services import clamav_control, scan_findings
 
 router = APIRouter(prefix="/av", tags=["av"])
 
@@ -13,6 +13,13 @@ router = APIRouter(prefix="/av", tags=["av"])
 @router.get("/status")
 def av_status(actor: str = Depends(require_vm1_ip)):
     return clamav_control.get_status()
+
+
+@router.get("/findings")
+def av_findings(since_id: int = 0, limit: int = 100, actor: str = Depends(require_vm1_ip)):
+    """Wykrycia skanów (ClamAV + rspamd). `since_id` do wykrywania NOWYCH
+    (alerty). Panel pokazuje `recent`, worker alertuje na `new`."""
+    return scan_findings.get_findings(since_id=since_id, limit=limit)
 
 
 @router.post("/scan")

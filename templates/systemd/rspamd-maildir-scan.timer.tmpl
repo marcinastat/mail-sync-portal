@@ -1,0 +1,10 @@
+[Unit]
+Description=Uruchamia rspamd-maildir-scan co godzinę (przyrost)
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=60min
+Unit=rspamd-maildir-scan.service
+
+[Install]
+WantedBy=timers.target
