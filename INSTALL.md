@@ -169,4 +169,10 @@ Z komputera znajdującego się w podsieci `ADMIN_SUBNET_CIDR`:
   konfiguracji**, a na konsoli jest narzędzie ratunkowe:
   `sudo portal-config-recovery.sh list|restore <znacznik>` (VM1) oraz
   `sudo vm2-config-recovery.sh …` (VM2).
+- **Zapomniane hasło admina panelu?** Na konsoli VM1 (root):
+  `sudo portal-admin-password.sh --list` (pokaż loginy), potem
+  `sudo portal-admin-password.sh <login>` (pyta o nowe hasło) lub
+  `sudo portal-admin-password.sh <login> --random` (generuje losowe). TOTP
+  pozostaje bez zmian. W panelu hasło zmienisz w **Ustawienia → Użytkownicy →
+  Moje hasło**.
 - Pełny status faz projektu: `docs/technical/build-status.md`.
