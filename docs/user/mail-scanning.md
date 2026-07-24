@@ -24,6 +24,18 @@ Ręczny pełny skan na żądanie (np. po zmianie sygnatur):
 `sudo /usr/local/sbin/vm2-maildir-scan.sh full` oraz
 `sudo /usr/local/sbin/vm2-rspamd-scan.sh full`.
 
+## Harmonogram w panelu (co ile, kiedy pełny)
+
+**Ustawienia → Skanowanie poczty** (`/admin/settings/scanning`) — osobno dla
+ClamAV i rspamd:
+
+- **Skan przyrostowy** — co ile minut (0 = wyłącz).
+- **Skan pełny** — wyłączony / codziennie / co tydzień (dzień + godzina). Np.
+  „ClamAV pełny: co tydzień, niedziela, 04:00" albo całkiem wyłączony.
+
+Zapis od razu przepisuje systemd timery na VM2. rspamd jest cięższy, więc jego
+pełny skan domyślnie jest wyłączony (przyrostowy wystarcza do nowej poczty).
+
 ## Dodatkowe darmowe sygnatury (SaneSecurity, URLhaus)
 
 ClamAV używa też **darmowych sygnatur firm trzecich** przez `clamav-unofficial-sigs`
