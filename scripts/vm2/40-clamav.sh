@@ -86,6 +86,7 @@ systemctl reset-failed clamav-milter@scan.service clamav-milter.service 2>/dev/n
 
 # Skan maildirów: INKREMENTALNY co interwał (tani — tylko przyrost) + PEŁNY nocny.
 install -m 0755 -o root -g root "$REPO_ROOT/vm2_api/bin/vm2-maildir-scan.sh" /usr/local/sbin/vm2-maildir-scan.sh
+install -m 0755 -o root -g root "$REPO_ROOT/vm2_api/bin/vm2-emit-finding.py" /usr/local/sbin/vm2-emit-finding.py
 install -d -m 0750 -o root -g root /var/lib/vm2-scan
 # Zasiej marker, żeby PIERWSZY skan przyrostowy nie ruszał całych 21 GB (backlog
 # pokrył już wcześniejszy skan; pełne przeskanowanie z NOWYMI opcjami zrobi

@@ -3,9 +3,38 @@
 nic. Emituje TYLKO phishing/odrzucenia (nie zwykły spam — stare newslettery to
 szum). Ścieżka pliku w env FPATH."""
 import datetime
+import email
+import email.header
 import json
 import os
 import sys
+
+
+def _read_headers(path):
+    try:
+        head = b""
+        with open(path, "rb") as fh:
+            for line in fh:
+                if line in (b"\r\n", b"\n"):
+                    break
+                head += line
+                if len(head) > 65536:
+                    break
+        msg = email.message_from_bytes(head)
+
+        def dec(name):
+            v = msg.get(name)
+            if not v:
+                return None
+            out = ""
+            for txt, enc in email.header.decode_header(v):
+                out += txt.decode(enc or "utf-8", "replace") if isinstance(txt, bytes) else txt
+            return out.strip() or None
+
+        return dec("subject"), dec("from"), dec("date")
+    except Exception:
+        return None, None, None
+
 
 raw = sys.stdin.read()
 if not raw.strip():
@@ -33,8 +62,10 @@ path = os.environ.get("FPATH", "")
 rel = path.split("/vhosts/", 1)[1] if "/vhosts/" in path else path
 parts = rel.split("/")
 mailbox = (parts[1] + "@" + parts[0]) if len(parts) >= 2 else "?"
+subject, frm, dt = _read_headers(path)
 ts = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 print(json.dumps({
     "ts": ts, "engine": "rspamd", "mailbox": mailbox, "path": path,
     "signature": f"{sig} (score {round(float(score), 1)})", "severity": sev,
+    "subject": subject, "from": frm, "date": dt,
 }))

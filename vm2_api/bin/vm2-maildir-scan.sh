@@ -19,18 +19,7 @@ CLAMD_CONF="/etc/clamd.d/scan.conf"
 
 mkdir -p "$STATE_DIR"
 ts_now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
-
-emit_finding() {
-    local path="$1" sig="$2" engine="$3" sev="$4" rel domain rest local mailbox ep
-    # /var/mail bywa symlinkiem do /var/spool/mail — clamd zwraca kanoniczną
-    # ścieżkę, więc tniemy po ostatnim /vhosts/ (odporne na oba warianty).
-    rel="${path##*/vhosts/}"
-    domain="${rel%%/*}"; rest="${rel#*/}"; local="${rest%%/*}"
-    mailbox="${local}@${domain}"
-    ep="${path//\\/\\\\}"; ep="${ep//\"/\\\"}"
-    printf '{"ts":"%s","engine":"%s","mailbox":"%s","path":"%s","signature":"%s","severity":"%s"}\n' \
-        "$(ts_now)" "$engine" "$mailbox" "$ep" "$sig" "$sev" >> "$FINDINGS"
-}
+EMITTER="/usr/local/sbin/vm2-emit-finding.py"
 
 # --- Zbuduj listę plików do skanu --------------------------------------------
 LIST="$(mktemp)"
@@ -67,7 +56,8 @@ while IFS= read -r line; do
         *": "*" FOUND")
             fpath="${line%%: *}"
             sig="${line#*: }"; sig="${sig% FOUND}"
-            emit_finding "$fpath" "$sig" "clamav" "malware"
+            # Emiter (root) czyta+dekoduje nagłówki maila i dopisuje finding.
+            FSIG="$sig" FENGINE="clamav" FSEV="malware" python3.12 "$EMITTER" "$fpath" >> "$FINDINGS"
             FOUND=$((FOUND+1))
             ;;
     esac
