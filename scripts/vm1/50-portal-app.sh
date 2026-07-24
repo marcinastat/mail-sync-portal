@@ -54,7 +54,7 @@ fi
 sudo -u portal-app "$APP_DIR/venv/bin/pip" install --upgrade pip -q
 sudo -u portal-app "$APP_DIR/venv/bin/pip" install -r "$APP_DIR/requirements.txt" -q
 
-mkdir -p /var/log/portal /var/log/portal/imapsync /var/lib/portal-app /var/lib/portal-app/branding-stage /run/portal-import
+mkdir -p /var/log/portal /var/log/portal/imapsync /var/log/portal/system-updates /var/lib/portal-app /var/lib/portal-app/branding-stage /run/portal-import
 chown -R portal-app:portal-app /var/log/portal /var/lib/portal-app /run/portal-import
 
 # --- Sekrety: generowane raz, natychmiast szyfrowane przez systemd-creds, ----

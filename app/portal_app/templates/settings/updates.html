@@ -46,9 +46,12 @@
     (widać postęp niżej), więc możesz zamknąć okno i wrócić.
   </p>
   <p class="hint" style="max-width:78ch">
-    Gdyby po aktualizacji coś się rozjechało — na konsoli maszyny jest narzędzie ratunkowe:
-    <code>sudo portal-config-recovery.sh list</code> / <code>… restore &lt;znacznik&gt;</code> na VM1
-    oraz <code>sudo vm2-config-recovery.sh …</code> na VM2 (przywraca kopię configów sprzed aktualizacji).
+    <strong>Co jest w kopii:</strong> tylko <strong>pliki konfiguracyjne</strong> (nginx, portal, Postfix/Dovecot/ClamAV,
+    sudoers, unity systemd, PostgreSQL <code>*.conf</code>) — zabezpieczenie na wypadek, gdyby aktualizacja pakietu
+    nadpisała nasze configi. <strong>Danych/maili kopia NIE obejmuje</strong> — te zabezpiecza snapshot całej VM.
+    Pełne wyjście każdej aktualizacji jest zapisywane w logu <strong>na tej maszynie</strong>
+    (VM1: <code>/var/log/portal/system-updates/</code>, VM2: <code>/var/log/vm2-api/system-updates/</code>)
+    i można je też pobrać przyciskiem po zakończeniu. Instrukcję przywrócenia configów pokazujemy w oknie po aktualizacji.
   </p>
 
   {{ host_card("vm1", "VM1 (portal)", "host aplikacji, nginx, PostgreSQL") }}
@@ -62,7 +65,8 @@
         <span class="hint" id="upd-elapsed"></span></div>
       <pre id="upd-output" class="upd-output"></pre>
       <div id="upd-result" style="margin-top:0.75rem"></div>
-      <div style="margin-top:1rem;display:flex;gap:0.75rem;justify-content:flex-end">
+      <div style="margin-top:1rem;display:flex;gap:0.75rem;justify-content:flex-end;flex-wrap:wrap">
+        <button class="btn secondary" type="button" id="upd-save" onclick="saveLog()" style="display:none">Zapisz log do pliku</button>
         <button class="btn secondary" type="button" id="upd-close" onclick="closeModal()" style="display:none">Zamknij</button>
         <button class="btn" type="button" id="upd-reboot" style="display:none">Uruchom ponownie teraz</button>
       </div>
@@ -76,11 +80,13 @@
     .upd-overlay{display:none;position:fixed;inset:0;background:rgba(2,6,23,.66);z-index:50;
       align-items:center;justify-content:center;padding:1rem}
     .upd-overlay.open{display:flex}
-    .upd-modal{background:#fff;color:#0f172a;border-radius:12px;padding:1.5rem;width:min(760px,96vw);
-      max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.4)}
-    .upd-phase{font-weight:600;display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem}
-    .upd-output{white-space:pre-wrap;font-size:.8rem;max-height:340px;overflow:auto;background:#0b1220;color:#cbd5e1;
-      padding:.75rem;border-radius:8px;margin:0}
+    .upd-modal{background:#fff;color:#0f172a;border-radius:12px;padding:1.5rem;width:min(1040px,97vw);
+      max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+    .upd-phase{font-weight:600;font-size:1.05rem;display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem}
+    .upd-output{white-space:pre-wrap;font-size:.8rem;line-height:1.45;min-height:200px;max-height:min(60vh,560px);
+      overflow:auto;background:#0b1220;color:#cbd5e1;padding:.85rem;border-radius:8px;margin:0}
+    .upd-restore{margin-top:.6rem;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:.6rem .75rem}
+    .upd-restore code{background:#0b1220;color:#cbd5e1;padding:.15rem .4rem;border-radius:4px;font-size:.82rem}
   </style>
 
   <script>
@@ -93,7 +99,8 @@
       done: "Zakończono",
     };
     const HOST_TITLES = { vm1: "VM1 (portal)", vm2: "VM2 (serwer poczty)" };
-    let pollTimer = null, elapsedTimer = null, currentHost = null;
+    let pollTimer = null, elapsedTimer = null, currentHost = null, lastRun = null;
+    const RECOVERY_TOOL = { vm1: "portal-config-recovery.sh", vm2: "vm2-config-recovery.sh" };
 
     async function checkHost(host) {
       const sec = document.getElementById("sec-" + host);
@@ -140,6 +147,7 @@
       document.getElementById("upd-result").innerHTML = "";
       document.getElementById("upd-close").style.display = "none";
       document.getElementById("upd-reboot").style.display = "none";
+      document.getElementById("upd-save").style.display = "none";
       document.getElementById("upd-phase-label").textContent = "Start…";
       document.querySelector("#upd-phase .spin").style.display = "";
       document.getElementById("upd-overlay").classList.add("open");
@@ -187,6 +195,7 @@
 
     function showResult(d) {
       if (elapsedTimer) clearInterval(elapsedTimer);
+      lastRun = d;
       document.querySelector("#upd-phase .spin").style.display = "none";
       document.getElementById("upd-phase-label").textContent =
         (d.status === "success") ? "Aktualizacja zakończona" : "Aktualizacja zakończona z problemem";
@@ -195,8 +204,25 @@
         ? `<span class="badge ok">gotowe</span>` : `<span class="badge err">sprawdź wynik</span>`;
       if (d.healthy === true) html += ` <span class="badge ok">usługi OK</span>`;
       else if (d.healthy === false) html += ` <span class="badge err">usługi: sprawdź</span>`;
-      if (d.backup_path) html += `<div class="hint" style="margin-top:.4rem">Kopia konfiguracji: <code>${d.backup_path}</code></div>`;
       if (d.error) html += `<div class="hint" style="margin-top:.4rem;color:#dc2626">${d.error}</div>`;
+
+      // Kopia konfiguracji + JAK ją przywrócić (dokładna komenda ze znacznikiem).
+      if (d.backup_path) {
+        const tag = d.backup_path.replace(/\/+$/, "").split("/").pop();
+        const tool = RECOVERY_TOOL[d.host] || "portal-config-recovery.sh";
+        html += `<div class="upd-restore">
+          <strong>Kopia konfiguracji (tylko pliki .conf — nie dane/maile):</strong><br>
+          <code>${d.backup_path}</code>
+          <div style="margin-top:.45rem">Aby przywrócić te configi na konsoli maszyny (jako root):</div>
+          <div style="margin-top:.25rem"><code>sudo ${tool} restore ${tag}</code></div>
+          <div class="hint" style="margin-top:.3rem">Podgląd zawartości: <code>sudo ${tool} show ${tag}</code>,
+            lista kopii: <code>sudo ${tool} list</code>. Restore robi też kopię bieżącego stanu (pre-restore).</div>
+        </div>`;
+      }
+      if (d.log_path) {
+        html += `<div class="hint" style="margin-top:.5rem">Pełny log zapisany na ${d.host.toUpperCase()}:
+          <code>${d.log_path}</code></div>`;
+      }
       if (d.reboot_needed === true) {
         html += `<div style="margin-top:.5rem"><span class="badge warn">wymagany restart</span>
           — zainstalowano aktualizacje jądra/bibliotek.</div>`;
@@ -206,7 +232,26 @@
         showRebootBtn(d.host);
       }
       document.getElementById("upd-result").innerHTML = html;
+      document.getElementById("upd-save").style.display = "";
       document.getElementById("upd-close").style.display = "";
+    }
+
+    function saveLog() {
+      if (!lastRun) return;
+      const d = lastRun;
+      const meta =
+        `# Aktualizacja systemu — ${HOST_TITLES[d.host] || d.host} (tryb: ${d.mode})\n` +
+        `# start: ${d.started_at || "?"}  koniec: ${d.finished_at || "?"}\n` +
+        `# status: ${d.status}  usługi_ok: ${d.healthy}  reboot: ${d.reboot_needed}\n` +
+        `# kopia configów: ${d.backup_path || "—"}\n` +
+        `# log na maszynie: ${d.log_path || "—"}\n` +
+        "------------------------------------------------------------------------\n";
+      const blob = new Blob([meta + (d.output || "")], { type: "text/plain;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `aktualizacja-${d.host}-run${d.id}.log`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     }
 
     async function rebootHost(host) {

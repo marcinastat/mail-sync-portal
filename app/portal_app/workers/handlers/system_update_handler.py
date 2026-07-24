@@ -5,6 +5,7 @@ przechodzi kolejne fazy i aktualizuje wiersz, a panel (modal) go odpytuje. Dzię
 temu długi `dnf` nie blokuje żądania HTTP. VM1 idzie fazami przez lokalny helper;
 VM2 to jedno wywołanie API mTLS (backup+dnf+health po stronie VM2)."""
 
+import os
 from datetime import datetime, timezone
 
 from ...db import session_scope
@@ -12,7 +13,28 @@ from ...models import SystemUpdateRun, Vm2Connection
 from ...services import system_update_vm1, vm2_client
 from ...services.audit_service import record
 
-_MAX_OUTPUT = 20000  # trzymamy tylko ogon (modal i tak pokazuje ostatnie linie)
+_MAX_OUTPUT = 200000  # pełne wyjście (dnf potrafi być długi) — modal scrolluje
+_VM1_LOG_DIR = "/var/log/portal/system-updates"
+
+
+def _write_vm1_log(run: SystemUpdateRun) -> str | None:
+    """Zapisuje pełne wyjście przebiegu do trwałego pliku na VM1 (/var/log/portal
+    jest w ReadWritePaths workera). Zwraca ścieżkę albo None przy błędzie zapisu."""
+    try:
+        os.makedirs(_VM1_LOG_DIR, exist_ok=True)
+        ts = (run.started_at or datetime.now(timezone.utc)).strftime("%Y%m%d-%H%M%S")
+        path = f"{_VM1_LOG_DIR}/{run.host}-run{run.id}-{ts}.log"
+        header = (
+            f"# Aktualizacja systemu — {run.host} (tryb: {run.mode})\n"
+            f"# start: {run.started_at}  koniec: {run.finished_at}\n"
+            f"# status: {run.status}  usługi_ok: {run.healthy}  reboot: {run.reboot_needed}\n"
+            f"# kopia configów: {run.backup_path}\n{'-' * 72}\n"
+        )
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(header + (run.output or ""))
+        return path
+    except OSError:
+        return None
 
 
 def _update(run_id: int, *, append: str | None = None, **fields) -> None:
@@ -35,6 +57,16 @@ def _finish(run_id: int, *, status: str, error: str | None = None) -> None:
         run = db.get(SystemUpdateRun, run_id)
         if run is None:
             return
+        # Trwały log na VM1 (zawsze — także dla aktualizacji VM2, jako kopia na
+        # maszynie portalu). Dla VM1 to log autorytatywny; dla VM2 log
+        # autorytatywny leży na VM2 (log_path ustawiony z odpowiedzi API), a jeśli
+        # go nie ma — pokazujemy kopię z VM1.
+        vm1_log = _write_vm1_log(run)
+        if run.host == "vm1":
+            run.log_path = vm1_log
+        elif not run.log_path:
+            run.log_path = vm1_log
+        db.add(run)
         record(
             db,
             actor_admin_user_id=run.actor_admin_user_id,
@@ -47,6 +79,7 @@ def _finish(run_id: int, *, status: str, error: str | None = None) -> None:
                 "healthy": run.healthy,
                 "reboot_needed": run.reboot_needed,
                 "backup_path": run.backup_path,
+                "log_path": run.log_path,
                 "error": error,
             },
             source_ip=None,
@@ -99,6 +132,7 @@ def _handle_vm2(run_id: int, security_only: bool) -> None:
         healthy=health.get("healthy"),
         reboot_needed=result.get("reboot_needed"),
         backup_path=result.get("backup_path"),
+        log_path=result.get("log_path"),  # log autorytatywny leży NA VM2
         reboot_token=result.get("reboot_confirm_token"),
     )
     ok = bool(health.get("healthy", True))

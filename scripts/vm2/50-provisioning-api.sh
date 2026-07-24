@@ -70,6 +70,9 @@ install -m 0755 -o root -g root "$REPO_ROOT/vm2_api/bin/vm2-dnf.sh" /usr/local/s
 install -m 0755 -o root -g root "$REPO_ROOT/vm2_api/bin/vm2-config-backup.sh" /usr/local/sbin/vm2-config-backup.sh
 install -m 0755 -o root -g root "$REPO_ROOT/vm2_api/bin/vm2-config-recovery.sh" /usr/local/sbin/vm2-config-recovery.sh
 install -d -m 0700 -o root -g root /var/lib/vm2-config-backups
+# Katalog na trwałe logi aktualizacji systemu (pełne wyjście dnf) — zapisywalny
+# przez usługę (ReadWritePaths w unicie).
+install -d -m 0750 -o vm2-api -g vm2-api /var/log/vm2-api
 
 # --- sudoers.d (jedyna realna granica uprawnień, patrz komentarz w unicie) ----
 # vm2-api.tmpl jest statyczny (brak ${VAR}), więc render_template go tylko kopiuje.

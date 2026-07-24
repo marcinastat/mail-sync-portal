@@ -1,11 +1,15 @@
+import os
 import secrets
 import shutil
 import subprocess
 import time
+from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
 
 from ..config import get_settings
+
+_LOG_DIR = "/var/log/vm2-api/system-updates"
 
 # Stały argv wszędzie — zero konkatenacji stringów z danych wejściowych.
 # Konto serwisowe vm2-api ma wąski sudoers.d ograniczony dokładnie do tych
@@ -103,20 +107,43 @@ def get_available_updates() -> dict:
     }
 
 
+def _write_log(mode: str, backup_path, output: str, health: dict, reboot_needed) -> str | None:
+    """Trwały log aktualizacji NA VM2 (pełne wyjście). /var/log/vm2-api jest w
+    ReadWritePaths usługi. Best-effort — błąd zapisu nie wywraca aktualizacji."""
+    try:
+        os.makedirs(_LOG_DIR, exist_ok=True)
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        path = f"{_LOG_DIR}/vm2-{mode}-{ts}.log"
+        header = (
+            f"# Aktualizacja systemu VM2 (tryb: {mode})\n"
+            f"# czas: {ts} UTC  usługi_ok: {health.get('healthy')}  reboot: {reboot_needed}\n"
+            f"# kopia configów: {backup_path}\n{'-' * 72}\n"
+        )
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(header + (output or ""))
+        return path
+    except OSError:
+        return None
+
+
 def run_dnf_update(security_only: bool = True) -> dict:
     # Domyślnie TYLKO łatki bezpieczeństwa (--security) — świadomie unikamy
     # pełnego `dnf update`, który mógłby przeskoczyć wersje i coś rozłożyć.
     # Pełny update jest możliwy, ale tylko na wyraźne żądanie (security_only=False).
     # Najpierw kopia configów — żeby po nieudanej aktualizacji dało się je
     # przywrócić narzędziem konsolowym vm2-config-recovery.sh.
+    mode = "security" if security_only else "all"
     backup_path = _config_backup()
     result = _dnf("update-security" if security_only else "update-all", timeout=1800)
+    health = run_health_check() if result.returncode == 0 else {"healthy": False, "units": {}}
+    full_output = (result.stdout or "") + (result.stderr or "")
+    # Log piszemy ZAWSZE (także przy błędzie dnf) — żeby VM2 miała trwały ślad.
+    log_path = _write_log(mode, backup_path, full_output, health, _reboot_pending() if result.returncode == 0 else None)
     if result.returncode != 0:
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY,
-            f"dnf update zakończył się błędem: {result.stderr[-1000:]}",
+            f"dnf update zakończył się błędem (log na VM2: {log_path}): {result.stderr[-1000:]}",
         )
-    health = run_health_check()
     reboot_needed = _reboot_pending()
     token = None
     if reboot_needed:
@@ -124,12 +151,13 @@ def run_dnf_update(security_only: bool = True) -> dict:
         settings = get_settings()
         _pending_reboot_token[token] = time.monotonic() + settings.system_update_confirm_ttl_seconds
     return {
-        "dnf_output_tail": result.stdout[-3000:],
+        "dnf_output_tail": full_output[-200000:],
         "health_check": health,
         "reboot_needed": reboot_needed,
         "reboot_confirm_token": token,
         "security_only": security_only,
         "backup_path": backup_path,
+        "log_path": log_path,
     }
 
 

@@ -45,6 +45,7 @@ def _run_json(run: SystemUpdateRun) -> dict:
         "reboot_needed": run.reboot_needed,
         "healthy": run.healthy,
         "backup_path": run.backup_path,
+        "log_path": run.log_path,
         "error": run.error,
         "started_at": run.started_at.isoformat() if run.started_at else None,
         "finished_at": run.finished_at.isoformat() if run.finished_at else None,

@@ -27,6 +27,10 @@ class SystemUpdateRun(Base, TimestampMixin):
     reboot_needed: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     healthy: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     backup_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Ścieżka pliku logu na maszynie, która wykonała aktualizację (VM1: /var/log/
+    # portal/system-updates, VM2: /var/log/vm2-api/system-updates) — pełne wyjście
+    # zachowane trwale, niezależnie od okna w panelu.
+    log_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     # Token potwierdzający reboot zwrócony przez API VM2 (VM1 rebootuje sudo).
     reboot_token: Mapped[str | None] = mapped_column(String(128), nullable=True)
     error: Mapped[str | None] = mapped_column(String(2000), nullable=True)
