@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from ..db import session_scope
-from ..models import JobQueue
+from ..models import JobQueue, JobRun
 from ..services import throttle_service
 from .handlers import provision_handler, sync_job_handler, system_update_handler
 
@@ -66,8 +66,43 @@ def _finish_job(job_id: int, *, success: bool, error: str | None = None, max_att
             logger.warning("Job %s (%s) failed: %s", job_id, job.job_type, error)
 
 
+def _reap_orphans() -> None:
+    """Sprzątanie osieroconych wpisów przy starcie. Jest tylko JEDNA instancja
+    portal-worker, więc po restarcie każdy wpis 'running' jest osierocony (worker
+    padł/zrestartowany w trakcie — np. reboot/zawieszenie VM). Bez tego:
+      - osierocony job_run zostawał 'running' NA ZAWSZE (panel: „Synchronizacja
+        w toku…", skrzynka blokowana),
+      - osierocony job_queue 'running' wpadał w `already_pending` schedulera →
+        skrzynka NIGDY nie była ponownie kolejkowana (realny objaw: skrzynka
+        `scan` utknęła 9 dni po zawieszeniu VM w trakcie synchronizacji)."""
+    now = datetime.now(timezone.utc)
+    with session_scope() as db:
+        stuck_runs = db.query(JobRun).filter(JobRun.status == "running").all()
+        for r in stuck_runs:
+            r.status = "failed"
+            r.finished_at = now
+            r.error_summary = "Przerwane — worker zrestartowany (np. reboot VM)."
+            db.add(r)
+        stuck_jobs = db.query(JobQueue).filter(JobQueue.status == "running").all()
+        for j in stuck_jobs:
+            if j.job_type == "system_update":
+                j.status = "failed"  # aktualizacji systemu NIE wznawiamy automatycznie
+            else:
+                j.status = "queued"  # sync/provision — bezpiecznie wznowić (idempotentne)
+                j.locked_by = None
+                j.locked_at = None
+                j.run_after = now
+            db.add(j)
+        if stuck_runs or stuck_jobs:
+            logger.warning(
+                "Reaper: %d osieroconych job_runs -> failed, %d wpisów kolejki wznowiono/zamknięto.",
+                len(stuck_runs), len(stuck_jobs),
+            )
+
+
 def run_forever() -> None:
     logger.info("portal-worker startuje (worker_id=%s)", WORKER_ID)
+    _reap_orphans()
     while True:
         job_id = None
         job_type = None
