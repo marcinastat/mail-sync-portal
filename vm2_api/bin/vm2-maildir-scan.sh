@@ -22,7 +22,9 @@ ts_now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
 emit_finding() {
     local path="$1" sig="$2" engine="$3" sev="$4" rel domain rest local mailbox ep
-    rel="${path#"$SCAN_ROOT"/}"
+    # /var/mail bywa symlinkiem do /var/spool/mail — clamd zwraca kanoniczną
+    # ścieżkę, więc tniemy po ostatnim /vhosts/ (odporne na oba warianty).
+    rel="${path##*/vhosts/}"
     domain="${rel%%/*}"; rest="${rel#*/}"; local="${rest%%/*}"
     mailbox="${local}@${domain}"
     ep="${path//\\/\\\\}"; ep="${ep//\"/\\\"}"
