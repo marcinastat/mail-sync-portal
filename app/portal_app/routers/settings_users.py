@@ -58,6 +58,49 @@ def create_user(
     )
 
 
+@router.post("/change-password")
+def change_password(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    new_password2: str = Form(...),
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    """Samoobsługowa zmiana WŁASNEGO hasła zalogowanego admina. Wymaga podania
+    obecnego hasła (potwierdzenie tożsamości), niezależnie od TOTP."""
+    pw_error = None
+    pw_message = None
+    if not argon2.verify(current_password, current_user.password_hash):
+        pw_error = "Obecne hasło jest nieprawidłowe."
+    elif new_password != new_password2:
+        pw_error = "Nowe hasła nie są identyczne."
+    elif len(new_password) < 10:
+        pw_error = "Nowe hasło musi mieć co najmniej 10 znaków."
+    elif new_password == current_password:
+        pw_error = "Nowe hasło musi różnić się od obecnego."
+    else:
+        user = db.get(AdminUser, current_user.id)
+        user.password_hash = argon2.hash(new_password)
+        db.add(user)
+        record(
+            db,
+            actor_admin_user_id=current_user.id,
+            action="admin_user.change_password",
+            target_type="admin_user",
+            target_id=str(current_user.id),
+            source_ip=client_ip(request),
+        )
+        pw_message = "Hasło zostało zmienione."
+    users = db.query(AdminUser).order_by(AdminUser.username).all()
+    return templates.TemplateResponse(
+        request,
+        "settings/users.html",
+        {"active": "settings", "current_user": current_user, "users": users,
+         "pw_error": pw_error, "pw_message": pw_message},
+    )
+
+
 @router.post("/{user_id}/deactivate")
 def deactivate_user(
     user_id: int,

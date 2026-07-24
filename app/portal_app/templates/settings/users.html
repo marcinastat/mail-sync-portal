@@ -12,6 +12,23 @@
   {% endif %}
 
   <div class="card">
+    <h2 style="margin-top:0">Moje hasło</h2>
+    {% if pw_message %}<p class="badge ok" style="display:inline-block">{{ pw_message }}</p>{% endif %}
+    {% if pw_error %}<p class="badge err" style="display:inline-block">{{ pw_error }}</p>{% endif %}
+    <p class="hint" style="max-width:60ch">Zmiana hasła zalogowanego konta (<strong>{{ current_user.username }}</strong>).
+      Wymaga podania obecnego hasła; kod TOTP pozostaje bez zmian.</p>
+    <form method="post" action="/admin/settings/users/change-password" autocomplete="off">
+      <label for="current_password">Obecne hasło</label>
+      <input type="password" id="current_password" name="current_password" required autocomplete="current-password">
+      <label for="new_password">Nowe hasło (min. 10 znaków)</label>
+      <input type="password" id="new_password" name="new_password" required minlength="10" autocomplete="new-password">
+      <label for="new_password2">Powtórz nowe hasło</label>
+      <input type="password" id="new_password2" name="new_password2" required minlength="10" autocomplete="new-password">
+      <p style="margin-top:1rem"><button class="btn" type="submit">Zmień hasło</button></p>
+    </form>
+  </div>
+
+  <div class="card">
     <h2 style="margin-top:0">Nowy użytkownik</h2>
     <form method="post" action="/admin/settings/users">
       <label for="username">Login</label>
