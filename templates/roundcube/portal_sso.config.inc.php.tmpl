@@ -1,0 +1,15 @@
+<?php
+// Konfiguracja wtyczki portal_sso — renderowana przez scripts/vm1/55-webmail-sso.sh.
+// Plik zawiera SEKRETY (hasło mastera Dovecota + hasło roli DB) — musi być
+// czytany tylko przez usługę Roundcube (php-fpm user), 0640 root:roundcube.
+
+$config['portal_sso_dsn'] = 'pgsql:host=127.0.0.1;port=5432;dbname=portal_db';
+$config['portal_sso_db_user'] = 'roundcube_sso';
+$config['portal_sso_db_pass'] = '${SSO_DB_PASSWORD}';
+
+// Master user Dovecota (VM2) — logowanie jako <skrzynka>*<master>.
+$config['portal_sso_master_user'] = 'portaladmin';
+$config['portal_sso_master_pass'] = '${SSO_MASTER_PASSWORD}';
+
+// Lista sieci ADMINA (te same co strefa /admin) — do kontroli IP w SSO.
+$config['portal_sso_admin_acl_file'] = '/etc/portal/nginx/admin-access.conf';

@@ -17,6 +17,7 @@ from .settings import (
 )
 from .sync import JobQueue, JobRun, SyncJob
 from .system_update import SystemUpdateRun
+from .webmail_sso import WebmailSsoToken
 
 __all__ = [
     "AdminUser",
@@ -41,4 +42,5 @@ __all__ = [
     "JobRun",
     "SyncJob",
     "SystemUpdateRun",
+    "WebmailSsoToken",
 ]

@@ -80,6 +80,20 @@ render_template "$REPO_ROOT/templates/dovecot/10-master.conf.tmpl" /etc/dovecot/
 render_template "$REPO_ROOT/templates/dovecot/10-ssl.conf.tmpl" /etc/dovecot/conf.d/10-ssl.conf '$DOVECOT_TLS_CERT $DOVECOT_TLS_KEY'
 render_template "$REPO_ROOT/templates/dovecot/10-auth.conf.tmpl" /etc/dovecot/conf.d/10-auth.conf
 
+# --- Master user (impersonacja z panelu: „Otwórz w Roundcube") ----------------
+# Hasło mastera generujemy RAZ i trzymamy jako plaintext w /etc/portal/secrets
+# (root 0600). VM1 pobiera je fetch-skryptem (scripts/vm1/55-webmail-sso.sh),
+# żeby wtyczka Roundcube mogła logować się jako master. Plik master-users trzyma
+# tylko HASH (SHA512-CRYPT) — regenerowany z sekretu przy każdym uruchomieniu.
+MASTER_USER="portaladmin"
+MASTER_PASS_FILE="/etc/portal/secrets/dovecot-master.pass"
+ensure_secret_file "$MASTER_PASS_FILE" 24
+MASTER_HASH="$(doveadm pw -s SHA512-CRYPT -p "$(cat "$MASTER_PASS_FILE")")"
+printf '%s:%s\n' "$MASTER_USER" "$MASTER_HASH" > /etc/dovecot/master-users
+chmod 0640 /etc/dovecot/master-users
+chgrp dovecot /etc/dovecot/master-users
+render_template "$REPO_ROOT/templates/dovecot/20-master-user.conf.tmpl" /etc/dovecot/conf.d/20-master-user.conf
+
 # SELinux: pozwól Postfiksowi łączyć się z Postgresem po TCP i Dovecotowi
 # czytać/pisać w /var/mail/vhosts poza domyślną etykietą.
 if command -v setsebool >/dev/null 2>&1; then
