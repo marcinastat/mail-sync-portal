@@ -54,6 +54,7 @@ def handle(payload: dict) -> None:
             max_size_mb=_cfg.max_size_mb if _cfg else 0,
             timeout_seconds=_cfg.timeout_seconds if _cfg else 0,
             allow_size_mismatch=_cfg.allow_size_mismatch if _cfg else False,
+            max_bandwidth_mbit=_cfg.max_bandwidth_mbit if _cfg else 0,
             custom_flags=_cfg.custom_flags if _cfg else "",
         )
         mailbox_custom_flags = sync_job.custom_flags or ""

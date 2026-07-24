@@ -41,6 +41,7 @@ _ALLOWED_FLAGS: dict[str, bool] = {
     "--allowsizemismatch": False,
     "--nofoldersizes": False,
     "--sslargs1": True,            # np. SSL_verify_mode=1 (parametry TLS host1)
+    "--maxbytespersecond": True,   # kaganiec na łącze (bajty/s) — read-only dla źródła
 }
 
 # Jawny wzorzec najgroźniejszych flag — służy WYŁĄCZNIE do czytelnego komunikatu
@@ -121,5 +122,9 @@ def build_global_flags(cfg) -> list[str]:
         argv += ["--timeout", str(cfg.timeout_seconds)]
     if cfg.allow_size_mismatch:
         argv.append("--allowsizemismatch")
+    # Kaganiec na łącze: Mbit/s -> bajty/s (1 Mbit/s = 1e6 bitów/s = 125000 B/s).
+    mbit = getattr(cfg, "max_bandwidth_mbit", 0) or 0
+    if mbit > 0:
+        argv += ["--maxbytespersecond", str(int(mbit * 125000))]
     argv += validate_custom_flags(cfg.custom_flags or "")
     return argv
