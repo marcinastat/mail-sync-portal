@@ -1,0 +1,19 @@
+# Overrides clamav-unofficial-sigs dla NASZEJ instalacji ClamAV.
+# user.conf jest wczytywany na końcu (nadpisuje master.conf/os.conf) — wystarczą
+# tu tylko zmieniane wartości. Pobierani są DARMOWI providerzy (SaneSecurity,
+# URLhaus, LinuxMalwareDetect, interServer, foxhole/winnow) — securiteinfo i
+# malwarepatrol wymagają płatnych kluczy i pozostają nieaktywni (brak kluczy).
+
+# Nasz clamd działa jako clamscan (nie domyślny clamupdate), bazy w /var/lib/clamav,
+# gniazdo skanu jak w scan.conf.
+clam_user="clamscan"
+clam_group="clamscan"
+clamav_dbs="/var/lib/clamav"
+clamd_socket="/run/clamd.scan/clamd.sock"
+
+# Po pobraniu nowych sygnatur przeładuj clamd (żeby od razu obowiązywały).
+reload_dbs="yes"
+
+# Bramka bezpieczeństwa narzędzia — bez tego skrypt odmawia działania.
+# U nas konfiguracją zarządza ten szablon, więc jawnie potwierdzamy.
+user_configuration_complete="yes"

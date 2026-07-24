@@ -4,7 +4,8 @@ from ..templating import templates
 from sqlalchemy.orm import Session
 
 from ..deps import get_db, require_login, require_setup_complete
-from ..models import AdminUser, JobRun, Mailbox, SyncJob
+from ..models import AdminUser, JobRun, Mailbox, SyncJob, Vm2Connection
+from ..services import vm2_client
 from ..services.report_export import rows_to_csv, rows_to_pdf
 
 router = APIRouter(prefix="/admin/reports", tags=["reports"], dependencies=[Depends(require_setup_complete)])
@@ -33,11 +34,23 @@ def _report_rows(db: Session) -> list[list]:
     return rows
 
 
+def _scan_findings(db: Session) -> dict | None:
+    conn = db.query(Vm2Connection).first()
+    if conn is None or not conn.vm2_host:
+        return None
+    try:
+        return vm2_client.av_findings(conn, limit=200)
+    except vm2_client.Vm2ApiError:
+        return None
+
+
 @router.get("")
 def show(request: Request, current_user: AdminUser = Depends(require_login), db: Session = Depends(get_db)):
     rows = _report_rows(db)
     return templates.TemplateResponse(
-        request, "reports/index.html", {"active": "reports", "current_user": current_user, "header": HEADER, "rows": rows}
+        request, "reports/index.html",
+        {"active": "reports", "current_user": current_user, "header": HEADER, "rows": rows,
+         "findings": _scan_findings(db)},
     )
 
 

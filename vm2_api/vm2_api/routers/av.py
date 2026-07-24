@@ -5,14 +5,16 @@ from ..audit import insert_audit_log
 from ..auth.ip_allowlist import require_vm1_ip
 from ..db import get_conn
 from ..schemas import AvScanRequest
-from ..services import clamav_control, scan_findings
+from ..services import clamav_control, rspamd_control, scan_findings
 
 router = APIRouter(prefix="/av", tags=["av"])
 
 
 @router.get("/status")
 def av_status(actor: str = Depends(require_vm1_ip)):
-    return clamav_control.get_status()
+    status = clamav_control.get_status()
+    status["rspamd"] = rspamd_control.get_status()  # status antispamu do panelu
+    return status
 
 
 @router.get("/findings")
