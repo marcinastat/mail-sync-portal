@@ -24,25 +24,36 @@ Ręczny pełny skan na żądanie (np. po zmianie sygnatur):
 `sudo /usr/local/sbin/vm2-maildir-scan.sh full` oraz
 `sudo /usr/local/sbin/vm2-rspamd-scan.sh full`.
 
-## Gdzie widać wyniki
+## Dodatkowe darmowe sygnatury (SaneSecurity, URLhaus)
 
-- **Pulpit panelu** — kafelek „Serwer poczty (VM2)" pokazuje sekcję **Skan
-  poczty**: liczbę wykryć oraz ostatnie pozycje (skrzynka, silnik, sygnatura),
-  z podziałem na `phishing`/`malware`.
-- **Alerty** — worker `environment-check` przy każdym cyklu pobiera nowe wykrycia
-  z VM2 i wysyła alert **`av_threat_found`** („wykryto N podejrzanych
-  wiadomości"). Żeby dostawać je mailem/webhookiem, dodaj kanał w
-  **Ustawienia → Kanały alertów** i zasubskrybuj zdarzenie `av_threat_found`.
-  Kursor zapobiega powtarzaniu alertu o tym samym wykryciu.
+ClamAV używa też **darmowych sygnatur firm trzecich** przez `clamav-unofficial-sigs`
+(krok `scripts/vm2/42-sanesecurity.sh`): **SaneSecurity** (phishing/scam/złośliwe
+dokumenty), **URLhaus** (abuse.ch — złośliwe adresy URL), LinuxMalwareDetect,
+interServer, foxhole/winnow. Mocno podnosi wykrywalność zagrożeń mailowych bez
+nowego demona. Odświeżane timerem `clamav-unofficial-sigs.timer` (respektuje
+cooldown mirrorów). Providerzy płatni (securiteinfo/malwarepatrol) są wyłączeni.
 
-Wykrycia są zapisywane na VM2 w `/var/lib/vm2-scan/findings.jsonl` (po jednym
-JSON-ie na linię: czas, silnik, skrzynka, ścieżka, sygnatura, waga).
+## Status w panelu
 
-## Opcjonalnie (na przyszłość)
+Pulpit → kafelek **„Serwer poczty (VM2)"** pokazuje:
 
-- **SaneSecurity** — darmowe, dodatkowe bazy sygnatur ClamAV pod zagrożenia
-  mailowe (phishing/scam/złośliwe dokumenty). Podnoszą wykrywalność bez nowego
-  demona; wymagają skonfigurowania `clamav-unofficial-sigs`. Nie włączone
-  domyślnie (rspamd pokrywa analizę phishingu/linków).
-- `clamav-milter` jest **wyłączony** (poczta wchodzi przez imapsync, nie SMTP —
-  milter nic by nie skanował). Włączyć tylko, gdyby doszła realna ścieżka SMTP.
+- **ClamAV**: aktywny, wersja silnika, wersja bazy sygnatur, świeżość.
+- **Antyspam (rspamd)**: aktywny/nieaktywny, wersja, liczba przeskanowanych,
+  świeżość reguł/map.
+- **Skan poczty**: liczba wykryć + ostatnie pozycje (phishing/malware).
+
+## Wykrycia — który to mail (raporty + alerty)
+
+- **Raporty** (`/admin/reports`) → sekcja **Wykrycia skanu poczty**: dla każdego
+  wykrycia widać **którą skrzynkę** i **który mail** — temat, nadawcę i datę
+  (odczytane i zdekodowane w momencie wykrycia), silnik oraz sygnaturę.
+- **Alerty** — worker `environment-check` pobiera nowe wykrycia i wysyła
+  **`av_threat_found`** („wykryto N podejrzanych wiadomości", z listą skrzynek/
+  tematów). Żeby dostawać mailem/webhookiem: **Ustawienia → Kanały alertów**,
+  zasubskrybuj `av_threat_found`. Kursor zapobiega powtarzaniu alertu o tym samym.
+
+Wykrycia zapisywane na VM2 w `/var/lib/vm2-scan/findings.jsonl` (czas, silnik,
+skrzynka, ścieżka, sygnatura, waga, temat/od/data).
+
+> `clamav-milter` jest **wyłączony** (poczta wchodzi przez imapsync, nie SMTP —
+> milter nic by nie skanował). Włączyć tylko, gdyby doszła realna ścieżka SMTP.
