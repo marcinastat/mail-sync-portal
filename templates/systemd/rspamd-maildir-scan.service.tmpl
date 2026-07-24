@@ -1,0 +1,13 @@
+[Unit]
+Description=Inkrementalny skan phishingu rspamd (poczta dopisana przez imapsync)
+After=rspamd.service
+Wants=rspamd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/vm2-rspamd-scan.sh incremental
+User=root
+Nice=19
+IOSchedulingClass=idle
+CPUWeight=20
+CPUQuota=150%

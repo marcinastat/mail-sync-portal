@@ -6,7 +6,7 @@ from cryptography import x509
 from sqlalchemy import func
 
 from ..db import session_scope
-from ..models import Domain, Mailbox, Vm2Connection, WebmailSsoToken
+from ..models import Domain, InstanceState, Mailbox, Vm2Connection, WebmailSsoToken
 from ..services import vm2_client
 from ..services.alert_service import dispatch as dispatch_alert
 
@@ -56,6 +56,8 @@ def _check_vm2(db) -> None:
     except vm2_client.Vm2ApiError as exc:
         logger.warning("Nie udało się sprawdzić statusu AV na VM2: %s", exc)
 
+    _check_scan_findings(db, conn)
+
     try:
         disk = vm2_client.disk_usage(conn)
         for label, key in (("systemowy (/)", "os_disk"), ("pocztowy (/var/mail/vhosts)", "mail_disk")):
@@ -70,6 +72,36 @@ def _check_vm2(db) -> None:
                 )
     except vm2_client.Vm2ApiError as exc:
         logger.warning("Nie udało się sprawdzić zajętości dysków VM2: %s", exc)
+
+
+def _check_scan_findings(db, conn) -> None:
+    """Nowe wykrycia skanów (ClamAV/rspamd) na VM2 → alert. Kursor
+    (last_scan_finding_id) chroni przed powtarzaniem alertu o tym samym."""
+    state = db.query(InstanceState).first()
+    since = state.last_scan_finding_id if state else 0
+    try:
+        data = vm2_client.av_findings(conn, since_id=since, limit=50)
+    except vm2_client.Vm2ApiError as exc:
+        logger.warning("Nie udało się pobrać wykryć skanu z VM2: %s", exc)
+        return
+    new = data.get("new", [])
+    if new:
+        dispatch_alert(
+            db,
+            event="av_threat_found",
+            subject=f"VM2: wykryto {len(new)} podejrzanych wiadomości (ClamAV/rspamd)",
+            details={
+                "count": len(new),
+                "items": [
+                    {"mailbox": r.get("mailbox"), "engine": r.get("engine"),
+                     "signature": r.get("signature"), "severity": r.get("severity")}
+                    for r in new[:20]
+                ],
+            },
+        )
+    if state is not None and data.get("max_id", 0) > since:
+        state.last_scan_finding_id = data["max_id"]
+        db.add(state)
 
 
 DOMAIN_POOL_WARNING_PERCENT = 90

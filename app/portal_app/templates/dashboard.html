@@ -90,6 +90,35 @@
             aktualizacja: {{ vm2_status.av.last_defs_update | dt }}{% if vm2_status.av.defs_age_hours is not none %} ({{ vm2_status.av.defs_age_hours }}h temu){% endif %}
           </p>
         {% endif %}
+        {% if vm2_status.findings is not none %}
+          {% set fn = vm2_status.findings %}
+          <div style="margin-top:0.6rem">
+            <p style="margin:0.2rem 0">Skan poczty:
+              {% if fn.total == 0 %}<span class="badge ok">brak wykryć</span>
+              {% else %}<span class="badge err">{{ fn.total }} wykryć</span>
+                {% if fn.by_severity.get('phishing') %}<span class="badge warn">phishing: {{ fn.by_severity['phishing'] }}</span>{% endif %}
+                {% if fn.by_severity.get('malware') %}<span class="badge err">malware: {{ fn.by_severity['malware'] }}</span>{% endif %}
+              {% endif %}
+            </p>
+            {% if fn.recent %}
+            <div class="table-wrap" style="max-height:180px;overflow:auto;margin-top:0.3rem">
+              <table style="font-size:0.82rem">
+                <thead><tr><th>Kiedy</th><th>Skrzynka</th><th>Silnik</th><th>Sygnatura</th></tr></thead>
+                <tbody>
+                  {% for r in fn.recent %}
+                  <tr>
+                    <td>{{ r.ts }}</td>
+                    <td>{{ r.mailbox }}</td>
+                    <td>{{ r.engine }}</td>
+                    <td><span class="{{ 'err' if r.severity == 'malware' else 'warn' }}">{{ r.signature | truncate(40) }}</span></td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% endif %}
+          </div>
+        {% endif %}
         {% if vm2_status.disk_usage %}
           {% for dk, dlbl in [("os_disk","Dysk systemowy"), ("mail_disk","Dysk pocztowy")] %}
             {% set d = vm2_status.disk_usage[dk] %}

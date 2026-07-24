@@ -78,6 +78,7 @@ sudo scripts/vm2/20-postgresql.sh
 sudo scripts/vm2/25-mail-disk.sh
 sudo scripts/vm2/30-postfix-dovecot.sh
 sudo scripts/vm2/40-clamav.sh
+sudo scripts/vm2/45-rspamd.sh
 sudo scripts/vm2/50-provisioning-api.sh
 sudo scripts/vm2/60-firewall-rules.sh
 sudo scripts/vm2/70-finalize.sh

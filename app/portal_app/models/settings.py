@@ -49,6 +49,9 @@ class InstanceState(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(primary_key=True)
     first_run_required: Mapped[bool] = mapped_column(Boolean, default=True)
     setup_step_completed: Mapped[int] = mapped_column(Integer, default=0)
+    # Kursor ostatnio zaalarmowanego wykrycia skanu (findings id z VM2) — żeby
+    # environment-check nie alarmował w kółko o tym samym.
+    last_scan_finding_id: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class Vm2Connection(Base, TimestampMixin):
