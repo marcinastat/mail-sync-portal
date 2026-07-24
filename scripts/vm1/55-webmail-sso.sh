@@ -22,15 +22,22 @@ PLUGIN_DIR="$RC_ROOT/plugins/portal_sso"
 
 [[ -d "$RC_ROOT" ]] || die "Brak $RC_ROOT — uruchom najpierw scripts/vm1/40-roundcube.sh."
 
-# --- 1. Pobierz hasło mastera z VM2 -------------------------------------------
+# --- 1. Hasło mastera z VM2 ---------------------------------------------------
+# Trzy ścieżki: (a) plik już podłożony ręcznie — użyj go; (b) jest klucz deploy
+# (sync-to-vm2.sh) — pobierz przez scp; (c) brak obu — jasna instrukcja.
 SSH_KEY="/root/.ssh/portal_deploy_ed25519"
 REMOTE_USER="${VM2_SSH_USER:-root}"
 MASTER_PASS_FILE="/etc/portal/secrets/dovecot-master.pass"
-[[ -f "$SSH_KEY" ]] || die "Brak $SSH_KEY — uruchom najpierw scripts/vm1/sync-to-vm2.sh."
 mkdir -p /etc/portal/secrets
-scp -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new \
-    "${REMOTE_USER}@${VM2_IP}:/etc/portal/secrets/dovecot-master.pass" "$MASTER_PASS_FILE" \
-    || die "Nie udało się pobrać hasła mastera z VM2 — czy scripts/vm2/30-postfix-dovecot.sh już się tam wykonał?"
+if [[ -f "$MASTER_PASS_FILE" ]]; then
+    log_info "Używam istniejącego $MASTER_PASS_FILE (pominięto pobieranie z VM2)."
+elif [[ -f "$SSH_KEY" ]]; then
+    scp -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new \
+        "${REMOTE_USER}@${VM2_IP}:/etc/portal/secrets/dovecot-master.pass" "$MASTER_PASS_FILE" \
+        || die "Nie udało się pobrać hasła mastera z VM2 — czy scripts/vm2/30-postfix-dovecot.sh już się tam wykonał?"
+else
+    die "Brak $MASTER_PASS_FILE i brak klucza deploy $SSH_KEY. Skopiuj hasło mastera z VM2 (/etc/portal/secrets/dovecot-master.pass) na VM1 do tej samej ścieżki i uruchom ponownie."
+fi
 chmod 0600 "$MASTER_PASS_FILE"
 SSO_MASTER_PASSWORD="$(cat "$MASTER_PASS_FILE")"
 
