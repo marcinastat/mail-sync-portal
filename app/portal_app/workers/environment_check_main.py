@@ -1,12 +1,12 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from cryptography import x509
 from sqlalchemy import func
 
 from ..db import session_scope
-from ..models import Domain, Mailbox, Vm2Connection
+from ..models import Domain, Mailbox, Vm2Connection, WebmailSsoToken
 from ..services import vm2_client
 from ..services.alert_service import dispatch as dispatch_alert
 
@@ -104,11 +104,26 @@ def _check_domain_pools(db) -> None:
             )
 
 
+def _prune_sso_tokens(db) -> None:
+    """Sprząta jednorazowe tokeny „Otwórz w Roundcube": zużyte lub wygasłe.
+    TTL to ~60 s, więc trzymanie ich po fakcie nic nie daje. Zostawiamy krótki
+    zapas (1 dzień) na wypadek diagnostyki/korelacji z audytem."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=1)
+    deleted = (
+        db.query(WebmailSsoToken)
+        .filter((WebmailSsoToken.used_at.isnot(None)) | (WebmailSsoToken.expires_at < cutoff))
+        .delete(synchronize_session=False)
+    )
+    if deleted:
+        logger.info("Usunięto %d zużytych/wygasłych tokenów SSO webmaila.", deleted)
+
+
 def run_once() -> None:
     with session_scope() as db:
         _check_cert_expiry(db)
         _check_vm2(db)
         _check_domain_pools(db)
+        _prune_sso_tokens(db)
 
 
 if __name__ == "__main__":
