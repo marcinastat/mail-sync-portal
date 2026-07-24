@@ -90,6 +90,9 @@ class ImapsyncConfig(Base, TimestampMixin):
     max_size_mb: Mapped[int] = mapped_column(Integer, default=0)                # --maxsize (0=bez limitu)
     timeout_seconds: Mapped[int] = mapped_column(Integer, default=0)            # --timeout (0=domyślny)
     allow_size_mismatch: Mapped[bool] = mapped_column(Boolean, default=False)   # --allowsizemismatch
+    # „Kaganiec" na łącze — limit przepustowości w Mbit/s (0 = bez limitu).
+    # Przeliczany na bajty/s dla --maxbytespersecond (1 Mbit/s = 125000 B/s).
+    max_bandwidth_mbit: Mapped[int] = mapped_column(Integer, default=0)
     custom_flags: Mapped[str] = mapped_column(String(1000), default="")         # walidowane allowlistą
 
 

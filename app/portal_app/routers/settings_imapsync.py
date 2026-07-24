@@ -46,6 +46,7 @@ def save_imapsync(
     allow_size_mismatch: bool = Form(False),
     max_size_mb: int = Form(0),
     timeout_seconds: int = Form(0),
+    max_bandwidth_mbit: int = Form(0),
     custom_flags: str = Form(""),
     current_user: AdminUser = Depends(require_login),
     db: Session = Depends(get_db),
@@ -68,6 +69,7 @@ def save_imapsync(
     cfg.allow_size_mismatch = allow_size_mismatch
     cfg.max_size_mb = max(0, max_size_mb)
     cfg.timeout_seconds = max(0, timeout_seconds)
+    cfg.max_bandwidth_mbit = max(0, max_bandwidth_mbit)
     cfg.custom_flags = custom_flags.strip()
     db.add(cfg)
     record(
@@ -78,6 +80,7 @@ def save_imapsync(
         target_id=str(cfg.id),
         details={"verify_source_ssl": verify_source_ssl, "add_missing_headers": add_missing_headers,
                  "max_size_mb": cfg.max_size_mb, "timeout_seconds": cfg.timeout_seconds,
+                 "max_bandwidth_mbit": cfg.max_bandwidth_mbit,
                  "allow_size_mismatch": allow_size_mismatch, "custom_flags": cfg.custom_flags},
         source_ip=client_ip(request),
     )
