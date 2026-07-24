@@ -50,17 +50,29 @@
           <td>{{ u.role }}</td>
           <td>{% if u.is_active %}<span class="badge ok">aktywny</span>{% else %}<span class="badge err">nieaktywny</span>{% endif %}</td>
           <td>{% if u.totp and u.totp.confirmed_at %}<span class="badge ok">skonfigurowane</span>{% else %}<span class="badge warn">oczekuje</span>{% endif %}</td>
-          <td style="display:flex;gap:0.4rem">
+          <td style="display:flex;gap:0.4rem;flex-wrap:wrap">
             {% if u.totp and u.totp.confirmed_at %}
             <form method="post" action="/admin/settings/users/{{ u.id }}/reset-totp" style="display:inline"
                   onsubmit="return confirm('Zresetować TOTP dla {{ u.username }}? Przy następnym logowaniu przejdzie ponowną konfigurację.')">
               <button class="btn ghost sm" type="submit">Reset TOTP</button>
             </form>
             {% endif %}
-            {% if u.is_active and u.id != current_user.id %}
-            <form method="post" action="/admin/settings/users/{{ u.id }}/deactivate" style="display:inline">
-              <button class="btn danger sm" type="submit">Dezaktywuj</button>
-            </form>
+            {% if u.id != current_user.id %}
+              {% if u.is_active %}
+              <form method="post" action="/admin/settings/users/{{ u.id }}/deactivate" style="display:inline">
+                <button class="btn ghost sm" type="submit">Dezaktywuj</button>
+              </form>
+              {% else %}
+              <form method="post" action="/admin/settings/users/{{ u.id }}/activate" style="display:inline">
+                <button class="btn ghost sm" type="submit">Aktywuj</button>
+              </form>
+              {% endif %}
+              <form method="post" action="/admin/settings/users/{{ u.id }}/delete" style="display:inline"
+                    onsubmit="return confirm('Trwale usunąć konto administratora {{ u.username }}? Tej operacji nie można cofnąć.')">
+                <button class="btn danger sm" type="submit">Usuń</button>
+              </form>
+            {% else %}
+              <span class="hint">to Twoje konto</span>
             {% endif %}
           </td>
         </tr>

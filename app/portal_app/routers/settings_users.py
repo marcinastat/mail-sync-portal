@@ -123,6 +123,72 @@ def deactivate_user(
     return RedirectResponse("/admin/settings/users", status_code=303)
 
 
+@router.post("/{user_id}/activate")
+def activate_user(
+    user_id: int,
+    request: Request,
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    user = db.get(AdminUser, user_id)
+    if user and not user.is_active:
+        user.is_active = True
+        db.add(user)
+        record(
+            db,
+            actor_admin_user_id=current_user.id,
+            action="admin_user.activate",
+            target_type="admin_user",
+            target_id=str(user.id),
+            source_ip=client_ip(request),
+        )
+    return RedirectResponse("/admin/settings/users", status_code=303)
+
+
+@router.post("/{user_id}/delete")
+def delete_user(
+    user_id: int,
+    request: Request,
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    """Trwałe usunięcie konta admina (TOTP kasuje się kaskadą). Zabezpieczenia:
+    nie można usunąć siebie ani ostatniego AKTYWNEGO administratora (blokada
+    zamknięcia się na zewnątrz). Wpisy audytu zostają — actor_admin_user_id nie
+    ma FK, więc historia nie znika (dla usuniętego pokaże się ID)."""
+    user = db.get(AdminUser, user_id)
+    if user is None:
+        return RedirectResponse("/admin/settings/users", status_code=303)
+
+    error = None
+    if user.id == current_user.id:
+        error = "Nie można usunąć własnego konta."
+    elif user.is_active:
+        active_count = db.query(AdminUser).filter(AdminUser.is_active.is_(True)).count()
+        if active_count <= 1:
+            error = "Nie można usunąć ostatniego aktywnego administratora."
+    if error:
+        users = db.query(AdminUser).order_by(AdminUser.username).all()
+        return templates.TemplateResponse(
+            request, "settings/users.html",
+            {"active": "settings", "current_user": current_user, "users": users, "pw_error": error},
+            status_code=400,
+        )
+
+    username = user.username
+    db.delete(user)
+    record(
+        db,
+        actor_admin_user_id=current_user.id,
+        action="admin_user.delete",
+        target_type="admin_user",
+        target_id=str(user_id),
+        details={"username": username},
+        source_ip=client_ip(request),
+    )
+    return RedirectResponse("/admin/settings/users", status_code=303)
+
+
 @router.post("/{user_id}/reset-totp")
 def reset_totp(
     user_id: int,
