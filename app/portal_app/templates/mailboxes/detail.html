@@ -52,6 +52,10 @@
       {% if running_now and running_run_id %}
       <button class="btn secondary" type="button" onclick="openLive({{ running_run_id }})">👁 Podgląd na żywo</button>
       {% endif %}
+      {% if mailbox.provisioning_status == "active" and mailbox.vm2_mailbox_id %}
+      <button class="btn secondary" type="button" onclick="openWebmail({{ mailbox.id }})"
+              title="Otwiera tę skrzynkę w Roundcube bez podawania hasła (dostęp administracyjny, audytowany)">✉ Otwórz w Roundcube</button>
+      {% endif %}
       <span class="hint">Hasło docelowe: {{ "ustawione ręcznie" if mailbox.password_override else "lustrzana kopia hasła źródłowego" }}</span>
     </div>
   </div>
@@ -212,6 +216,17 @@
   <script>
     const MB_ID = {{ mailbox.id }};
     let liveTimer = null;
+
+    // „Otwórz w Roundcube" — pobiera jednorazowy token z panelu i otwiera webmail
+    // w nowej karcie (już zalogowany jako ta skrzynka, przez master usera).
+    async function openWebmail(id) {
+      try {
+        const r = await fetch(`/admin/mailboxes/${id}/open-webmail`, { method: "POST" });
+        if (!r.ok) { const d = await r.json().catch(() => ({})); alert("Nie udało się otworzyć: " + (d.detail || r.status)); return; }
+        const d = await r.json();
+        window.open(d.url, "_blank");
+      } catch (e) { alert("Nie udało się otworzyć webmaila."); }
+    }
 
     function badge(st) {
       if (st === "success") return '<span class="badge ok">sukces</span>';

@@ -1,0 +1,18 @@
+# Master user — pozwala JEDNEMU kontu administracyjnemu zalogować się JAKO
+# dowolna skrzynka bez znajomości jej hasła (impersonacja). Używane wyłącznie
+# przez funkcję „Otwórz w Roundcube" z panelu /admin.
+#
+# Login odbywa się jako:  <skrzynka>*<master>   (np. biuro@dom*portaladmin)
+# z hasłem konta master. Dostęp do wyzwolenia jest wąsko ograniczony PO STRONIE
+# PORTALU (sieć admina + zalogowany admin + jednorazowy token) — tu, w Dovecocie,
+# master to pojedyncze konto z pliku (NIE z SQL), więc nie da się go „utworzyć"
+# przez zwykłe provisionowanie skrzynek.
+auth_master_user_separator = *
+
+passdb {
+  driver = passwd-file
+  master = yes
+  args = /etc/dovecot/master-users
+  # Świadomie BEZ "pass=yes": master user służy TYLKO do logowania jako inny
+  # użytkownik, nie ma własnej skrzynki i nie może się zalogować „sam na siebie".
+}

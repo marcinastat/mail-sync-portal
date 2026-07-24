@@ -1,4 +1,6 @@
-from datetime import datetime, timezone
+import hashlib
+import secrets
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
@@ -8,7 +10,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..deps import client_ip, get_db, require_login, require_setup_complete
-from ..models import AdminUser, Credential, Domain, JobQueue, JobRun, Mailbox, SyncJob, Vm2Connection
+from ..models import AdminUser, Credential, Domain, JobQueue, JobRun, Mailbox, SyncJob, Vm2Connection, WebmailSsoToken
 from ..services import imapsync_flags, import_service, vm2_client
 from ..services.audit_service import record
 from ..services.credential_crypto import encrypt_password
@@ -183,6 +185,50 @@ def run_live(
         "finished_at": run.finished_at.isoformat() if run.finished_at else None,
         "error_summary": run.error_summary,
     }
+
+
+SSO_TOKEN_TTL_SECONDS = 60
+
+
+@router.post("/{mailbox_id}/open-webmail")
+def open_webmail(
+    mailbox_id: int,
+    request: Request,
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    """Handoff „Otwórz w Roundcube": tworzy JEDNORAZOWY, krótko żyjący token,
+    zapisuje jego HASH (nie surowy) + docelową skrzynkę i admina, audytuje i
+    zwraca URL do Roundcube. Wtyczka portal_sso na VM1 waliduje token (hash, TTL,
+    jednorazowość) + sprawdza IP (sieć admina) i loguje jako master user — admin
+    nie musi znać hasła skrzynki. Sam wyzwalacz jest pod /admin (strefa admina)."""
+    mailbox = db.get(Mailbox, mailbox_id)
+    if mailbox is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    if mailbox.provisioning_status != "active" or not mailbox.vm2_mailbox_id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Skrzynka nie jest jeszcze aktywna na VM2.")
+
+    raw = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(raw.encode()).hexdigest()
+    db.add(WebmailSsoToken(
+        token_hash=token_hash,
+        mailbox_id=mailbox.id,
+        mailbox_address=mailbox.destination_address,
+        actor_admin_user_id=current_user.id,
+        source_ip=client_ip(request),
+        expires_at=datetime.now(timezone.utc) + timedelta(seconds=SSO_TOKEN_TTL_SECONDS),
+    ))
+    record(
+        db,
+        actor_admin_user_id=current_user.id,
+        action="mailbox.opened_in_roundcube",
+        target_type="mailbox",
+        target_id=str(mailbox.id),
+        details={"destination_address": mailbox.destination_address},
+        source_ip=client_ip(request),
+    )
+    # URL względny — Roundcube stoi pod / na tym samym hoście co panel (/admin).
+    return {"url": f"/?_sso={raw}"}
 
 
 @router.post("/{mailbox_id}/quota")
