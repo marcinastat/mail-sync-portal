@@ -8,6 +8,17 @@
 #   CAL: "[Dow ]*-*-* HH:00:00"  (Dow ∈ Mon..Sun; HH 00..23)
 set -uo pipefail
 
+# Usługa vm2-api działa pod ProtectSystem=strict — /etc jest READ-ONLY w jej
+# namespace, więc sudo'owany helper (dziedziczy namespace) nie zapisze timerów.
+# Uciekamy: PID1 uruchamia nas jako transient unit na HOŚCIE (systemd-run), gdzie
+# /etc jest zapisywalne. Guard SCAN_SCHED_ONHOST zapobiega rekursji. --wait
+# propaguje kod wyjścia (walidacja), --collect sprząta.
+if [[ "${SCAN_SCHED_ONHOST:-0}" != "1" ]]; then
+    exec /usr/bin/systemd-run --quiet --wait --collect \
+        -p StandardOutput=journal -p StandardError=journal \
+        --setenv=SCAN_SCHED_ONHOST=1 /usr/local/sbin/vm2-scan-schedule.sh "$@"
+fi
+
 CLAMAV_INC=""; CLAMAV_FULL=""; RSPAMD_INC=""; RSPAMD_FULL=""
 for arg in "$@"; do
     case "$arg" in
