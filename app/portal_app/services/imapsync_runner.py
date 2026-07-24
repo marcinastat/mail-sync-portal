@@ -102,6 +102,14 @@ def build_argv(
     return argv
 
 
+def new_log_path(mailbox_id: int) -> Path:
+    """Deterministyczna ścieżka logu przebiegu — wyliczana PRZED startem, żeby
+    handler mógł ją zapisać na rekordzie „running" i panel mógł podglądać log
+    NA ŻYWO (imapsync pisze do tego pliku w trakcie, nie dopiero na końcu)."""
+    IMAPSYNC_LOG_DIR.mkdir(parents=True, exist_ok=True)
+    return IMAPSYNC_LOG_DIR / f"mailbox-{mailbox_id}-{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}.log"
+
+
 def run_sync(
     *,
     mailbox_id: int,
@@ -119,9 +127,14 @@ def run_sync(
     dry_run: bool = False,
     extra_flags: list[str] | None = None,
     tmp_dir: Path = Path("/run/portal-app/imapsync"),
+    log_path: Path | None = None,
 ) -> dict:
     source_passfile = _write_passfile(source_password, tmp_dir)
     dest_passfile = _write_passfile(dest_password, tmp_dir)
+    if log_path is None:
+        log_path = new_log_path(mailbox_id)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    returncode = -1
     try:
         argv = build_argv(
             source_host=source_host,
@@ -138,19 +151,26 @@ def run_sync(
             dry_run=dry_run,
             extra_flags=extra_flags,
         )
-        result = subprocess.run(argv, capture_output=True, text=True, timeout=3600)
+        # Piszemy stdout+stderr NA BIEŻĄCO do pliku logu (nie capture_output, bo
+        # to buforuje wszystko do końca procesu) — dzięki temu panel może
+        # podglądać przebieg na żywo. stderr scalony do stdout = jeden log.
+        with open(log_path, "w", encoding="utf-8") as logf:
+            proc = subprocess.Popen(argv, stdout=logf, stderr=subprocess.STDOUT, text=True)
+            try:
+                returncode = proc.wait(timeout=3600)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+                raise
     finally:
         source_passfile.unlink(missing_ok=True)
         dest_passfile.unlink(missing_ok=True)
 
-    IMAPSYNC_LOG_DIR.mkdir(parents=True, exist_ok=True)
-    log_path = IMAPSYNC_LOG_DIR / f"mailbox-{mailbox_id}-{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}.log"
-    log_path.write_text(result.stdout + "\n--- stderr ---\n" + result.stderr, encoding="utf-8")
-
+    stdout = log_path.read_text(encoding="utf-8", errors="replace")
     return {
-        "returncode": result.returncode,
+        "returncode": returncode,
         "log_path": str(log_path),
-        "stats": _parse_stats(result.stdout),
+        "stats": _parse_stats(stdout),
     }
 
 

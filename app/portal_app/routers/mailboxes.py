@@ -96,8 +96,11 @@ def mailbox_detail(
     if mailbox is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
     sync_job = db.query(SyncJob).filter(SyncJob.mailbox_id == mailbox_id).first()
-    runs = db.query(JobRun).filter(JobRun.mailbox_id == mailbox_id).order_by(JobRun.id.desc()).limit(20).all()
-    running_now = any(r.status == "running" for r in runs)
+    # Domyślnie tylko 10 ostatnich (resztę pokazuje modal „cała historia").
+    runs = db.query(JobRun).filter(JobRun.mailbox_id == mailbox_id).order_by(JobRun.id.desc()).limit(10).all()
+    total_runs = db.query(func.count(JobRun.id)).filter(JobRun.mailbox_id == mailbox_id).scalar() or 0
+    running_run = next((r for r in runs if r.status == "running"), None)
+    running_now = running_run is not None
     last_success = next((r for r in runs if r.status == "success"), None)
 
     quota = None
@@ -118,11 +121,68 @@ def mailbox_detail(
             "mailbox": mailbox,
             "sync_job": sync_job,
             "runs": runs,
+            "total_runs": total_runs,
             "running_now": running_now,
+            "running_run_id": running_run.id if running_run else None,
             "last_success": last_success,
             "quota": quota,
         },
     )
+
+
+def _run_row(r: JobRun) -> dict:
+    return {
+        "id": r.id,
+        "started_at": r.started_at.isoformat() if r.started_at else None,
+        "status": r.status,
+        "folders_synced": r.folders_synced,
+        "folders_total": r.folders_total,
+        "messages_transferred": r.messages_transferred,
+        "messages_total": r.messages_total,
+        "source_messages_total": r.source_messages_total,
+        "drift": r.messages_missing_from_source_retained,
+        "has_log": bool(r.imapsync_log_path),
+    }
+
+
+@router.get("/{mailbox_id}/runs.json")
+def runs_json(
+    mailbox_id: int,
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    """Pełna historia przebiegów (do modala „cała historia")."""
+    if db.get(Mailbox, mailbox_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    runs = db.query(JobRun).filter(JobRun.mailbox_id == mailbox_id).order_by(JobRun.id.desc()).all()
+    return {"runs": [_run_row(r) for r in runs]}
+
+
+@router.get("/{mailbox_id}/runs/{run_id}/live")
+def run_live(
+    mailbox_id: int,
+    run_id: int,
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    """Podgląd NA ŻYWO trwającego (lub właśnie zakończonego) przebiegu: status +
+    bieżąca zawartość pliku logu, do której imapsync dopisuje w trakcie."""
+    run = db.get(JobRun, run_id)
+    if run is None or run.mailbox_id != mailbox_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    log = ""
+    if run.imapsync_log_path:
+        p = Path(run.imapsync_log_path)
+        if p.exists():
+            log = p.read_text(encoding="utf-8", errors="replace")
+    return {
+        "id": run.id,
+        "status": run.status,
+        "log": log,
+        "started_at": run.started_at.isoformat() if run.started_at else None,
+        "finished_at": run.finished_at.isoformat() if run.finished_at else None,
+        "error_summary": run.error_summary,
+    }
 
 
 @router.post("/{mailbox_id}/quota")
