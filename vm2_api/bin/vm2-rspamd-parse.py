@@ -29,7 +29,8 @@ if not phish and not is_reject:
 sig = phish[0] if phish else (action or "suspicious")
 sev = "phishing" if phish else "spam"
 path = os.environ.get("FPATH", "")
-rel = path[len("/var/mail/vhosts/"):] if path.startswith("/var/mail/vhosts/") else path
+# /var/mail bywa symlinkiem do /var/spool/mail — tniemy po ostatnim /vhosts/.
+rel = path.split("/vhosts/", 1)[1] if "/vhosts/" in path else path
 parts = rel.split("/")
 mailbox = (parts[1] + "@" + parts[0]) if len(parts) >= 2 else "?"
 ts = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
