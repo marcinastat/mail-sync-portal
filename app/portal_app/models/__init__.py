@@ -14,6 +14,7 @@ from .settings import (
     ThrottlePolicy,
     TlsConfig,
     Vm2Connection,
+    WebmailSsoConfig,
 )
 from .sync import JobQueue, JobRun, SyncJob
 from .system_update import SystemUpdateRun
@@ -38,6 +39,7 @@ __all__ = [
     "ThrottlePolicy",
     "TlsConfig",
     "Vm2Connection",
+    "WebmailSsoConfig",
     "JobQueue",
     "JobRun",
     "SyncJob",

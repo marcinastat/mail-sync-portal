@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from ..deps import client_ip, get_db, require_login, require_setup_complete
 from ..models import AdminUser, Credential, Domain, JobQueue, JobRun, Mailbox, SyncJob, Vm2Connection, WebmailSsoToken
-from ..services import imapsync_flags, import_service, vm2_client
+from ..services import imapsync_flags, import_service, vm2_client, webmail_sso
 from ..services.audit_service import record
 from ..services.credential_crypto import encrypt_password
 
@@ -128,6 +128,7 @@ def mailbox_detail(
             "running_run_id": running_run.id if running_run else None,
             "last_success": last_success,
             "quota": quota,
+            "webmail_sso_enabled": webmail_sso.is_enabled(db),
         },
     )
 
@@ -202,6 +203,8 @@ def open_webmail(
     zwraca URL do Roundcube. Wtyczka portal_sso na VM1 waliduje token (hash, TTL,
     jednorazowość) + sprawdza IP (sieć admina) i loguje jako master user — admin
     nie musi znać hasła skrzynki. Sam wyzwalacz jest pod /admin (strefa admina)."""
+    if not webmail_sso.is_enabled(db):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Funkcja Otworz w Roundcube jest wylaczona (wlacz w Ustawieniach).")
     mailbox = db.get(Mailbox, mailbox_id)
     if mailbox is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)

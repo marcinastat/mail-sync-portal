@@ -23,6 +23,7 @@ from .routers import (
     settings_tls,
     settings_updates,
     settings_users,
+    settings_webmail,
     setup_wizard,
 )
 
@@ -64,3 +65,4 @@ app.include_router(settings_alerts.router)
 app.include_router(settings_tls.router)
 app.include_router(settings_updates.router)
 app.include_router(settings_users.router)
+app.include_router(settings_webmail.router)
