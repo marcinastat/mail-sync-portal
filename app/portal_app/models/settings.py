@@ -96,6 +96,18 @@ class ImapsyncConfig(Base, TimestampMixin):
     custom_flags: Mapped[str] = mapped_column(String(1000), default="")         # walidowane allowlistą
 
 
+class WebmailSsoConfig(Base, TimestampMixin):
+    """Przełącznik funkcji „Otwórz w Roundcube" (SSO admina do skrzynki bez
+    hasła). DOMYŚLNIE WYŁĄCZONA — to impersonacja, więc włączenie jest świadomą
+    decyzją. Gdy wyłączona: przycisk ukryty i endpoint nie wydaje tokenów, więc
+    nie da się otworzyć skrzynki (bez tokenu wtyczka nie ma czego zalogować)."""
+
+    __tablename__ = "webmail_sso_config"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
 class NetworkAccessConfig(Base, TimestampMixin):
     """Dozwolone sieci źródłowe (CIDR) osobno dla panelu /admin i dla webmaila
     Roundcube. Egzekwowane na poziomie nginx (allow/deny per location) — nie

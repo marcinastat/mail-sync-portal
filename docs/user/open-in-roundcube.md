@@ -1,7 +1,14 @@
 # Otwórz skrzynkę w Roundcube z panelu (bez hasła)
 
-Na stronie skrzynki (**Skrzynki → wybierz skrzynkę**) jest przycisk
-**„✉ Otwórz w Roundcube"**. Otwiera on tę skrzynkę w webmailu **od razu
+> **Funkcja jest DOMYŚLNIE WYŁĄCZONA.** To impersonacja (admin ogląda cudzą
+> pocztę), więc włączenie to świadoma decyzja. Włącz ją w
+> **Ustawienia → Otwórz w Roundcube** (`/admin/settings/webmail`). Gdy wyłączona,
+> przycisk się nie pokazuje, a portal nie wydaje tokenów (bez tokenu nie da się
+> otworzyć skrzynki, nawet gdy infrastruktura jest zainstalowana). Zmiana jest
+> audytowana (`webmail_sso.toggle`).
+
+Po włączeniu, na stronie skrzynki (**Skrzynki → wybierz skrzynkę**) pojawia się
+przycisk **„✉ Otwórz w Roundcube"**. Otwiera on tę skrzynkę w webmailu **od razu
 zalogowaną**, bez podawania hasła użytkownika — to dostęp administracyjny do
 wglądu w pocztę zsynchronizowaną na VM2.
 

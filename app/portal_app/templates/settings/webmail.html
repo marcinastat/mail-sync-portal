@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Otwórz w Roundcube — Ustawienia{% endblock %}
+{% block heading %}Otwórz w Roundcube{% endblock %}
+{% block content %}
+  <p style="margin-top:0"><a href="/admin/settings" class="hint">← Ustawienia</a></p>
+  <h1>Otwórz skrzynkę w Roundcube (dostęp administracyjny)</h1>
+
+  {% if saved %}<div class="card" style="border-color:#16a34a;color:#15803d">Zapisano.</div>{% endif %}
+
+  <div class="card">
+    <p class="hint" style="max-width:78ch;margin-top:0">
+      Gdy włączone, na stronie skrzynki pojawia się przycisk <strong>„✉ Otwórz w Roundcube"</strong>,
+      który otwiera tę skrzynkę w webmailu <strong>bez podawania hasła</strong> użytkownika
+      (logowanie przez konto master serwera poczty). To <strong>impersonacja</strong> — admin
+      ogląda cudzą pocztę — dlatego <strong>domyślnie funkcja jest wyłączona</strong> i wymaga
+      świadomego włączenia. Każde otwarcie jest audytowane, ograniczone do sieci admina i
+      chronione jednorazowym, krótkożyjącym tokenem. Szczegóły: <a href="/admin/docs">dokumentacja</a>.
+    </p>
+    <form method="post" action="/admin/settings/webmail">
+      <label style="display:flex;align-items:center;gap:0.5rem;font-weight:600">
+        <input type="checkbox" name="enabled" {% if cfg.enabled %}checked{% endif %}>
+        Włącz „Otwórz w Roundcube"
+      </label>
+      <p class="hint" style="margin-top:0.35rem">
+        Wyłączenie działa natychmiast: przycisk znika, a portal przestaje wydawać tokeny
+        (istniejące i tak wygasają po ~60 s).
+      </p>
+      <p style="margin-top:1rem"><button class="btn" type="submit">Zapisz</button></p>
+    </form>
+  </div>
+
+  {% if cfg.enabled %}
+  <div class="card" style="border-color:#f59e0b">
+    <p style="margin:0"><span class="badge warn">funkcja aktywna</span>
+      Administratorzy mogą otwierać dowolną skrzynkę w Roundcube bez jej hasła.</p>
+  </div>
+  {% endif %}
+{% endblock %}

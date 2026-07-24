@@ -52,7 +52,7 @@
       {% if running_now and running_run_id %}
       <button class="btn secondary" type="button" onclick="openLive({{ running_run_id }})">👁 Podgląd na żywo</button>
       {% endif %}
-      {% if mailbox.provisioning_status == "active" and mailbox.vm2_mailbox_id %}
+      {% if webmail_sso_enabled and mailbox.provisioning_status == "active" and mailbox.vm2_mailbox_id %}
       <button class="btn secondary" type="button" onclick="openWebmail({{ mailbox.id }})"
               title="Otwiera tę skrzynkę w Roundcube bez podawania hasła (dostęp administracyjny, audytowany)">✉ Otwórz w Roundcube</button>
       {% endif %}
