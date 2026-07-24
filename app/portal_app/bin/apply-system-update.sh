@@ -66,7 +66,8 @@ do_update() {
         -p "StandardOutput=truncate:$dnf_out" -p "StandardError=journal" \
         /usr/bin/dnf "${args[@]}"
     local rc=$?
-    tail -c 6000 "$dnf_out" 2>/dev/null
+    # Pełne wyjście (nie ostatnie 6 KB) — trafia do logu na VMce i do panelu.
+    tail -c 200000 "$dnf_out" 2>/dev/null
     exit $rc
 }
 

@@ -28,7 +28,7 @@ PrivateTmp=true
 # policzyć zajętość — pod ProtectSystem=strict katalog jest read-only, doveadm
 # zwraca wtedy "error" i panel pokazuje 0 B zajętości skrzynki. Zapis dotyczy
 # tylko pliku licznika quoty; samych maili nie modyfikujemy.
-ReadWritePaths=/opt/vm2-api /var/mail/vhosts
+ReadWritePaths=/opt/vm2-api /var/mail/vhosts /var/log/vm2-api
 
 [Install]
 WantedBy=multi-user.target

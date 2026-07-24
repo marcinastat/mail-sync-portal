@@ -58,6 +58,7 @@ class SystemUpdateResult(BaseModel):
     reboot_confirm_token: str | None
     security_only: bool = True
     backup_path: str | None = None
+    log_path: str | None = None
 
 
 class SystemRebootRequest(BaseModel):

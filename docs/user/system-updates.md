@@ -37,6 +37,12 @@ blokuje już przeglądarki ani panelu.
 
 ## Kopia konfiguracji przed aktualizacją + narzędzie ratunkowe
 
+> **Kopia obejmuje TYLKO pliki konfiguracyjne — nie dane ani maile.** To celowe:
+> chroni przed sytuacją, gdy aktualizacja pakietu nadpisze nasze configi
+> (np. własny `nginx.conf`, unit systemd, `dovecot`/`postfix`). Kopię **danych**
+> (maile, bazy) robi się snapshotem całej VM po stronie hypervisora — to inny,
+> szerszy mechanizm i celowo poza zakresem portalu.
+
 Przed każdą aktualizacją portal robi **kopię plików konfiguracyjnych** (nginx,
 portal, sudoers, systemd, PostgreSQL `*.conf` na VM1; Postfix, Dovecot, ClamAV,
 PostgreSQL na VM2). Kopie trafiają do:
@@ -44,21 +50,40 @@ PostgreSQL na VM2). Kopie trafiają do:
 - VM1: `/var/lib/portal-config-backups/<znacznik-czasu>/`
 - VM2: `/var/lib/vm2-config-backups/<znacznik-czasu>/`
 
-(trzymane jest 10 ostatnich). Gdyby po aktualizacji coś przestało działać, na
-**konsoli maszyny** (SSH/lokalnie, jako root) jest narzędzie ratunkowe:
+(trzymane jest 10 ostatnich). `<znacznik-czasu>` to nazwa katalogu kopii, np.
+`20260724-100107` — portal pokazuje go w oknie po aktualizacji razem z gotową
+komendą przywrócenia.
+
+### Jak przywrócić configi
+
+Na **konsoli maszyny** (SSH/lokalnie, jako root):
 
 ```
 # VM1
-sudo portal-config-recovery.sh list                 # pokaż dostępne kopie
-sudo portal-config-recovery.sh show   <znacznik>     # co jest w kopii
-sudo portal-config-recovery.sh restore <znacznik>    # przywróć (z potwierdzeniem)
+sudo portal-config-recovery.sh list                 # pokaż dostępne kopie (ze znacznikami)
+sudo portal-config-recovery.sh show   <znacznik>     # co dokładnie jest w kopii
+sudo portal-config-recovery.sh restore <znacznik>    # przywróć (wpisz znacznik, by potwierdzić)
 
-# VM2
+# VM2 — identycznie
 sudo vm2-config-recovery.sh list / show / restore <znacznik>
 ```
 
-`restore` najpierw zapisuje bieżący stan (kopia `pre-restore-…`), potem przywraca
-wybraną kopię, przeładowuje systemd i restartuje kluczowe usługi.
+`restore` najpierw zapisuje bieżący stan (kopia `pre-restore-…`, więc restore
+też da się cofnąć), potem przywraca wybraną kopię, przeładowuje systemd i
+restartuje kluczowe usługi. Na koniec wypisuje stan usług.
+
+## Log z aktualizacji (na maszynie + do pobrania)
+
+Pełne wyjście każdej aktualizacji jest zapisywane w **trwałym logu na maszynie,
+która ją wykonała**:
+
+- VM1: `/var/log/portal/system-updates/vm1-run<id>-<czas>.log`
+- VM2: `/var/log/vm2-api/system-updates/vm2-<tryb>-<czas>.log`
+
+(dla aktualizacji VM2 portal trzyma dodatkowo kopię logu na VM1). W oknie
+postępu, po zakończeniu, jest też przycisk **„Zapisz log do pliku"** — pobiera
+całe wyjście do pliku lokalnie w przeglądarce. Ścieżkę logu na maszynie okno
+pokazuje wprost.
 
 ## Restart po aktualizacji
 
