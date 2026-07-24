@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from pathlib import Path
 from types import SimpleNamespace
 
 from ...db import session_scope
@@ -57,6 +58,12 @@ def handle(payload: dict) -> None:
         db.add(job_run)
         db.flush()
         job_run_id = job_run.id
+        # Ścieżkę logu wyliczamy i ZAPISUJEMY już na rekordzie „running", żeby
+        # panel mógł podglądać przebieg na żywo (imapsync pisze do tego pliku w
+        # trakcie). Ten sam plik trafi do wyniku poniżej.
+        live_log_path = imapsync_runner.new_log_path(mailbox.id)
+        job_run.imapsync_log_path = str(live_log_path)
+        db.add(job_run)
         previous_run = (
             db.query(JobRun)
             .filter(JobRun.mailbox_id == mailbox.id, JobRun.id != job_run_id, JobRun.status == "success")
@@ -87,6 +94,7 @@ def handle(payload: dict) -> None:
             preserve_folder_structure=preserve,
             delete_on_dest_when_missing_from_source=delete_on_dest,
             extra_flags=extra_flags,
+            log_path=Path(live_log_path),
         )
         error_summary = None if result["returncode"] == 0 else f"imapsync zakończył się kodem {result['returncode']}"
         status = "success" if result["returncode"] == 0 else "failed"

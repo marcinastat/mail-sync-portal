@@ -43,18 +43,24 @@
   </div>
 
   <div class="card">
-    <div style="display:flex;align-items:center;gap:1rem">
+    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
       <form method="post" action="/admin/mailboxes/{{ mailbox.id }}/sync-now" style="margin:0">
         <button class="btn" type="submit" {% if running_now %}disabled{% endif %}>
           {% if running_now %}Synchronizacja w toku…{% else %}▶ Synchronizuj teraz{% endif %}
         </button>
       </form>
+      {% if running_now and running_run_id %}
+      <button class="btn secondary" type="button" onclick="openLive({{ running_run_id }})">👁 Podgląd na żywo</button>
+      {% endif %}
       <span class="hint">Hasło docelowe: {{ "ustawione ręcznie" if mailbox.password_override else "lustrzana kopia hasła źródłowego" }}</span>
     </div>
   </div>
 
   <div class="card">
-    <h2>Historia synchronizacji</h2>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+      <h2 style="margin:0">Historia synchronizacji</h2>
+      <span class="hint">ostatnie {{ runs|length }}{% if total_runs > runs|length %} z {{ total_runs }}{% endif %}</span>
+    </div>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Start</th><th>Status</th><th>Foldery</th><th>Przesłane / na docelowym</th><th>Na źródle</th><th>Drift</th><th>Log</th></tr></thead>
@@ -72,12 +78,20 @@
             <td>{{ r.messages_transferred }} / {{ r.messages_total }}</td>
             <td>{{ r.source_messages_total or "—" }}</td>
             <td>{{ r.messages_missing_from_source_retained }}</td>
-            <td>{% if r.imapsync_log_path %}<a href="/admin/mailboxes/{{ mailbox.id }}/runs/{{ r.id }}/log" target="_blank">log</a>{% endif %}</td>
+            <td>
+              {% if r.status == "running" %}<a href="#" onclick="openLive({{ r.id }});return false">na żywo</a>
+              {% elif r.imapsync_log_path %}<a href="/admin/mailboxes/{{ mailbox.id }}/runs/{{ r.id }}/log" target="_blank">log</a>{% endif %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+    {% if total_runs > runs|length %}
+    <div style="margin-top:0.75rem">
+      <button class="btn secondary" type="button" onclick="openHistory()">Cała historia ({{ total_runs }})</button>
+    </div>
+    {% endif %}
   </div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.1rem">
@@ -153,4 +167,119 @@
       <p style="margin-top:1rem"><button class="btn danger" type="submit">Usuń skrzynkę i jej pocztę na VM2</button></p>
     </form>
   </div>
+
+  <!-- Modal: podgląd na żywo trwającej synchronizacji -->
+  <div id="live-overlay" class="mb-overlay">
+    <div class="mb-modal">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem">
+        <h2 style="margin:0" id="live-title"><span class="spin"></span> Synchronizacja — podgląd na żywo</h2>
+        <button class="btn ghost sm" type="button" onclick="closeLive()">Zamknij</button>
+      </div>
+      <div id="live-status" class="hint" style="margin:.4rem 0"></div>
+      <pre id="live-log" class="mb-log">Czekam na log…</pre>
+    </div>
+  </div>
+
+  <!-- Modal: cała historia synchronizacji -->
+  <div id="hist-overlay" class="mb-overlay">
+    <div class="mb-modal">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem">
+        <h2 style="margin:0">Cała historia synchronizacji</h2>
+        <button class="btn ghost sm" type="button" onclick="closeHistory()">Zamknij</button>
+      </div>
+      <div class="table-wrap" style="margin-top:.6rem;max-height:70vh;overflow:auto">
+        <table>
+          <thead><tr><th>Start</th><th>Status</th><th>Foldery</th><th>Przesłane / na docelowym</th><th>Na źródle</th><th>Drift</th><th>Log</th></tr></thead>
+          <tbody id="hist-body"><tr><td colspan="7" class="hint">Ładowanie…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .spin{display:inline-block;width:1em;height:1em;border:2px solid currentColor;border-right-color:transparent;
+      border-radius:50%;animation:spin .7s linear infinite;vertical-align:-0.15em}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .mb-overlay{display:none;position:fixed;inset:0;background:rgba(2,6,23,.66);z-index:50;
+      align-items:center;justify-content:center;padding:1rem}
+    .mb-overlay.open{display:flex}
+    .mb-modal{background:#fff;color:#0f172a;border-radius:12px;padding:1.4rem;width:min(1040px,97vw);
+      max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+    .mb-log{white-space:pre-wrap;font-size:.8rem;line-height:1.45;min-height:200px;max-height:min(64vh,600px);
+      overflow:auto;background:#0b1220;color:#cbd5e1;padding:.85rem;border-radius:8px;margin:.4rem 0 0}
+  </style>
+
+  <script>
+    const MB_ID = {{ mailbox.id }};
+    let liveTimer = null;
+
+    function badge(st) {
+      if (st === "success") return '<span class="badge ok">sukces</span>';
+      if (st === "running") return '<span class="badge warn">w toku</span>';
+      if (st === "partial") return '<span class="badge warn">częściowy</span>';
+      return '<span class="badge err">błąd</span>';
+    }
+    function fmt(iso) { return iso ? new Date(iso).toLocaleString() : "—"; }
+
+    // --- Podgląd na żywo ---
+    function openLive(runId) {
+      document.getElementById("live-log").textContent = "Czekam na log…";
+      document.getElementById("live-status").textContent = "";
+      document.querySelector("#live-title .spin").style.display = "";
+      document.getElementById("live-overlay").classList.add("open");
+      pollLive(runId);
+    }
+    function closeLive() {
+      document.getElementById("live-overlay").classList.remove("open");
+      if (liveTimer) clearTimeout(liveTimer);
+    }
+    async function pollLive(runId) {
+      let d;
+      try {
+        const r = await fetch(`/admin/mailboxes/${MB_ID}/runs/${runId}/live`);
+        d = await r.json();
+      } catch (e) { liveTimer = setTimeout(() => pollLive(runId), 3000); return; }
+      const pre = document.getElementById("live-log");
+      const atBottom = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 40;
+      pre.textContent = d.log || "(log jeszcze pusty — imapsync się rozpędza…)";
+      if (atBottom) pre.scrollTop = pre.scrollHeight;
+      document.getElementById("live-status").innerHTML =
+        `${badge(d.status)} start: ${fmt(d.started_at)}` +
+        (d.status !== "running" ? ` · koniec: ${fmt(d.finished_at)}` : "") +
+        (d.error_summary ? ` · <span style="color:#dc2626">${d.error_summary}</span>` : "");
+      if (d.status === "running") {
+        liveTimer = setTimeout(() => pollLive(runId), 2000);
+      } else {
+        document.querySelector("#live-title .spin").style.display = "none";
+      }
+    }
+
+    // --- Cała historia ---
+    async function openHistory() {
+      document.getElementById("hist-overlay").classList.add("open");
+      const body = document.getElementById("hist-body");
+      body.innerHTML = '<tr><td colspan="7" class="hint">Ładowanie…</td></tr>';
+      try {
+        const r = await fetch(`/admin/mailboxes/${MB_ID}/runs.json`);
+        const d = await r.json();
+        if (!d.runs.length) { body.innerHTML = '<tr><td colspan="7" class="hint">Brak przebiegów.</td></tr>'; return; }
+        body.innerHTML = d.runs.map(rowHtml).join("");
+      } catch (e) {
+        body.innerHTML = '<tr><td colspan="7" style="color:#dc2626">Nie udało się pobrać historii.</td></tr>';
+      }
+    }
+    function closeHistory() { document.getElementById("hist-overlay").classList.remove("open"); }
+    function rowHtml(r) {
+      const log = (r.status === "running")
+        ? `<a href="#" onclick="closeHistory();openLive(${r.id});return false">na żywo</a>`
+        : (r.has_log ? `<a href="/admin/mailboxes/${MB_ID}/runs/${r.id}/log" target="_blank">log</a>` : "");
+      return `<tr><td>${fmt(r.started_at)}</td><td>${badge(r.status)}</td>` +
+        `<td>${r.folders_synced} / ${r.folders_total}</td>` +
+        `<td>${r.messages_transferred} / ${r.messages_total}</td>` +
+        `<td>${r.source_messages_total || "—"}</td><td>${r.drift}</td><td>${log}</td></tr>`;
+    }
+
+    // Jeśli synchronizacja właśnie trwa — od razu pokaż podgląd na żywo.
+    {% if running_now and running_run_id %}openLive({{ running_run_id }});{% endif %}
+  </script>
 {% endblock %}
