@@ -124,11 +124,18 @@ sudo scripts/vm1/20-postgresql.sh
 sudo scripts/vm1/30-nginx.sh
 sudo scripts/vm1/40-roundcube.sh
 sudo scripts/vm1/50-portal-app.sh
+sudo scripts/vm1/55-webmail-sso.sh
 sudo scripts/vm1/60-imapsync.sh
 sudo scripts/vm1/70-fail2ban-jails.sh
 sudo scripts/vm1/80-firewall-rules.sh
 sudo scripts/vm1/90-finalize.sh
 ```
+
+> `55-webmail-sso.sh` włącza „Otwórz w Roundcube" (SSO admina do skrzynki bez
+> hasła). Pobiera hasło mastera z VM2 (kluczem `sync-to-vm2.sh`); jeśli nie
+> używasz tego klucza, skopiuj wcześniej `/etc/portal/secrets/dovecot-master.pass`
+> z VM2 na VM1 do tej samej ścieżki. Wymaga, by na VM2 wykonał się już
+> `30-postfix-dovecot.sh` (tworzy konto master).
 
 Ostatni skrypt wypisze adres kreatora pierwszego uruchomienia, np.:
 
