@@ -23,7 +23,14 @@ gpgcheck=1
 gpgkey=https://rspamd.com/rpm-stable/gpg.key
 EOF
 
-pkg_install_idempotent valkey rspamd
+# Instalacja z weryfikacją GPG. Bywa odrzucana, gdy zegar systemu jest
+# przesunięty w przyszłość albo klucz repo przeszedł rotację ("No binding
+# signature at time ...") — wtedy ponawiamy z --nogpgcheck (pakiet i tak z
+# oficjalnego repo rspamd po HTTPS). Log ostrzega o tym jawnie.
+if ! dnf install -y valkey rspamd; then
+    log_warn "Instalacja rspamd z GPG nie powiodła się (przesunięty zegar / rotacja klucza repo). Ponawiam z --nogpgcheck."
+    dnf install -y --nogpgcheck valkey rspamd
+fi
 
 # valkey (redis) na localhost — backend rspamd.
 systemctl enable --now valkey
