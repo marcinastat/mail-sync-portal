@@ -8,12 +8,18 @@
   </div>
   {% if error %}<div class="card" style="border-color:#dc2626;color:#991b1b">{{ error }}</div>{% endif %}
 
+  <div class="card" style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem">
+    <input type="search" id="mb-search" placeholder="🔍 Szukaj skrzynki lub domeny…" autocomplete="off"
+           oninput="filterMailboxes()" style="flex:1;min-width:220px">
+    <span class="hint">widocznych: <strong id="mb-visible">{{ mailboxes|length }}</strong> / {{ mailboxes|length }}</span>
+  </div>
+
   <form method="post" action="/admin/mailboxes/sync-config">
     <div class="card">
-      <div class="table-wrap">
+      <div class="mb-scroll">
         <table>
           <thead><tr>
-            <th><input type="checkbox" onclick="document.querySelectorAll('input[name=mailbox_ids]').forEach(c=>c.checked=this.checked)"></th>
+            <th><input type="checkbox" id="mb-all" onclick="toggleAllVisible(this.checked)"></th>
             <th>Skrzynka docelowa</th><th>Domena źródłowa</th><th>Provisioning</th>
             <th>Wiadomości (u nas / źródło)</th><th>Rozmiar (u nas / źródło)</th><th>Dni wstecz</th><th>Sync</th>
           </tr></thead>
@@ -21,7 +27,7 @@
             {% for m in mailboxes %}
             {% set sj = sync_jobs.get(m.id) %}
             {% set lr = last_runs.get(m.id) %}
-            <tr>
+            <tr data-search="{{ (m.destination_address ~ ' ' ~ (m.domain.source_domain if m.domain else '')) | lower }}">
               <td><input type="checkbox" name="mailbox_ids" value="{{ m.id }}"></td>
               <td><a href="/admin/mailboxes/{{ m.id }}">{{ m.destination_address }}</a></td>
               <td class="muted">{{ m.domain.source_domain if m.domain else "" }}</td>
@@ -54,4 +60,33 @@
       <p style="margin-top:1rem"><button class="btn" type="submit">Zastosuj do zaznaczonych</button></p>
     </div>
   </form>
+
+  <style>
+    /* Lista skrzynek przewija się WEWNĄTRZ ramki (nagłówek przyklejony u góry),
+       więc przy ~50 skrzynkach strona się nie rozjeżdża. */
+    .mb-scroll{max-height:62vh;overflow:auto}
+    .mb-scroll thead th{position:sticky;top:0;background:#e2e8f0;z-index:1}
+    .mb-scroll table{margin:0}
+  </style>
+  <script>
+    function filterMailboxes() {
+      const q = document.getElementById("mb-search").value.trim().toLowerCase();
+      let visible = 0;
+      document.querySelectorAll(".mb-scroll tbody tr").forEach(tr => {
+        const hit = !q || (tr.dataset.search || "").includes(q);
+        tr.style.display = hit ? "" : "none";
+        if (hit) visible++;
+      });
+      document.getElementById("mb-visible").textContent = visible;
+      // odznacz "zaznacz wszystkie" po zmianie filtra (żeby nie zaznaczyć ukrytych)
+      const all = document.getElementById("mb-all"); if (all) all.checked = false;
+    }
+    function toggleAllVisible(checked) {
+      document.querySelectorAll(".mb-scroll tbody tr").forEach(tr => {
+        if (tr.style.display === "none") return;         // tylko widoczne (wg filtra)
+        const cb = tr.querySelector("input[name=mailbox_ids]");
+        if (cb) cb.checked = checked;
+      });
+    }
+  </script>
 {% endblock %}

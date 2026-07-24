@@ -99,6 +99,24 @@ class ImapsyncConfig(Base, TimestampMixin):
     custom_flags: Mapped[str] = mapped_column(String(1000), default="")         # walidowane allowlistą
 
 
+class ScanScheduleConfig(Base, TimestampMixin):
+    """Harmonogram skanów antywirusa/antyspamu na VM2. Panel edytuje, a przy
+    zapisie wypycha do VM2 (przepisuje systemd timery). Interwał 0 = wyłącz skan
+    przyrostowy; full_mode off/daily/weekly (dow 0=pon..6=niedz, godzina)."""
+
+    __tablename__ = "scan_schedule_config"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    clamav_incremental_minutes: Mapped[int] = mapped_column(Integer, default=60)
+    clamav_full_mode: Mapped[str] = mapped_column(String(8), default="daily")     # off|daily|weekly
+    clamav_full_dow: Mapped[int] = mapped_column(Integer, default=6)              # 0=pon..6=niedz
+    clamav_full_hour: Mapped[int] = mapped_column(Integer, default=3)
+    rspamd_incremental_minutes: Mapped[int] = mapped_column(Integer, default=60)
+    rspamd_full_mode: Mapped[str] = mapped_column(String(8), default="off")
+    rspamd_full_dow: Mapped[int] = mapped_column(Integer, default=6)
+    rspamd_full_hour: Mapped[int] = mapped_column(Integer, default=4)
+
+
 class WebmailSsoConfig(Base, TimestampMixin):
     """Przełącznik funkcji „Otwórz w Roundcube" (SSO admina do skrzynki bez
     hasła). DOMYŚLNIE WYŁĄCZONA — to impersonacja, więc włączenie jest świadomą

@@ -69,6 +69,8 @@ install -m 0755 -o root -g root "$REPO_ROOT/vm2_api/bin/vm2-dnf.sh" /usr/local/s
 # Kopia configów przed aktualizacją + narzędzie ratunkowe na konsolę.
 install -m 0755 -o root -g root "$REPO_ROOT/vm2_api/bin/vm2-config-backup.sh" /usr/local/sbin/vm2-config-backup.sh
 install -m 0755 -o root -g root "$REPO_ROOT/vm2_api/bin/vm2-config-recovery.sh" /usr/local/sbin/vm2-config-recovery.sh
+# Harmonogram skanów sterowany z panelu (przepisuje systemd timery).
+install -m 0755 -o root -g root "$REPO_ROOT/vm2_api/bin/vm2-scan-schedule.sh" /usr/local/sbin/vm2-scan-schedule.sh
 install -d -m 0700 -o root -g root /var/lib/vm2-config-backups
 # API (vm2-api) czyta wykrycia skanów z /var/lib/vm2-scan/findings.jsonl —
 # katalog tworzy 40-clamav.sh (root:root); tu dokładamy grupę vm2-api do odczytu.

@@ -61,6 +61,17 @@ class SystemUpdateResult(BaseModel):
     log_path: str | None = None
 
 
+class ScanScheduleRequest(BaseModel):
+    clamav_incremental_minutes: int = 60
+    clamav_full_mode: str = "daily"   # off|daily|weekly
+    clamav_full_dow: int = 6          # 0=pon..6=niedz
+    clamav_full_hour: int = 3
+    rspamd_incremental_minutes: int = 60
+    rspamd_full_mode: str = "off"
+    rspamd_full_dow: int = 6
+    rspamd_full_hour: int = 4
+
+
 class SystemRebootRequest(BaseModel):
     # Opcjonalny — restart to jawne żądanie z portalu (mTLS + IP allowlist +
     # potwierdzenie admina). Efemeryczny token ginął przy restarcie usługi, więc

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Skanowanie poczty — Ustawienia{% endblock %}
+{% block heading %}Skanowanie poczty{% endblock %}
+{% set DOW = [(0,"poniedziałek"),(1,"wtorek"),(2,"środa"),(3,"czwartek"),(4,"piątek"),(5,"sobota"),(6,"niedziela")] %}
+{% macro full_controls(prefix, mode, dow, hour) %}
+  <div style="display:flex;gap:0.75rem;align-items:end;flex-wrap:wrap">
+    <div>
+      <label for="{{ prefix }}_full_mode">Pełny skan</label>
+      <select id="{{ prefix }}_full_mode" name="{{ prefix }}_full_mode">
+        <option value="off" {{ 'selected' if mode == 'off' }}>wyłączony</option>
+        <option value="daily" {{ 'selected' if mode == 'daily' }}>codziennie</option>
+        <option value="weekly" {{ 'selected' if mode == 'weekly' }}>co tydzień</option>
+      </select>
+    </div>
+    <div>
+      <label for="{{ prefix }}_full_dow">Dzień (dla „co tydzień")</label>
+      <select id="{{ prefix }}_full_dow" name="{{ prefix }}_full_dow">
+        {% for d, name in DOW %}<option value="{{ d }}" {{ 'selected' if dow == d }}>{{ name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="{{ prefix }}_full_hour">Godzina</label>
+      <input type="number" id="{{ prefix }}_full_hour" name="{{ prefix }}_full_hour" min="0" max="23" value="{{ hour }}" style="width:6rem">
+    </div>
+  </div>
+{% endmacro %}
+{% block content %}
+  <p style="margin-top:0"><a href="/admin/settings" class="hint">← Ustawienia</a></p>
+  <h1>Skanowanie poczty — harmonogram</h1>
+
+  {% if saved %}<div class="card" style="border-color:#16a34a;color:#15803d">Zapisano i zastosowano na VM2.</div>{% endif %}
+  {% if error %}<div class="card" style="border-color:#dc2626;color:#991b1b">{{ error }}</div>{% endif %}
+
+  <div class="card">
+    <p class="hint" style="max-width:80ch;margin-top:0">
+      Oba skanery działają <strong>offline / post factum</strong> — nie w locie przy odbiorze (poczta wchodzi
+      przez imapsync, nie SMTP), tylko okresowo na już zarchiwizowanych skrzynkach. <strong>Skan przyrostowy</strong>
+      obejmuje tylko pocztę dopisaną od ostatniego przebiegu (tani, sekundy). <strong>Skan pełny</strong> przechodzi
+      wszystko od nowa (ciężki — dobrze zaplanować w nocy albo raz w tygodniu, np. w niedzielę; można wyłączyć).
+    </p>
+  </div>
+
+  <form method="post" action="/admin/settings/scanning">
+    <div class="card">
+      <h2 style="margin-top:0">ClamAV (antywirus + sygnatury phishingu/SaneSecurity)</h2>
+      <label for="clamav_incremental_minutes">Skan przyrostowy — co ile minut (0 = wyłącz)</label>
+      <input type="number" id="clamav_incremental_minutes" name="clamav_incremental_minutes" min="0" max="1440"
+             value="{{ cfg.clamav_incremental_minutes }}" style="width:8rem">
+      <p class="hint" style="margin:0.25rem 0 0.75rem">Zalecane 30–60 min. Poniżej 5 min zostanie podniesione do 5.</p>
+      {{ full_controls("clamav", cfg.clamav_full_mode, cfg.clamav_full_dow, cfg.clamav_full_hour) }}
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0">rspamd (antyspam / phishing / podejrzane linki)</h2>
+      <label for="rspamd_incremental_minutes">Skan przyrostowy — co ile minut (0 = wyłącz)</label>
+      <input type="number" id="rspamd_incremental_minutes" name="rspamd_incremental_minutes" min="0" max="1440"
+             value="{{ cfg.rspamd_incremental_minutes }}" style="width:8rem">
+      <p class="hint" style="margin:0.25rem 0 0.75rem">
+        rspamd analizuje treść (linki, reputacja URL) i jest cięższy niż ClamAV — pełny skan zwykle
+        trzymamy wyłączony albo raz w tygodniu.
+      </p>
+      {{ full_controls("rspamd", cfg.rspamd_full_mode, cfg.rspamd_full_dow, cfg.rspamd_full_hour) }}
+    </div>
+
+    <p><button class="btn" type="submit">Zapisz i zastosuj na VM2</button></p>
+  </form>
+{% endblock %}

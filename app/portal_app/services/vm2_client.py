@@ -95,6 +95,10 @@ def disk_usage(conn: Vm2Connection) -> dict:
     return _request(conn, "GET", "/system/disk-usage")
 
 
+def set_scan_schedule(conn: Vm2Connection, payload: dict) -> dict:
+    return _request(conn, "POST", "/system/scan-schedule", json=payload, timeout=40.0)
+
+
 def system_reboot(conn: Vm2Connection, confirm_token: str | None = None) -> dict:
     body = {"confirm_token": confirm_token} if confirm_token else {}
     return _request(conn, "POST", "/system/reboot", json=body)

@@ -53,6 +53,9 @@ install -d -m 0750 -o root -g root /var/lib/vm2-scan
 
 install -D -m 0644 "$REPO_ROOT/templates/systemd/rspamd-maildir-scan.service.tmpl" /etc/systemd/system/rspamd-maildir-scan.service
 install -D -m 0644 "$REPO_ROOT/templates/systemd/rspamd-maildir-scan.timer.tmpl" /etc/systemd/system/rspamd-maildir-scan.timer
+# Usługa pełnego skanu rspamd — timer domyślnie NIEaktywny (pełny rspamd jest
+# ciężki); włącza go dopiero panel (Ustawienia → Skanowanie poczty).
+install -D -m 0644 "$REPO_ROOT/templates/systemd/rspamd-maildir-fullscan.service.tmpl" /etc/systemd/system/rspamd-maildir-fullscan.service
 systemctl daemon-reload
 systemctl enable --now rspamd-maildir-scan.timer
 

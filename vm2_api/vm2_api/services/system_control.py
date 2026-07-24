@@ -183,6 +183,41 @@ def get_disk_usage() -> dict:
     }
 
 
+_SCAN_SCHEDULE_HELPER = "/usr/local/sbin/vm2-scan-schedule.sh"
+_DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
+def _oncalendar(mode: str, dow: int, hour: int) -> str:
+    hh = f"{max(0, min(23, int(hour))):02d}"
+    if mode == "daily":
+        return f"*-*-* {hh}:00:00"
+    if mode == "weekly":
+        return f"{_DOW[int(dow) % 7]} *-*-* {hh}:00:00"
+    return "off"
+
+
+def _interval_arg(minutes: int) -> str:
+    m = int(minutes)
+    if m <= 0:
+        return "off"
+    return str(max(5, min(1440, m)))
+
+
+def apply_scan_schedule(cfg: dict) -> dict:
+    """Wypycha harmonogram skanów do systemd (przez walidujący root-helper).
+    cfg = pola z panelu (ScanScheduleConfig)."""
+    args = [
+        f"clamav_inc={_interval_arg(cfg['clamav_incremental_minutes'])}",
+        f"clamav_full={_oncalendar(cfg['clamav_full_mode'], cfg['clamav_full_dow'], cfg['clamav_full_hour'])}",
+        f"rspamd_inc={_interval_arg(cfg['rspamd_incremental_minutes'])}",
+        f"rspamd_full={_oncalendar(cfg['rspamd_full_mode'], cfg['rspamd_full_dow'], cfg['rspamd_full_hour'])}",
+    ]
+    res = _run(["/usr/bin/sudo", "-n", _SCAN_SCHEDULE_HELPER, *args], timeout=30)
+    if res.returncode != 0:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Nie udało się ustawić harmonogramu: {res.stderr[-500:]}")
+    return {"applied": True, "output": res.stdout.strip()}
+
+
 def reboot(confirm_token: str | None = None) -> None:
     # Token jest już tylko wskazówką (jednorazowa konsumpcja, jeśli podany i
     # ważny) — NIE blokuje restartu. Restart to jawne, uwierzytelnione żądanie z

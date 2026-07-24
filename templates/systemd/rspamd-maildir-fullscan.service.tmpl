@@ -1,0 +1,13 @@
+[Unit]
+Description=Pełny skan phishingu rspamd (wszystkie maildiry — na żądanie/harmonogram)
+After=rspamd.service
+Wants=rspamd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/vm2-rspamd-scan.sh full
+User=root
+Nice=19
+IOSchedulingClass=idle
+CPUWeight=20
+CPUQuota=150%
