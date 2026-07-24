@@ -10,28 +10,75 @@ from ..services.report_export import rows_to_csv, rows_to_pdf
 
 router = APIRouter(prefix="/admin/reports", tags=["reports"], dependencies=[Depends(require_setup_complete)])
 
-HEADER = ["Skrzynka docelowa", "Provisioning", "Sync włączony", "Ostatni status", "Ostatnia sync.", "Wiadomości", "Drift"]
+HEADER = [
+    "Skrzynka docelowa", "Domena źródłowa", "Sync", "Dni wstecz",
+    "Ostatni przebieg", "Wiadomości (u nas / źródło)", "Brakujące", "Rozmiar (u nas / źródło)", "Drift",
+]
+
+
+def _fmt_size(b: int) -> str:
+    b = b or 0
+    if b >= 1073741824:
+        return f"{b / 1073741824:.2f} GB"
+    return f"{b / 1048576:.1f} MB"
+
+
+def _report_data(db: Session):
+    """Wiersze raportu + podsumowanie. Liczniki „u nas/źródło" i kompletność
+    (brakujące) z ostatniego UDANEGO przebiegu; status/czas z ostatniego (dowolnego)."""
+    mailboxes = db.query(Mailbox).order_by(Mailbox.destination_address).all()
+    sync_jobs = {sj.mailbox_id: sj for sj in db.query(SyncJob).all()}
+    rows: list[list] = []
+    summary = {"count": len(mailboxes), "active": 0, "dest_msgs": 0, "src_msgs": 0,
+               "missing": 0, "drift": 0, "errors": 0, "dest_bytes": 0}
+    for m in mailboxes:
+        sj = sync_jobs.get(m.id)
+        last_run = db.query(JobRun).filter(JobRun.mailbox_id == m.id).order_by(JobRun.id.desc()).first()
+        last_ok = (
+            db.query(JobRun).filter(JobRun.mailbox_id == m.id, JobRun.status == "success")
+            .order_by(JobRun.id.desc()).first()
+        )
+        if m.provisioning_status == "active":
+            summary["active"] += 1
+        # Ostatni przebieg: status · kiedy · czas trwania (+ ewentualny błąd).
+        if last_run:
+            dur = ""
+            if last_run.started_at and last_run.finished_at:
+                dur = f" · {round((last_run.finished_at - last_run.started_at).total_seconds())}s"
+            when = last_run.started_at.strftime("%Y-%m-%d %H:%M") if last_run.started_at else "-"
+            run_cell = f"{last_run.status} · {when}{dur}"
+            if last_run.status == "failed" and last_run.error_summary:
+                run_cell += f" · {last_run.error_summary[:60]}"
+            if last_run.status == "failed":
+                summary["errors"] += 1
+        else:
+            run_cell = "brak przebiegów"
+        dest_n = (last_ok.dest_nb_messages or last_ok.messages_total) if last_ok else 0
+        src_n = (last_ok.source_nb_messages or last_ok.source_messages_total) if last_ok else 0
+        missing = last_ok.source_missing if last_ok else 0
+        drift = last_ok.messages_missing_from_source_retained if last_ok else 0
+        summary["dest_msgs"] += dest_n or 0
+        summary["src_msgs"] += src_n or 0
+        summary["missing"] += missing or 0
+        summary["drift"] += drift or 0
+        summary["dest_bytes"] += m.dest_bytes or 0
+        rows.append([
+            m.destination_address,
+            m.domain.source_domain if m.domain else "",
+            "włączona" if sj and sj.is_enabled else "wyłączona",
+            "wszystko" if sj and sj.days_back == 0 else str(sj.days_back if sj else 365),
+            run_cell,
+            f"{dest_n} / {src_n or '?'}",
+            str(missing) if missing else "0",
+            f"{_fmt_size(m.dest_bytes)} / {_fmt_size(m.source_bytes)}",
+            drift,
+        ])
+    summary["dest_size"] = _fmt_size(summary["dest_bytes"])
+    return rows, summary
 
 
 def _report_rows(db: Session) -> list[list]:
-    mailboxes = db.query(Mailbox).order_by(Mailbox.destination_address).all()
-    sync_jobs = {sj.mailbox_id: sj for sj in db.query(SyncJob).all()}
-    rows = []
-    for m in mailboxes:
-        last_run = db.query(JobRun).filter(JobRun.mailbox_id == m.id).order_by(JobRun.id.desc()).first()
-        sj = sync_jobs.get(m.id)
-        rows.append(
-            [
-                m.destination_address,
-                m.provisioning_status,
-                "tak" if sj and sj.is_enabled else "nie",
-                last_run.status if last_run else "-",
-                last_run.started_at.strftime("%Y-%m-%d %H:%M") if last_run else "-",
-                f"{last_run.messages_transferred}/{last_run.messages_total}" if last_run else "-",
-                last_run.messages_missing_from_source_retained if last_run else 0,
-            ]
-        )
-    return rows
+    return _report_data(db)[0]
 
 
 def _scan_findings(db: Session) -> dict | None:
@@ -46,11 +93,11 @@ def _scan_findings(db: Session) -> dict | None:
 
 @router.get("")
 def show(request: Request, current_user: AdminUser = Depends(require_login), db: Session = Depends(get_db)):
-    rows = _report_rows(db)
+    rows, summary = _report_data(db)
     return templates.TemplateResponse(
         request, "reports/index.html",
         {"active": "reports", "current_user": current_user, "header": HEADER, "rows": rows,
-         "findings": _scan_findings(db)},
+         "summary": summary, "findings": _scan_findings(db)},
     )
 
 
