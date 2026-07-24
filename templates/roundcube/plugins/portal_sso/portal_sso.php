@@ -33,10 +33,8 @@ class portal_sso extends rcube_plugin
     function startup($args)
     {
         $rcmail = rcmail::get_instance();
-        // Już zalogowany albo brak parametru — nic nie robimy.
-        if (!empty($_SESSION['user_id'])) {
-            return $args;
-        }
+        // Bez parametru _sso NIC nie zmieniamy — respektujemy istniejącą sesję
+        // (zwykłe korzystanie z Roundcube działa normalnie).
         $token = rcube_utils::get_input_value('_sso', rcube_utils::INPUT_GET);
         if (empty($token)) {
             return $args;
@@ -51,6 +49,13 @@ class portal_sso extends rcube_plugin
             if (!$this->ip_allowed($rcmail)) {
                 rcube::write_log('portal_sso', 'Odrzucono SSO: IP spoza sieci admina (' . $this->client_ip() . ')');
                 return $args;
+            }
+            // KLUCZOWE: token wskazuje KONKRETNĄ skrzynkę. Jeśli w tej przeglądarce
+            // jest już otwarta INNA sesja (np. poprzednie „Otwórz w Roundcube"),
+            // trzeba ją zabić i zalogować świeżo TĘ skrzynkę — inaczej Roundcube
+            // pokazałby starą sesję i widziałbyś cudzą pocztę (bug).
+            if (!empty($_SESSION['user_id'])) {
+                $rcmail->kill_session();
             }
             $this->login_user = $mailbox;
             $this->do_login = true;
