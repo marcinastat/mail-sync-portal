@@ -25,6 +25,15 @@ def _running_run(db: Session, host: str) -> SystemUpdateRun | None:
     )
 
 
+def _clear_reboot_flag(db: Session, host: str) -> None:
+    """Po zainicjowaniu restartu kasujemy „wymagany restart" na przebiegach tej
+    maszyny — inaczej panel pokazywałby go w nieskończoność (przebieg zostaje z
+    reboot_needed=true, a nic go nie aktualizuje po samym restarcie)."""
+    db.query(SystemUpdateRun).filter(
+        SystemUpdateRun.host == host, SystemUpdateRun.reboot_needed.is_(True)
+    ).update({SystemUpdateRun.reboot_needed: False})
+
+
 def _last_run(db: Session, host: str) -> SystemUpdateRun | None:
     return (
         db.query(SystemUpdateRun)
@@ -164,6 +173,7 @@ def reboot_vm1(request: Request, current_user: AdminUser = Depends(require_login
         details={},
         source_ip=client_ip(request),
     )
+    _clear_reboot_flag(db, "vm1")
     system_update_vm1.trigger_reboot()
     return {"status": "reboot_scheduled"}
 
@@ -173,23 +183,13 @@ def reboot_vm2(request: Request, current_user: AdminUser = Depends(require_login
     conn = db.query(Vm2Connection).first()
     if conn is None or not conn.vm2_host:
         raise HTTPException(400, "Brak skonfigurowanego połączenia z VM2.")
-    # Token potwierdzający pochodzi z ostatniej aktualizacji VM2 (API VM2 wydaje
-    # go tylko, gdy reboot jest realnie potrzebny; ma krótki TTL). Jeśli wygasł —
-    # trzeba ponowić aktualizację, żeby dostać świeży token.
-    last = (
-        db.query(SystemUpdateRun)
-        .filter(SystemUpdateRun.host == "vm2", SystemUpdateRun.reboot_token.isnot(None))
-        .order_by(SystemUpdateRun.id.desc())
-        .first()
-    )
-    if last is None or not last.reboot_token:
-        raise HTTPException(400, "Brak ważnego tokenu restartu VM2 — uruchom ponownie aktualizację VM2.")
+    # Restart to jawne, uwierzytelnione (mTLS + IP allowlist) żądanie z potwierdzeniem
+    # admina — NIE wymaga już efemerycznego tokenu (ten ginął przy każdym restarcie
+    # usługi vm2-api, np. przy deployu, i przycisk restartu przestawał działać).
     try:
-        vm2_client.system_reboot(conn, last.reboot_token)
+        vm2_client.system_reboot(conn)
     except vm2_client.Vm2ApiError as exc:
-        raise HTTPException(400, f"Restart VM2 nie powiódł się (token mógł wygasnąć): {exc}")
-    last.reboot_token = None  # jednorazowy
-    db.add(last)
+        raise HTTPException(400, f"Restart VM2 nie powiódł się: {exc}")
     record(
         db,
         actor_admin_user_id=current_user.id,
@@ -199,4 +199,5 @@ def reboot_vm2(request: Request, current_user: AdminUser = Depends(require_login
         details={},
         source_ip=client_ip(request),
     )
+    _clear_reboot_flag(db, "vm2")
     return {"status": "reboot_scheduled"}

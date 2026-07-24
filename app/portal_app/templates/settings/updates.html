@@ -115,10 +115,15 @@
           ? `${d.security_count} <span class="badge err">do zainstalowania</span>`
           : `0 <span class="badge ok">brak</span>`;
         all.textContent = (d.total_count !== undefined) ? d.total_count : "—";
+        // Live needs-restarting jest ŹRÓDŁEM PRAWDY — po realnym restarcie maszyny
+        // wróci false i przycisk znika (wcześniej zostawał na zawsze).
         if (d.reboot_needed === true) {
           rb.innerHTML = `<span class="badge warn">wymagany restart</span>`;
           showRebootBtn(host);
-        } else { rb.innerHTML = ""; }
+        } else {
+          rb.innerHTML = "";
+          hideRebootBtn(host);
+        }
       } catch (e) {
         sec.innerHTML = `<span class="badge err">błąd</span>`;
       }
@@ -127,6 +132,10 @@
     function showRebootBtn(host) {
       const b = document.getElementById("reboot-btn-" + host);
       if (b) b.style.display = "";
+    }
+    function hideRebootBtn(host) {
+      const b = document.getElementById("reboot-btn-" + host);
+      if (b) b.style.display = "none";
     }
 
     async function startUpdate(host) {
@@ -257,8 +266,17 @@
     async function rebootHost(host) {
       if (!confirm(`Uruchomić ponownie ${HOST_TITLES[host]} TERAZ? Usługi będą chwilowo niedostępne.`)) return;
       const r = await fetch(`/admin/settings/updates/${host}/reboot`, { method: "POST" });
-      if (r.ok) { alert(`Restart ${HOST_TITLES[host]} zaplanowany. Maszyna wróci za chwilę.`); }
-      else { const d = await r.json().catch(() => ({})); alert("Nie udało się zrestartować: " + (d.detail || r.status)); }
+      if (r.ok) {
+        // Optymistycznie chowamy przyciski/oznaczenia — maszyna właśnie się restartuje.
+        hideRebootBtn(host);
+        document.getElementById("upd-reboot").style.display = "none";
+        const rb = document.getElementById("reboot-badge-" + host);
+        if (rb) rb.innerHTML = `<span class="badge warn">restart w toku…</span>`;
+        alert(`Restart ${HOST_TITLES[host]} zaplanowany. Maszyna wróci za ~1 min — po chwili odśwież stronę, „wymagany restart" zniknie.`);
+      } else {
+        const d = await r.json().catch(() => ({}));
+        alert("Nie udało się zrestartować: " + (d.detail || r.status));
+      }
     }
 
     // Na starcie: dociągnij liczniki (AJAX) i podłącz się do trwających przebiegów.
