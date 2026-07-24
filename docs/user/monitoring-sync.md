@@ -13,11 +13,27 @@ VM2 ma dwa dyski: systemowy i dedykowany na pocztę (`/var/mail/vhosts`). Zajęt
 
 Próg ostrzeżenia (domyślnie 85%) ustawia się w `config/install.conf` (`DISK_USAGE_WARNING_PERCENT`).
 
+## Lista skrzynek (`/admin/mailboxes`)
+
+Pod ~50 skrzynek: **szukajka** (filtruje po adresie skrzynki i domenie źródłowej,
+z licznikiem widocznych), **przyklejony nagłówek** i przewijanie **wewnątrz ramki**
+(strona się nie rozjeżdża). „Zaznacz wszystkie" obejmuje tylko przefiltrowane wiersze.
+
 ## Widok skrzynki (`/admin/mailboxes/<id>`)
 
-- Przycisk **"Synchronizuj teraz"** — wymusza natychmiastową synchronizację poza harmonogramem.
-- **Historia synchronizacji** — każde uruchomienie z liczbą folderów/wiadomości przesłanych vs. całkowitych, licznikiem "drift" i linkiem do **surowego logu imapsync**.
-- Status "w toku" blokuje ponowne uruchomienie, dopóki poprzednie się nie zakończy.
+- Przycisk **„Synchronizuj teraz"** — wymusza natychmiastową synchronizację poza harmonogramem.
+- **👁 Podgląd na żywo** — gdy synchronizacja trwa, modal pokazuje log imapsync
+  **na bieżąco** (co się teraz dzieje: folder, postęp, ETA). Otwiera się też automatycznie,
+  gdy wejdziesz na skrzynkę w trakcie synchronizacji; „w toku" w historii też do niego linkuje.
+- **Historia synchronizacji** — domyślnie 10 ostatnich przebiegów (status, foldery,
+  wiadomości u nas/na źródle, „drift", link do **surowego logu**) + przycisk **„Cała
+  historia"** (modal z pełną listą).
+- **Inwentaryzacja po dodaniu** — zaraz po zaprowizonowaniu nowej skrzynki leci przebieg
+  „na sucho" (imapsync `--dry`): nic nie przenosi, tylko zbiera **ile jest do zebrania**
+  (liczby/rozmiar źródła). Realny transfer robi dopiero kolejny przebieg — dzięki temu od
+  razu widać skalę skrzynki. W audycie: `sync.completed` z `trigger=assess` („inwentaryzacja").
+- **✉ Otwórz w Roundcube** (jeśli włączone w Ustawieniach) — podgląd skrzynki w webmailu
+  bez hasła (dostęp administracyjny). Patrz „Otwórz w Roundcube".
 
 ## Throttling (`/admin/settings/throttle`)
 
@@ -25,8 +41,18 @@ Globalne limity: połączeń na minutę/godzinę/dzień oraz liczba równoległy
 
 ## Alerty (`/admin/settings/alerts`)
 
-Skonfiguruj kanał e-mail lub webhook i wybierz zdarzenia: nieudana synchronizacja, problem z ClamAV na VM2, zbliżające się wygaśnięcie certyfikatu, niedostępność VM2, naruszenie integralności logu audytowego. Alerty e-mail wymagają uzupełnienia `/etc/portal/alert-smtp.conf` na serwerze (zewnętrzny relay SMTP).
+Skonfiguruj kanał e-mail lub webhook i wybierz zdarzenia: nieudana synchronizacja, **wykrycie zagrożenia w skanie poczty** (`av_threat_found` — antywirus/phishing), problem z ClamAV na VM2, zbliżające się wygaśnięcie certyfikatu, niedostępność VM2, przekroczenie quoty domeny, naruszenie integralności logu audytowego. Alerty e-mail wymagają uzupełnienia `/etc/portal/alert-smtp.conf` na serwerze (zewnętrzny relay SMTP).
 
-## Eksport (`/admin/reports`, `/admin/audit`)
+## Raporty (`/admin/reports`)
 
-Status synchronizacji wszystkich skrzynek i pełny log audytowy da się wyeksportować do CSV (dalsza obróbka) lub PDF (gotowy raport).
+- **Podsumowanie** (kafelki): liczba skrzynek i aktywnych, wiadomości u nas / na źródle,
+  **kompletność** (ile wiadomości jest na źródle a nie u nas — 0 = komplet) + drift,
+  łączny rozmiar u nas, liczba błędów w ostatnich przebiegach.
+- **Tabela per skrzynka**: domena źródłowa, sync (wł/wył), dni wstecz, ostatni przebieg
+  (status · czas · trwanie · ewentualny błąd), wiadomości u nas / źródło, brakujące,
+  rozmiar u nas / źródło, drift.
+- **Wykrycia skanu poczty** — antywirus/phishing z podaniem **którego maila** dotyczą
+  (temat, nadawca, data). Patrz „Skanowanie poczty".
+- **Eksport CSV/PDF** — te same dane do dalszej obróbki lub jako gotowy raport.
+
+Pełny log audytowy (`/admin/audit`) też eksportuje się do CSV/PDF.

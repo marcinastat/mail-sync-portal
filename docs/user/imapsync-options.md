@@ -16,7 +16,7 @@ To druga warstwa ponad twardą gwarancją w kodzie silnika, że źródło jest t
 Dozwolone są m.in.: `--exclude`, `--include`, `--folder`, `--maxsize`, `--minsize`,
 `--maxage`, `--minage`, `--addheader`, `--useheader`, `--regexmess`, `--timeout`,
 `--allowsizemismatch`, `--nofoldersizes`, `--sslargs1`, `--subscribe`/`--nosubscribe`,
-`--skipcrossduplicates`, `--useuid`.
+`--skipcrossduplicates`, `--useuid`, `--maxbytespersecond`.
 
 ## Najprzydatniejsze opcje globalne
 
@@ -30,6 +30,9 @@ Dozwolone są m.in.: `--exclude`, `--include`, `--folder`, `--maxsize`, `--minsi
 - **Timeout** — dla wolnych serwerów źródłowych.
 - **Dopuszczaj niezgodność rozmiaru** (`--allowsizemismatch`) — przydatne, gdy źródło
   i cel liczą rozmiary trochę inaczej (częste między różnymi implementacjami IMAP).
+- **Limit łącza (Mbit/s)** — „kaganiec" na przepustowość (`--maxbytespersecond`), 0 = bez
+  limitu. Np. **10** ≈ 1,25 MB/s. Dotyczy **pojedynczej** synchronizacji — przy równoległych
+  przebiegach łączne zużycie = limit × liczba równoległych (patrz throttling).
 
 ## Przykłady per skrzynka
 
