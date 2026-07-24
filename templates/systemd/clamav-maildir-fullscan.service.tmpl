@@ -1,0 +1,18 @@
+[Unit]
+Description=Pełne nocne skanowanie ClamAV wszystkich maildirów VM2 (siatka bezpieczeństwa dla przyrostowego skanu)
+After=clamd@scan.service
+Requires=clamd@scan.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/vm2-maildir-scan.sh full
+User=root
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/log/clamav /var/lib/vm2-scan
+ReadOnlyPaths=/var/mail/vhosts
+PrivateTmp=true
+Nice=19
+IOSchedulingClass=idle
+CPUWeight=20
+CPUQuota=150%

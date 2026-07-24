@@ -1,0 +1,11 @@
+[Unit]
+Description=Nocne pełne skanowanie ClamAV maildirów VM2 (raz na dobę)
+
+[Timer]
+# Codziennie ok. 03:15 — poza godzinami ruchu. Persistent=nadrobi po wyłączeniu VM.
+OnCalendar=*-*-* 03:15:00
+Persistent=true
+Unit=clamav-maildir-fullscan.service
+
+[Install]
+WantedBy=timers.target
