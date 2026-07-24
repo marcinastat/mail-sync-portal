@@ -77,12 +77,26 @@ systemctl reset-failed clamd@scan.service clamav-milter@scan.service clamav-milt
 rm -f /run/clamav-milter/clamav-milter.pid
 
 systemctl enable --now clamd@scan
-systemctl enable --now clamav-milter@scan 2>/dev/null || systemctl enable --now clamav-milter
+# Milter (ścieżka SMTP) jest WYŁĄCZONY: poczta na VM2 wchodzi przez imapsync
+# (IMAP APPEND), nie przez SMTP, więc milter nic nie skanuje, a wisiał jako
+# `failed`. Pokrycie zapewnia skan maildirów (niżej). Gdyby kiedyś doszła
+# realna ścieżka SMTP — włączyć ponownie clamav-milter@scan.
+systemctl disable --now clamav-milter@scan clamav-milter 2>/dev/null || true
+systemctl reset-failed clamav-milter@scan.service clamav-milter.service 2>/dev/null || true
 
+# Skan maildirów: INKREMENTALNY co interwał (tani — tylko przyrost) + PEŁNY nocny.
+install -m 0755 -o root -g root "$REPO_ROOT/vm2_api/bin/vm2-maildir-scan.sh" /usr/local/sbin/vm2-maildir-scan.sh
+install -d -m 0750 -o root -g root /var/lib/vm2-scan
+# Zasiej marker, żeby PIERWSZY skan przyrostowy nie ruszał całych 21 GB (backlog
+# pokrył już wcześniejszy skan; pełne przeskanowanie z NOWYMI opcjami zrobi
+# nocny fullscan). Bez tego pierwszy przebieg trwałby ~42 min.
+[[ -f /var/lib/vm2-scan/.last-maildir-scan ]] || touch /var/lib/vm2-scan/.last-maildir-scan
 install -D -m 0644 "$REPO_ROOT/templates/systemd/clamav-maildir-scan.service.tmpl" /etc/systemd/system/clamav-maildir-scan.service
 render_template "$REPO_ROOT/templates/systemd/clamav-maildir-scan.timer.tmpl" /etc/systemd/system/clamav-maildir-scan.timer '$CLAMAV_FRESHCLAM_INTERVAL_MIN'
+install -D -m 0644 "$REPO_ROOT/templates/systemd/clamav-maildir-fullscan.service.tmpl" /etc/systemd/system/clamav-maildir-fullscan.service
+install -D -m 0644 "$REPO_ROOT/templates/systemd/clamav-maildir-fullscan.timer.tmpl" /etc/systemd/system/clamav-maildir-fullscan.timer
 systemctl daemon-reload
-systemctl enable --now clamav-maildir-scan.timer
+systemctl enable --now clamav-maildir-scan.timer clamav-maildir-fullscan.timer
 # Nazwa jednostki to clamav-freshclam (nie "freshclam") — działa w trybie
 # demona (freshclam -d), respektując "Checks 24" z freshclam.conf.
 systemctl enable --now clamav-freshclam

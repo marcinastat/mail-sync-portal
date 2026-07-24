@@ -9,4 +9,26 @@ LogRotate true
 LogTime true
 PidFile /run/clamd.scan/clamd.pid
 DatabaseDirectory /var/lib/clamav
-MaxThreads 4
+# Ograniczenie równoległości skanu — 2 wątki, żeby clamd nie zjadał całego CPU
+# na VM2 (skan maildirów jest post factum, nie ma potrzeby maksymalnej przepustowości).
+MaxThreads 2
+
+# --- Wykrywanie zagrożeń mailowych (lekkie, bez nowych demonów) --------------
+# Phishing: heurystyka podejrzanych/zamaskowanych linków i niespójności URL.
+PhishingSignatures yes
+PhishingScanURLs yes
+HeuristicAlerts yes
+AlertPhishingSSLMismatch yes
+AlertPhishingCloak yes
+# Skrypty/makra/dokumenty i archiwa — typowe nośniki złośliwych skryptów.
+ScanHTML yes
+ScanPDF yes
+ScanSWF yes
+ScanArchive yes
+ScanOLE2 yes
+AlertOLE2Macros yes
+# Rozsądne limity, żeby jeden ogromny plik nie zablokował skanu (poczta ma i tak
+# limity rozmiaru); wartości > domyślnych, bo archiwum bywa duże.
+MaxScanSize 400M
+MaxFileSize 100M
+MaxRecursion 12
