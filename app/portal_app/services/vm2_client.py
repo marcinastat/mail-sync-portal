@@ -1,3 +1,5 @@
+import ssl
+
 import httpx
 
 from ..models import Vm2Connection
@@ -29,6 +31,16 @@ def _request(conn: Vm2Connection, method: str, path: str, *, timeout: float = 15
             return resp.json()
     except httpx.HTTPError as exc:
         raise Vm2ApiError(str(exc)) from exc
+    except (OSError, ssl.SSLError) as exc:
+        # Budowa klienta mTLS (httpx.Client w _client) pada JESZCZE PRZED
+        # wysłaniem żądania, gdy pliki cert/klucz/CA nie istnieją lub są
+        # nieczytelne — httpx rzuca wtedy OSError/SSLError, NIE httpx.HTTPError,
+        # więc bez tego wyciekało jako surowe 500 (np. w kreatorze first-run,
+        # gdy nie pobrano jeszcze certów skryptem fetch-vm2-client-cert.sh).
+        raise Vm2ApiError(
+            f"Błąd certyfikatów mTLS do VM2 ({exc}). Upewnij się, że na VM1 "
+            "pobrano certyfikat kliencki i CA: scripts/vm1/fetch-vm2-client-cert.sh."
+        ) from exc
 
 
 def check_health(conn: Vm2Connection) -> dict:
