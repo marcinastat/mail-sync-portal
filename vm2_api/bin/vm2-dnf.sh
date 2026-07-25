@@ -9,6 +9,30 @@
 set -uo pipefail
 
 mode="${1:-}"
+
+# reboot-check: nie dnf, lecz needs-restarting — ale ono też jest z rodziny dnf
+# (inicjalizuje /var/log/dnf.log, w namespace usługi vm2-api read-only przez
+# ProtectSystem=strict), więc bezpośrednio pada z "Config error: Read-only file
+# system: /var/log/dnf.log" i MYLĄCO zwraca exit 1 — nieodróżnialne od prawdziwego
+# "reboot needed" (to dawało wieczny fałszywy badge "wymagany restart"). Dlatego
+# uruchamiamy je jak dnf: transient unit systemd-run POZA sandboxem. Zwracamy jawny
+# token i ROZRÓŻNIAMY kody wyjścia (0/1/inne), NIE zgadując "yes" przy błędzie/braku
+# binarki (ten sam wzorzec co VM1 apply-system-update.sh reboot-check).
+if [[ "$mode" == "reboot-check" ]]; then
+    if ! command -v needs-restarting >/dev/null 2>&1; then
+        echo "reboot_needed=unknown"; exit 0
+    fi
+    /usr/bin/systemd-run --quiet --wait --collect \
+        -p "StandardOutput=null" -p "StandardError=journal" \
+        /usr/bin/needs-restarting -r
+    case $? in
+        0) echo "reboot_needed=no" ;;
+        1) echo "reboot_needed=yes" ;;
+        *) echo "reboot_needed=unknown" ;;
+    esac
+    exit 0
+fi
+
 case "$mode" in
     check-security)   args=(-q check-update --security) ;;
     check-all)        args=(-q check-update) ;;

@@ -64,9 +64,16 @@ def run_health_check() -> dict:
 
 
 def _reboot_pending() -> bool:
-    result = _run(["/usr/bin/sudo", "-n", "/usr/bin/needs-restarting", "-r"], timeout=15)
-    # needs-restarting -r zwraca 1 jeśli wymagany reboot, 0 jeśli nie.
-    return result.returncode == 1
+    # needs-restarting jest z rodziny dnf i inicjalizuje /var/log/dnf.log, który w
+    # namespace usługi (ProtectSystem=strict) jest READ-ONLY — wołane bezpośrednio
+    # pada z "Config error: Read-only file system: /var/log/dnf.log" i myląco zwraca
+    # exit 1, nieodróżnialne od prawdziwego "reboot needed". To dawało wieczny
+    # fałszywy "wymagany restart" w panelu (także po reboocie). Dlatego reboot-check
+    # idzie przez vm2-dnf.sh (transient unit systemd-run, POZA sandboxem) i zwraca
+    # jawny token reboot_needed=yes|no|unknown. Tylko "yes" traktujemy jako potrzebę
+    # restartu (unknown/no -> False, żeby nie straszyć bez powodu).
+    result = _run(["/usr/bin/sudo", "-n", _DNF_HELPER, "reboot-check"], timeout=60)
+    return "reboot_needed=yes" in result.stdout
 
 
 def get_available_updates() -> dict:
