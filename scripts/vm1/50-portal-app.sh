@@ -102,7 +102,22 @@ chmod 0440 /etc/sudoers.d/portal-app
 visudo -cf /etc/sudoers.d/portal-app || die "Wygenerowany plik sudoers jest niepoprawny składniowo — przerywam."
 
 # --- Migracje bazy -------------------------------------------------------------
-sudo -u portal-app bash -c "cd '$APP_DIR' && venv/bin/alembic upgrade head"
+# Migracja 0001 to Base.metadata.create_all() z AKTUALNYCH modeli — na świeżej
+# bazie buduje od razu PEŁNY bieżący schemat (kolumny dodawane przez 0002..NNNN
+# są już w modelach). Uruchamianie kolejnych migracji przyrostowych na tak
+# utworzonej bazie wywala się na "column/table already exists". Dlatego:
+#   - świeża (pusta) baza: upgrade 0001 (create_all) + stamp head — schemat jest
+#     kompletny, tylko oznaczamy rewizję jako najnowszą, bez przebiegania 0002+.
+#   - istniejąca baza (ma alembic_version): normalny upgrade head, żeby PRZYSZŁE
+#     migracje realnie się zaaplikowały (stamp by je pominął — nie robimy tego).
+CURRENT_REV="$(sudo -u portal-app bash -c "cd '$APP_DIR' && venv/bin/alembic current 2>/dev/null" | tr -d '[:space:]')"
+if [[ -z "$CURRENT_REV" ]]; then
+    log_info "Świeża baza portal_db — tworzę pełny schemat (0001 create_all) i oznaczam jako head."
+    sudo -u portal-app bash -c "cd '$APP_DIR' && venv/bin/alembic upgrade 0001 && venv/bin/alembic stamp head"
+else
+    log_info "Istniejąca baza portal_db (rewizja: $CURRENT_REV) — przyrostowy upgrade head."
+    sudo -u portal-app bash -c "cd '$APP_DIR' && venv/bin/alembic upgrade head"
+fi
 
 mkdir -p /run/portal-app/imapsync /run/portal-import
 chown -R portal-app:portal-app /run/portal-app /run/portal-import
