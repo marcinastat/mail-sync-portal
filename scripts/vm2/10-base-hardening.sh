@@ -14,6 +14,8 @@ load_install_conf
 
 check_selinux_enforcing
 
+REPO_ROOT="$(repo_root)"
+
 # fail2ban jest w EPEL, nie w bazowych repo Rocky. firewalld instalujemy już tu
 # (reguły dokłada krok 60). policycoreutils-python-utils = semanage dla modułów
 # SELinux w kolejnych krokach (Dovecot/mail-spool).
@@ -22,14 +24,20 @@ if ! rpm -q epel-release >/dev/null 2>&1; then
 fi
 pkg_install_idempotent firewalld fail2ban policycoreutils-python-utils
 systemctl enable --now firewalld
-# fail2ban startuje z domyślnym jailem sshd (obrona przed brute-force logowania
-# hasłem — zwykli użytkownicy mogą się logować hasłem, patrz polityka SSH w 60).
-systemctl enable --now fail2ban || log_warn "fail2ban nie wystartował — sprawdź 'journalctl -u fail2ban'."
+
+# fail2ban 1.x NIE włącza żadnego jaila domyślnie — bez własnego jail.d SSH nie
+# jest chroniony (obserwowane: `fail2ban-client status` = 0 jaili). Instalujemy
+# jail sshd (backend=systemd, bo Minimal nie ma /var/log/secure) PRZED startem,
+# żeby usługa od razu wstała z aktywnym jailem. Restart (nie tylko enable --now),
+# bo przy re-runie działający fail2ban nie przeładowałby nowej konfiguracji.
+install -D -m 0644 "$REPO_ROOT/templates/fail2ban/jail-vm2.conf" /etc/fail2ban/jail.d/vm2.conf
+systemctl enable fail2ban
+systemctl restart fail2ban || log_warn "fail2ban nie wystartował — sprawdź 'journalctl -u fail2ban' i 'fail2ban-client -d'."
 
 # Katalog na sekrety (hasła DB itd.) — tworzą je kolejne kroki (np. 20-postgresql
 # zapisuje tu vm2-mail-db.pass), więc musi istnieć wcześniej.
 mkdir -p /etc/portal/secrets
 chmod 0700 /etc/portal/secrets
 
-log_info "Hardening bazowy VM2 zakończony (firewalld/fail2ban zainstalowane, /etc/portal/secrets utworzony; reguły i SSH w kroku 60)."
+log_info "Hardening bazowy VM2 zakończony (firewalld + fail2ban z jailem sshd, /etc/portal/secrets utworzony; reguły firewalld i SSH w kroku 60)."
 mark_step_done "$STEP_NAME"
