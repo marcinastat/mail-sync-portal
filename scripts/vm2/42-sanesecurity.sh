@@ -31,7 +31,10 @@ rm -f /etc/cron.d/clamav-unofficial-sigs
 # Pierwsze pobranie: --force omija wbudowany cooldown (anty-hammer). Robimy je
 # TYLKO gdy sygnatur jeszcze nie ma — inaczej częste --force mogłoby skończyć
 # się blokadą IP na mirrorze. Kolejne odświeżenia robi timer (bez --force).
-if [[ ! -f /var/lib/clamav/phish.ndb ]]; then
+# Marker pierwszego pobrania = urlhaus.ndb (dostarcza je unofficial-sigs po HTTPS).
+# phish.ndb pochodzi teraz z pobieracza HTTPS SaneSecurity, więc nie nadaje się
+# tu na marker.
+if [[ ! -f /var/lib/clamav/urlhaus.ndb ]]; then
     log_info "Pierwsze pobranie sygnatur unofficial (--force, HTTP; może potrwać kilka minut)..."
     # Twardy timeout, żeby przy problemach z siecią krok nie wisiał w nieskończoność
     # (jest nie-krytyczny — SaneSecurity to dodatkowe sygnatury; ClamAV core i rspamd
