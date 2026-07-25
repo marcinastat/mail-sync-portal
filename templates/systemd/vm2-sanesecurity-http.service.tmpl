@@ -1,0 +1,11 @@
+[Unit]
+Description=Aktualizacja sygnatur SaneSecurity po HTTPS (z weryfikacją GPG) — omija rsync/873
+After=clamd@scan.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/vm2-sanesecurity-http.sh
+User=root
+Nice=15
+IOSchedulingClass=best-effort

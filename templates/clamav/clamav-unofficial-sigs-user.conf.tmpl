@@ -38,3 +38,10 @@ downloader_max_time="300"
 downloader_tries="3"
 rsync_connect_timeout="15"
 rsync_max_time="300"
+
+# SaneSecurity w tym narzędziu pobiera się WYŁĄCZNIE przez rsync (na sztywno
+# rsync://) — na sieciach blokujących port 873 zawsze pada. Dlatego wyłączamy je
+# TU, a pobieramy osobnym skryptem po HTTPS z weryfikacją GPG
+# (vm2-sanesecurity-http.sh + timer). URLhaus/interServer/LinuxMalwareDetect mają
+# URL-e https i dalej idą przez to narzędzie (force_wget).
+enable_sanesecurity="no"

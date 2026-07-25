@@ -42,5 +42,20 @@ fi
 
 systemctl enable --now clamav-unofficial-sigs.timer
 
-log_info "SaneSecurity/URLhaus + darmowe sygnatury ClamAV skonfigurowane. Odswiezanie przez clamav-unofficial-sigs.timer."
+# --- SaneSecurity po HTTPS (własny pobieracz, omija rsync/873) ----------------
+# clamav-unofficial-sigs ciągnie SaneSecurity tylko rsynciem; my pobieramy je po
+# HTTPS z weryfikacją GPG (w user.conf enable_sanesecurity="no", żeby narzędzie
+# nie próbowało rsynca). Reszta darmowych providerów (URLhaus/interServer/LMD)
+# idzie dalej przez unofficial-sigs po HTTPS.
+install -m 0755 -o root -g root "$REPO_ROOT/vm2_api/bin/vm2-sanesecurity-http.sh" /usr/local/sbin/vm2-sanesecurity-http.sh
+install -d -m 0750 -o root -g root /var/lib/vm2-sanesecurity
+install -D -m 0644 "$REPO_ROOT/templates/systemd/vm2-sanesecurity-http.service.tmpl" /etc/systemd/system/vm2-sanesecurity-http.service
+install -D -m 0644 "$REPO_ROOT/templates/systemd/vm2-sanesecurity-http.timer.tmpl" /etc/systemd/system/vm2-sanesecurity-http.timer
+systemctl daemon-reload
+log_info "Pierwsze pobranie SaneSecurity po HTTPS (weryfikacja GPG; kilka minut)..."
+timeout 900 /usr/local/sbin/vm2-sanesecurity-http.sh \
+    || log_warn "Pobranie SaneSecurity po HTTPS nie w pełni się powiodło — timer spróbuje ponownie."
+systemctl enable --now vm2-sanesecurity-http.timer
+
+log_info "Sygnatury ClamAV: SaneSecurity po HTTPS (GPG) + URLhaus/interServer/LMD po HTTPS. Odswiezanie przez timery."
 mark_step_done "$STEP_NAME"

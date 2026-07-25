@@ -1,0 +1,10 @@
+[Unit]
+Description=Cykliczna aktualizacja SaneSecurity po HTTPS (co 6h)
+
+[Timer]
+OnBootSec=12min
+OnUnitActiveSec=6h
+Unit=vm2-sanesecurity-http.service
+
+[Install]
+WantedBy=timers.target
