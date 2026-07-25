@@ -56,8 +56,12 @@ SQL
 sudo -u postgres psql -v ON_ERROR_STOP=1 -tc "SELECT 1 FROM pg_database WHERE datname = 'mail_db'" | grep -q 1 \
     || sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE mail_db OWNER mail_app;"
 
-sudo -u postgres psql -v ON_ERROR_STOP=1 -d mail_db -f "$REPO_ROOT/sql/vm2/001_schema.sql"
-sudo -u postgres psql -v ON_ERROR_STOP=1 -d mail_db -v app_role=mail_app -f "$REPO_ROOT/sql/vm2/002_grants.sql"
+# Podajemy SQL przez STDIN (przekierowanie robi root), a NIE `-f <plik>` — bo
+# przy `sudo -u postgres` plik czytałby użytkownik postgres, który nie ma dostępu
+# do repo pod /root (Opcja B: /root/mail-sync-portal, tryb 0700). Przez stdin
+# plik otwiera root, więc działa niezależnie od tego, gdzie leży repo.
+sudo -u postgres psql -v ON_ERROR_STOP=1 -d mail_db < "$REPO_ROOT/sql/vm2/001_schema.sql"
+sudo -u postgres psql -v ON_ERROR_STOP=1 -d mail_db -v app_role=mail_app < "$REPO_ROOT/sql/vm2/002_grants.sql"
 
 systemctl reload "postgresql-${PG_VER}"
 
