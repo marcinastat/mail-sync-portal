@@ -11,6 +11,24 @@ go automatycznie, formatuje (XFS) i montuje pod `/var/mail/vhosts`. Jeśli VM2
 ma więcej niż 2 dyski, ustaw jawnie `VM2_MAIL_DISK=/dev/sdX` w
 `config/install.conf` (patrz krok 0). VM1 wystarczy jeden dysk.
 
+## Uwaga: root czy zwykły user z sudo?
+
+Nie musisz logować się jako root — **wystarczy użytkownik z `sudo`**. Wszystkie skrypty
+uruchamiasz przez `sudo scripts/...` i one same działają wtedy z uprawnieniami roota
+(skrypt sprawdza tylko, czy efektywny UID = 0, co `sudo` zapewnia). Dwa zastrzeżenia:
+
+1. **Hardening wyłącza logowanie SSH hasłem.** `10-base-hardening.sh` ustawia
+   `PasswordAuthentication no` (dla wszystkich) i ogranicza roota do klucza. **Zanim go
+   uruchomisz, upewnij się, że Twój użytkownik ma dostęp SSH KLUCZEM** (nie tylko hasłem) —
+   inaczej po tym kroku stracisz zdalny dostęp (o ile nie masz konsoli).
+2. **Automatyka między VM zakłada SSH na `root@VM2`.** Kroki z Opcji B (`sync-to-vm2.sh`,
+   `fetch-vm2-client-cert.sh`) oraz pobranie hasła mastera w `55-webmail-sso.sh` łączą się
+   domyślnie jako root i operują na plikach roota. **Jeśli nie masz SSH roota**, użyj
+   **Opcji A** (osobny `git clone` na każdej VM — żaden SSH między VM nie jest wtedy
+   potrzebny do instalacji), a **4 pliki skopiuj ręcznie** swoim sudo-userem:
+   3 certy mTLS (krok 2) + hasło mastera `/etc/portal/secrets/dovecot-master.pass` (krok 3).
+   Na VM2 odczytasz je przez `sudo cat`, na VM1 wstawisz przez `sudo install/tee`.
+
 ## 0. Przygotowanie repozytorium
 
 Dwie opcje — wybierz jedną.
