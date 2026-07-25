@@ -85,6 +85,16 @@ sudo scripts/vm2/60-firewall-rules.sh
 sudo scripts/vm2/70-finalize.sh
 ```
 
+> Uwagi do skanerów poczty:
+> - `42-sanesecurity.sh` przy pierwszym uruchomieniu **pobiera bazy sygnatur**
+>   (SaneSecurity/URLhaus/…) — to potrwa kilka minut i wymaga dostępu do internetu
+>   oraz działającego `clamd@scan` (czyli po `40-clamav.sh`).
+> - `45-rspamd.sh` instaluje rspamd z oficjalnego repo. Jeśli zegar maszyny jest
+>   przesunięty w przyszłość albo klucz repo przeszedł rotację, weryfikacja GPG
+>   może zostać odrzucona — skrypt **automatycznie ponawia z `--nogpgcheck`**
+>   (pakiet i tak z oficjalnego repo po HTTPS). Zobaczysz wtedy ostrzeżenie w logu,
+>   to normalne.
+
 Na końcu `50-provisioning-api.sh` wypisze się log w stylu:
 
 ```
