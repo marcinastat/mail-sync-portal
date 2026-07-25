@@ -27,21 +27,23 @@ systemctl enable --now fail2ban
 mkdir -p /etc/portal/secrets
 chmod 0700 /etc/portal/secrets
 
-# --- Utwardzenie SSH: tylko klucze (root wyłącznie kluczem) -------------------
-# ZABEZPIECZENIE: instalujemy TYLKO jeśli root ma już wgrany klucz publiczny —
-# inaczej wyłączenie logowania hasłem odcięłoby dostęp do świeżej maszyny.
+# --- Utwardzenie SSH: root tylko kluczem, użytkownicy hasłem ------------------
+# Polityka: root wyłącznie kluczem (prohibit-password), zwykli użytkownicy mogą
+# hasłem (fail2ban chroni sshd). ZABEZPIECZENIE: ograniczenie roota do klucza
+# stosujemy TYLKO jeśli root ma już wgrany klucz — inaczej odcięlibyśmy roota.
+# Logowanie hasłem użytkowników i tak zostaje, więc sudo-user nie traci dostępu.
 REPO_ROOT="$(repo_root)"
 if [[ -s /root/.ssh/authorized_keys ]]; then
     install -m 0600 -o root -g root "$REPO_ROOT/templates/ssh/00-portal-hardening.conf" /etc/ssh/sshd_config.d/00-portal-hardening.conf
     if sshd -t; then
         systemctl reload sshd
-        log_info "SSH utwardzony: tylko klucze, root prohibit-password."
+        log_info "SSH utwardzony: root tylko kluczem (prohibit-password), użytkownicy hasłem."
     else
         rm -f /etc/ssh/sshd_config.d/00-portal-hardening.conf
         log_warn "sshd -t nie przeszedł po dodaniu hardeningu SSH — cofnięto zmianę."
     fi
 else
-    log_warn "Pomijam utwardzenie SSH: brak /root/.ssh/authorized_keys (najpierw wgraj klucz roota, inaczej stracisz dostęp)."
+    log_warn "Pomijam ograniczenie roota do klucza: brak /root/.ssh/authorized_keys (wgraj klucz roota, by root logował się tylko kluczem). Logowanie hasłem użytkowników i tak pozostaje włączone."
 fi
 
 log_info "Hardening bazowy VM1 zakończony (firewalld/fail2ban zainstalowane, reguły w kolejnych krokach)."

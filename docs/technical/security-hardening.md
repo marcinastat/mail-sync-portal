@@ -25,9 +25,12 @@ Podsumowanie warstw zabezpieczeń zweryfikowanych na żywym środowisku.
 
 ## SSH
 
-- **Tylko klucze**: `PasswordAuthentication no`, root `prohibit-password` (drop-in
-  `/etc/ssh/sshd_config.d/00-portal-hardening.conf`). Instalowane przez skrypty
-  hardeningu **tylko** gdy root ma już wgrany klucz publiczny (guard przed lockoutem).
+- **Root tylko kluczem, użytkownicy hasłem**: `PermitRootLogin prohibit-password`
+  + `PasswordAuthentication yes` (drop-in `/etc/ssh/sshd_config.d/00-portal-hardening.conf`).
+  Zwykli użytkownicy mogą logować się hasłem (chroni ich fail2ban jail `sshd`), root
+  wyłącznie kluczem. Ograniczenie roota instalowane **tylko** gdy root ma już wgrany
+  klucz publiczny (guard przed lockoutem roota); logowanie hasłem użytkowników pozostaje
+  włączone niezależnie.
 
 ## Piaskownica usług (systemd)
 

@@ -17,10 +17,15 @@ Nie musisz logować się jako root — **wystarczy użytkownik z `sudo`**. Wszys
 uruchamiasz przez `sudo scripts/...` i one same działają wtedy z uprawnieniami roota
 (skrypt sprawdza tylko, czy efektywny UID = 0, co `sudo` zapewnia). Dwa zastrzeżenia:
 
-1. **Hardening wyłącza logowanie SSH hasłem.** `10-base-hardening.sh` ustawia
-   `PasswordAuthentication no` (dla wszystkich) i ogranicza roota do klucza. **Zanim go
-   uruchomisz, upewnij się, że Twój użytkownik ma dostęp SSH KLUCZEM** (nie tylko hasłem) —
-   inaczej po tym kroku stracisz zdalny dostęp (o ile nie masz konsoli).
+1. **Hardening ogranicza tylko roota do klucza — zwykli użytkownicy dalej mogą hasłem.**
+   `10-base-hardening.sh` (VM1) / `60-firewall-rules.sh` (VM2) ustawia
+   `PermitRootLogin prohibit-password` (root **tylko kluczem**) i pozostawia
+   `PasswordAuthentication yes` (użytkownicy mogą **hasłem**; chroni ich fail2ban jail
+   `sshd`). Dzięki temu instalacja **sudo-userem po haśle działa dalej** po hardeningu.
+   Ograniczenie roota do klucza jest stosowane **tylko jeśli root ma już wgrany klucz**
+   (`/root/.ssh/authorized_keys`) — inaczej krok jest pomijany z ostrzeżeniem, żeby nie
+   odciąć roota. Jeśli chcesz nadal logować się **jako root po SSH**, wgraj klucz roota
+   przed tym krokiem (albo używaj roota lokalnie przez `sudo -i` ze swojego konta).
 2. **Automatyka między VM zakłada SSH na `root@VM2`.** Kroki z Opcji B (`sync-to-vm2.sh`,
    `fetch-vm2-client-cert.sh`) oraz pobranie hasła mastera w `55-webmail-sso.sh` łączą się
    domyślnie jako root i operują na plikach roota. **Jeśli nie masz SSH roota**, użyj
