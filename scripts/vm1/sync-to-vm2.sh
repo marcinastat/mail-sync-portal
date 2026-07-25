@@ -43,6 +43,15 @@ else
     log_info "Klucz SSH już autoryzowany na VM2 — pomijam ssh-copy-id."
 fi
 
+# rsync musi istnieć na OBU końcach. Na świeżym VM2 Minimal go nie ma, a to jest
+# krok 0 (przed scripts/vm2/00-preflight.sh, który normalnie go instaluje) —
+# więc doinstalowujemy go zdalnie teraz (klucz jest już autoryzowany). Bez tego
+# transfer pada „bash: rsync: command not found" po stronie VM2 (odbiorca).
+log_info "Sprawdzam/doinstalowuję rsync na VM2 (na Minimalu bywa nieobecny)..."
+ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new "${REMOTE_USER}@${VM2_IP}" \
+    'command -v rsync >/dev/null 2>&1 || dnf install -y rsync' \
+    || die "Nie udało się zainstalować rsync na VM2 — sprawdź dostęp VM2 do internetu (dnf) i uruchom ponownie."
+
 log_info "Synchronizuję repozytorium na VM2:${REMOTE_PATH} ..."
 rsync -az --delete \
     -e "ssh -i $SSH_KEY -o StrictHostKeyChecking=accept-new" \
