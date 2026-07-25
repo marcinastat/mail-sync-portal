@@ -13,7 +13,9 @@ load_install_conf
 
 REPO_ROOT="$(repo_root)"
 
-pkg_install_idempotent clamav-unofficial-sigs
+# wget potrzebne do pobierania po HTTP (force_wget w user.conf) — Rocky Minimal
+# go nie ma. curl jest już z pakietów bazowych (00-preflight).
+pkg_install_idempotent clamav-unofficial-sigs wget
 
 # Konfiguracja pod nasze clamd (clamscan / /var/lib/clamav / gniazdo skanu).
 render_template "$REPO_ROOT/templates/clamav/clamav-unofficial-sigs-user.conf.tmpl" \
@@ -30,8 +32,12 @@ rm -f /etc/cron.d/clamav-unofficial-sigs
 # TYLKO gdy sygnatur jeszcze nie ma — inaczej częste --force mogłoby skończyć
 # się blokadą IP na mirrorze. Kolejne odświeżenia robi timer (bez --force).
 if [[ ! -f /var/lib/clamav/phish.ndb ]]; then
-    log_info "Pierwsze pobranie sygnatur unofficial (--force, może potrwać kilka minut)..."
-    /usr/sbin/clamav-unofficial-sigs.sh --force || log_warn "Pierwsze pobranie sygnatur nie w pełni się powiodło — timer spróbuje ponownie."
+    log_info "Pierwsze pobranie sygnatur unofficial (--force, HTTP; może potrwać kilka minut)..."
+    # Twardy timeout, żeby przy problemach z siecią krok nie wisiał w nieskończoność
+    # (jest nie-krytyczny — SaneSecurity to dodatkowe sygnatury; ClamAV core i rspamd
+    # działają niezależnie). Timer i tak ponowi później.
+    timeout 900 /usr/sbin/clamav-unofficial-sigs.sh --force \
+        || log_warn "Pierwsze pobranie sygnatur nie powiodło się lub przekroczyło limit czasu — pomijam, timer spróbuje ponownie (Ustawienia i tak nie zależą od tego kroku)."
 fi
 
 systemctl enable --now clamav-unofficial-sigs.timer

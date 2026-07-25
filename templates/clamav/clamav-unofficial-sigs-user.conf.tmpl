@@ -17,3 +17,24 @@ reload_dbs="yes"
 # Bramka bezpieczeństwa narzędzia — bez tego skrypt odmawia działania.
 # U nas konfiguracją zarządza ten szablon, więc jawnie potwierdzamy.
 user_configuration_complete="yes"
+
+# --- Pobieranie po HTTP zamiast rsync -----------------------------------------
+# rsync (port TCP 873) bywa ZABLOKOWANY na wychodzącym ruchu w wielu sieciach
+# (firmowych/chmurowych) — wtedy wszystkie mirrory SaneSecurity padają na
+# połączeniu. HTTP(S) prawie zawsze przechodzi. `force_wget` przełącza pobieranie
+# na wget/curl. WYMAGA wget (Rocky Minimal go nie ma — instaluje go
+# scripts/vm2/42-sanesecurity.sh; curl jest z pakietów bazowych).
+force_wget="yes"
+wget_bin="/usr/bin/wget"
+curl_bin="/usr/bin/curl"
+
+# Bez losowej pauzy startowej narzędzia (60–600 s) — chcemy przewidywalny,
+# szybki przebieg (i żeby timeout w skrypcie nie ciął go w środku pauzy).
+enable_random="no"
+
+# Krótsze timeouty — przy problemach z mirrorem szybciej odpuszcza zamiast wisieć.
+downloader_connect_timeout="15"
+downloader_max_time="300"
+downloader_tries="3"
+rsync_connect_timeout="15"
+rsync_max_time="300"
