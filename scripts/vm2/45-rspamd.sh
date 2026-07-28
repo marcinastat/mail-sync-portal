@@ -32,6 +32,15 @@ if ! dnf install -y valkey rspamd; then
     dnf install -y --nogpgcheck valkey rspamd
 fi
 
+# Pin rspamd (versionlock). Repo rspamd.com ma stary klucz GPG, ktory surowszy
+# weryfikator OpenPGP w EL10 (Sequoia) odrzuca ("No binding signature at time"),
+# wiec `dnf update` (tryb all) wywala CALA transakcje na GPG check rspamd. Pin
+# sprawia, ze aktualizacje systemu (w tym latki bezpieczenstwa jadra) przechodza,
+# a gpgcheck zostaje wlaczony dla reszty. rspamd aktualizujemy swiadomie (ten
+# skrypt, sciezka --nogpgcheck), gdy zajdzie potrzeba lub gdy rspamd naprawi klucz.
+pkg_install_idempotent python3-dnf-plugin-versionlock
+dnf versionlock add rspamd 2>/dev/null || true
+
 # valkey (redis) na localhost — backend rspamd.
 systemctl enable --now valkey
 
