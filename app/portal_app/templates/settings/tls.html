@@ -61,6 +61,12 @@
           <div class="hint" style="font-family:system-ui;margin-top:.25rem">{{ r.note }}</div>
         </div>
       {% endfor %}
+      <p class="hint" style="margin:.3rem 0 0">
+        ⚠️ Uwaga (OVH i podobni): pole „Subdomena" jest <strong>względne do strefy</strong> —
+        wpisz tam tylko część PRZED nazwą strefy (np. <code>_acme-challenge.{{ acme.hostname.split('.')[0] }}</code>),
+        nie pełny FQDN, inaczej powstanie zdublowane <code>…{{ acme.hostname.split('.',1)[1] }}.{{ acme.hostname.split('.',1)[1] }}</code>.
+        Cel CNAME wpisz z kropką na końcu.
+      </p>
 
       {# Przełączenie: wystaw cert i przełącz nginx. Synchroniczne (~30 s) — dajemy feedback. #}
       <form method="post" action="/admin/settings/tls/acme-dns/issue" style="margin-top:.9rem"
