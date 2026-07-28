@@ -87,6 +87,14 @@ install -D -m 0700 -o root -g root "$APP_DIR/portal_app/bin/apply-network-access
 install -D -m 0700 -o root -g root "$APP_DIR/portal_app/bin/apply-system-update.sh" "$APP_DIR/bin/apply-system-update.sh"
 # Narzędzie ratunkowe na konsolę (przywraca kopię configów sprzed aktualizacji).
 install -m 0700 -o root -g root "$APP_DIR/portal_app/bin/portal-config-recovery.sh" /usr/local/sbin/portal-config-recovery.sh
+# TLS przez acme-dns (DNS-01 za firewallem): helper wystawiający cert (certbot
+# przez systemd-run escape) + auth-hook aktualizujący TXT w acme-dns. Root 0700
+# (portal-app woła certbot-acmedns.sh przez sudoers; auth-hook uruchamia certbot).
+install -m 0700 -o root -g root "$APP_DIR/portal_app/bin/certbot-acmedns.sh" /usr/local/sbin/certbot-acmedns.sh
+install -m 0700 -o root -g root "$APP_DIR/portal_app/bin/acmedns-auth-hook.sh" /usr/local/sbin/acmedns-auth-hook.sh
+# Deploy-hook (ten sam co dla certbot-setup.sh): po udanym wystawieniu/odnowieniu
+# kopiuje cert do /etc/portal/tls/certbot i przełącza active/ (po nginx -t).
+install -D -m 0755 -o root -g root "$REPO_ROOT/templates/certbot/deploy-hook.sh.tmpl" /etc/letsencrypt/renewal-hooks/deploy/portal-activate.sh
 # Narzędzie konsolowe: reset hasła admina panelu (gdy zapomniane). Wrapper w
 # /usr/local/sbin (root, 0700); pomocnik pythonowy w /opt/portal-app/bin
 # (uruchamiany jako portal-app przez runuser, musi być czytelny dla usługi).

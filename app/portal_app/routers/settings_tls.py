@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from ..templating import templates
 from sqlalchemy.orm import Session
 
@@ -73,6 +73,49 @@ def acme_dns_register(
         source_ip=client_ip(request),
     )
     return RedirectResponse("/admin/settings/tls?acme_registered=1", status_code=303)
+
+
+@router.get("/acme-dns/status")
+def acme_dns_status(request: Request, current_user: AdminUser = Depends(require_login), db: Session = Depends(get_db)):
+    """Fragment statusu acme-dns (HTMX) — auto-load + polling z karty TLS."""
+    cfg = acmedns_service.get_config(db)
+    if cfg is None:
+        return HTMLResponse("")
+    return templates.TemplateResponse(
+        request, "settings/_acme_status.html", {"acme": cfg, "st": acmedns_service.status(cfg)}
+    )
+
+
+@router.post("/acme-dns/issue")
+def acme_dns_issue(request: Request, current_user: AdminUser = Depends(require_login), db: Session = Depends(get_db)):
+    """Wystawia cert Let's Encrypt przez acme-dns i przełącza nginx (root-helper,
+    systemd-run escape). Synchronicznie (~15-30 s dla acme-dns)."""
+    cfg = acmedns_service.get_config(db)
+    if cfg is None:
+        return RedirectResponse("/admin/settings/tls", status_code=303)
+    ok, msg = acmedns_service.issue_certificate(cfg)
+    if ok:
+        config = _get_config(db)
+        config.mode = "certbot"
+        from datetime import datetime, timezone
+        config.certbot_last_success_at = datetime.now(timezone.utc)
+        db.add(config)
+    record(
+        db,
+        actor_admin_user_id=current_user.id,
+        action="tls.acmedns_issue" + ("" if ok else "_failed"),
+        target_type="acme_dns",
+        target_id=cfg.hostname,
+        details={"ok": ok, "output_tail": msg[-500:]},
+        source_ip=client_ip(request),
+    )
+    if ok:
+        return RedirectResponse("/admin/settings/tls?acme_issued=1", status_code=303)
+    return templates.TemplateResponse(
+        request, "settings/tls.html",
+        _tls_context(db, current_user, acme_error=f"Wystawienie certyfikatu nie powiodło się: {msg}"),
+        status_code=400,
+    )
 
 
 @router.post("/manual")

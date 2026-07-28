@@ -1,0 +1,31 @@
+{# Status acme-dns — auto-odświeżany przez HTMX (patrz kontener w tls.html).
+   Sam się przeładowuje co 60 s dzięki hx-trigger na kontenerze rodzica. #}
+<div style="display:flex;flex-wrap:wrap;gap:1.2rem;align-items:flex-start">
+  <div>
+    <div class="hint">Serwer acme-dns</div>
+    {% if st.acme_reachable %}<span class="badge ok">osiągalny</span>
+    {% elif st.acme_reachable is none %}<span class="badge">—</span>
+    {% else %}<span class="badge err">nieosiągalny</span>{% endif %}
+  </div>
+
+  <div>
+    <div class="hint">Gotowość DNS (challenge)</div>
+    {% if st.dns_ready %}<span class="badge ok">gotowe</span>
+    {% elif st.dns_ready is none %}<span class="badge warn">nieznane</span>
+    {% else %}<span class="badge warn">brak rekordu</span>{% endif %}
+  </div>
+
+  <div>
+    <div class="hint">Aktywny certyfikat</div>
+    {% if st.cert_issuer %}
+      {% if st.cert_is_letsencrypt %}<span class="badge ok">Let's Encrypt</span>
+      {% else %}<span class="badge">self-signed / inny</span>{% endif %}
+      <span class="hint">· {{ st.cert_days_left }} dni do wygaśnięcia</span>
+    {% else %}<span class="badge">—</span>{% endif %}
+  </div>
+</div>
+
+<p class="hint" style="margin:.5rem 0 0">{{ st.dns_note }}
+  {% if st.cert_issuer %}<br>Wystawca: <code>{{ st.cert_issuer }}</code>{% endif %}
+  <br><span style="opacity:.7">Sprawdzono: {{ st.checked_at | dt }} · odświeża się automatycznie</span>
+</p>

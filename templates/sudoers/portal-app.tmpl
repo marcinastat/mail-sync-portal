@@ -4,6 +4,9 @@ portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-tls.sh manual
 portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-tls.sh certbot
 portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-tls.sh selfsigned
 portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-network-access.sh
+# Wystawienie certyfikatu Let's Encrypt przez acme-dns (DNS-01) + przełączenie
+# nginx. Helper sam odpala certbota przez systemd-run (poza sandboxem usługi).
+portal-app ALL=(root) NOPASSWD: /usr/local/sbin/certbot-acmedns.sh
 # Aktualizacje systemu — helper wieloetapowy (worker woła każdą fazę osobno, by
 # modal pokazywał postęp). Każda komenda enumerowana OSOBNO (bez wolnych argów).
 portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-system-update.sh backup

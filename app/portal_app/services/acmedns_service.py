@@ -8,11 +8,24 @@ prawdziwego DNS (OVH itd.) nigdy nie trafia na serwer, a challenge działa bez
 otwierania czegokolwiek do internetu na VM1.
 """
 
+import json
+import shutil
+import subprocess
+from datetime import datetime, timezone
+from pathlib import Path
+
 import httpx
+from cryptography import x509
 from sqlalchemy.orm import Session
 
 from ..models import AcmeDnsConfig
 from . import credential_crypto
+
+# Odszyfrowane konto acme-dns dla auth-hooka certbota (czyta je root poza
+# sandboxem). portal-app ma /etc/portal w ReadWritePaths, więc może tu pisać.
+CREDS_FILE = Path("/etc/portal/secrets/acmedns.json")
+ACTIVE_CERT = Path("/etc/portal/tls/active/fullchain.pem")
+_ISSUE_HELPER = "/usr/local/sbin/certbot-acmedns.sh"
 
 
 class AcmeDnsError(RuntimeError):
@@ -72,7 +85,91 @@ def register(
     cfg.registered_at = datetime.now(timezone.utc)
     db.add(cfg)
     db.flush()
+    write_creds_file(cfg)  # plik dla auth-hooka certbota (używany przy wystawianiu)
     return cfg
+
+
+def write_creds_file(cfg: AcmeDnsConfig) -> None:
+    """Zapisuje ODSZYFROWANE konto acme-dns do pliku 0600 czytanego przez
+    auth-hook certbota (jako root, poza sandboxem). Wołane przy rejestracji i
+    tuż przed wystawieniem certu, żeby plik zawsze odpowiadał bazie."""
+    CREDS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    data = {
+        "server": cfg.acme_dns_server,
+        "hostname": cfg.hostname,
+        "username": cfg.username,
+        "password": credential_crypto.decrypt_password(cfg.password_encrypted),
+        "subdomain": cfg.subdomain,
+        "fulldomain": cfg.fulldomain,
+    }
+    CREDS_FILE.write_text(json.dumps(data), encoding="utf-8")
+    CREDS_FILE.chmod(0o600)
+
+
+def status(cfg: AcmeDnsConfig) -> dict:
+    """Lekki status pod kartę TLS: osiągalność acme-dns, gotowość DNS (CNAME ->
+    acme-dns przez dig, jeśli dostępny) oraz aktualny aktywny certyfikat."""
+    out: dict = {
+        "acme_reachable": None,
+        "dns_ready": None,
+        "dns_note": "",
+        "cert_issuer": None,
+        "cert_days_left": None,
+        "cert_is_letsencrypt": False,
+        "checked_at": datetime.now(timezone.utc),
+    }
+    try:
+        with httpx.Client(timeout=8.0) as client:
+            client.get(cfg.acme_dns_server)  # jakakolwiek odpowiedź = osiągalny
+        out["acme_reachable"] = True
+    except httpx.HTTPError:
+        out["acme_reachable"] = False
+
+    dig = shutil.which("dig")
+    if not dig:
+        out["dns_note"] = "Nie sprawdzono automatycznie (brak narzędzia 'dig' — dnf install bind-utils)."
+    else:
+        try:
+            res = subprocess.run(
+                [dig, "+short", "TXT", f"_acme-challenge.{cfg.hostname}"],
+                capture_output=True, text=True, timeout=10,
+            )
+            out["dns_ready"] = bool(res.stdout.strip())
+            out["dns_note"] = (
+                "CNAME rozwiązuje się do acme-dns (rekord TXT obecny) — można wystawiać certyfikat."
+                if out["dns_ready"]
+                else "Brak rekordu TXT — dodaj CNAME w DNS i poczekaj na propagację."
+            )
+        except Exception:
+            out["dns_note"] = "Nie udało się sprawdzić DNS (dig)."
+
+    if ACTIVE_CERT.exists():
+        try:
+            cert = x509.load_pem_x509_certificate(ACTIVE_CERT.read_bytes())
+            issuer = cert.issuer.rfc4514_string()
+            out["cert_issuer"] = issuer
+            out["cert_days_left"] = (cert.not_valid_after_utc - datetime.now(timezone.utc)).days
+            out["cert_is_letsencrypt"] = "let's encrypt" in issuer.lower()
+        except Exception:
+            pass
+    return out
+
+
+def issue_certificate(cfg: AcmeDnsConfig) -> tuple[bool, str]:
+    """Wystawia certyfikat Let's Encrypt przez acme-dns i przełącza nginx —
+    przez root-helper (systemd-run escape, bo certbot pisze /etc/letsencrypt, a
+    usługa działa w sandboxie ProtectSystem=full). Zwraca (ok, komunikat)."""
+    write_creds_file(cfg)  # świeże konto dla auth-hooka
+    try:
+        res = subprocess.run(
+            ["/usr/bin/sudo", "-n", _ISSUE_HELPER],
+            capture_output=True, text=True, timeout=180,
+        )
+    except subprocess.TimeoutExpired:
+        return False, "Wystawianie certyfikatu przekroczyło limit czasu (180 s)."
+    ok = res.returncode == 0
+    msg = ((res.stdout or "") + "\n" + (res.stderr or "")).strip()
+    return ok, msg[-2000:] if msg else ("OK" if ok else "Nieznany błąd certbota.")
 
 
 def dns_instructions(cfg: AcmeDnsConfig) -> list[dict]:

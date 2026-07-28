@@ -32,6 +32,9 @@
     {% if request.query_params.get('acme_registered') %}
       <p class="badge ok" style="display:inline-block">Zarejestrowano w acme-dns — dodaj poniższe rekordy w DNS.</p>
     {% endif %}
+    {% if request.query_params.get('acme_issued') %}
+      <p class="badge ok" style="display:inline-block">Certyfikat Let's Encrypt wystawiony i aktywny — status poniżej odświeża się sam.</p>
+    {% endif %}
     {% if acme_error %}<p style="color:#dc2626">{{ acme_error }}</p>{% endif %}
 
     {% if acme %}
@@ -39,20 +42,35 @@
         · <strong>acme-dns:</strong> <code>{{ acme.acme_dns_server }}</code>
         · <span class="hint">konto: {{ acme.username }}, zarejestrowano {{ acme.registered_at | dt }}</span></p>
 
-      <h3 style="margin:.8rem 0 .3rem">Wpisz teraz w swoim DNS:</h3>
+      {# Status acme-dns / certyfikatu — auto-load + polling co 60 s (HTMX) #}
+      <div style="border:1px solid #e2e8f0;border-radius:8px;padding:.7rem .9rem;margin:.7rem 0;background:#f8fafc">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
+          <strong>Status</strong>
+          <button class="btn secondary" type="button" style="padding:.15rem .6rem;font-size:.8rem"
+                  hx-get="/admin/settings/tls/acme-dns/status" hx-target="#acme-status" hx-swap="innerHTML">Odśwież</button>
+        </div>
+        <div id="acme-status" hx-get="/admin/settings/tls/acme-dns/status" hx-trigger="load, every 60s" hx-swap="innerHTML">
+          <p class="hint">Pobieranie statusu…</p>
+        </div>
+      </div>
+
+      <h3 style="margin:.8rem 0 .3rem">Wpisz w swoim DNS:</h3>
       {% for r in acme_instructions %}
         <div class="dns-rec">
           <span class="tag">{{ r.type }}</span><strong>{{ r.name }}</strong> → {{ r.value }}
           <div class="hint" style="font-family:system-ui;margin-top:.25rem">{{ r.note }}</div>
         </div>
       {% endfor %}
-      <p style="font-size:.85rem;color:#64748b;margin-top:.6rem">
-        <strong>Następny krok:</strong> po dodaniu rekordów odczekaj na propagację DNS
-        (sprawdź: <code>dig +short TXT _acme-challenge.{{ acme.hostname }}</code> zwraca coś z acme-dns),
-        a potem wystaw certyfikat certbotem z tego konta acme-dns. Ten krok dodajemy jako kolejny —
-        konto jest już zapisane w portalu.
-      </p>
-      <p style="margin-top:.8rem"><button class="btn secondary" type="button" @click="open = true">Zarejestruj ponownie</button></p>
+
+      {# Przełączenie: wystaw cert i przełącz nginx. Synchroniczne (~30 s) — dajemy feedback. #}
+      <form method="post" action="/admin/settings/tls/acme-dns/issue" style="margin-top:.9rem"
+            onsubmit="this.querySelector('button').disabled=true; document.getElementById('issue-note').textContent='Wystawianie certyfikatu… to potrwa ~30 s, nie zamykaj strony.'; return confirm('Wystawić certyfikat Let\'s Encrypt przez acme-dns i przełączyć nginx na niego?\n\nUpewnij się, że CNAME jest już w DNS (patrz Status wyżej). Operacja potrwa ~30 s.');">
+        <button class="btn" type="submit">Przełącz na acme-dns (wystaw certyfikat)</button>
+        <span id="issue-note" class="hint" style="margin-left:.5rem"></span>
+      </form>
+      <p class="hint" style="margin:.3rem 0 0">Wymaga wpisanego CNAME i propagacji DNS. certbot i odnowienia idą przez acme-dns — serwer nie musi być widoczny z internetu.</p>
+
+      <p style="margin-top:.9rem"><button class="btn secondary" type="button" @click="open = true">Zarejestruj ponownie</button></p>
     {% else %}
       <p style="margin-top:.8rem"><button class="btn" type="button" @click="open = true">Skonfiguruj acme-dns</button></p>
     {% endif %}
