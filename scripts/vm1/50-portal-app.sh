@@ -92,6 +92,11 @@ install -m 0700 -o root -g root "$APP_DIR/portal_app/bin/portal-config-recovery.
 # (uruchamiany jako portal-app przez runuser, musi być czytelny dla usługi).
 install -m 0700 -o root -g root "$APP_DIR/portal_app/bin/portal-admin-password.sh" /usr/local/sbin/portal-admin-password.sh
 install -D -m 0755 -o root -g root "$APP_DIR/portal_app/bin/set-admin-password.py" "$APP_DIR/bin/set-admin-password.py"
+# Narzędzie konsolowe: reset TOTP admina (gdy stracił authenticator — samo
+# zresetowanie hasła nie odblokuje, logowanie nadal żąda TOTP). Ten sam wzorzec
+# co reset hasła (wrapper root 0700 + pomocnik czytelny dla usługi).
+install -m 0700 -o root -g root "$APP_DIR/portal_app/bin/portal-admin-totp-reset.sh" /usr/local/sbin/portal-admin-totp-reset.sh
+install -D -m 0755 -o root -g root "$APP_DIR/portal_app/bin/set-admin-totp.py" "$APP_DIR/bin/set-admin-totp.py"
 # Katalog na kopie konfiguracji robione przed aktualizacją (retencja w helperze).
 install -d -m 0700 -o root -g root /var/lib/portal-config-backups
 # needs-restarting (dnf-utils) — bez niego reboot-check nie potrafi rzetelnie
