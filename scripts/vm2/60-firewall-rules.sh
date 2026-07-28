@@ -50,6 +50,9 @@ firewall-cmd --reload
 REPO_ROOT="$(repo_root)"
 if [[ -s /root/.ssh/authorized_keys ]]; then
     install -m 0600 -o root -g root "$REPO_ROOT/templates/ssh/00-portal-hardening.conf" /etc/ssh/sshd_config.d/00-portal-hardening.conf
+    # Usun luzny drop-in z obrazu (01-permitrootlogin.conf: PermitRootLogin yes) —
+    # 00-* i tak wygrywa, ale nie zostawiamy miny. Root ma juz klucz, wiec bezpiecznie.
+    rm -f /etc/ssh/sshd_config.d/01-permitrootlogin.conf
     if sshd -t; then
         systemctl reload sshd
         log_info "SSH utwardzony: root tylko kluczem (prohibit-password), użytkownicy hasłem."

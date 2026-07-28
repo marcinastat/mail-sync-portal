@@ -88,8 +88,16 @@ pm.min_spare_servers = 1
 pm.max_spare_servers = 4
 php_admin_value[error_log] = /var/log/roundcube/php-fpm-error.log
 php_admin_flag[log_errors] = on
+php_admin_flag[expose_php] = off
 PHPFPM
 mkdir -p /run/php-fpm
+
+# Utwardzenie PHP (audyt 2026-07): nie ujawniaj wersji PHP w naglowku
+# X-Powered-By (dotyczy tez php-cli). Drop-in czytany przy starcie interpretera.
+cat > /etc/php.d/99-portal-security.ini <<'PHPINI'
+; Portal — utwardzenie PHP (nie nadpisywac; zarzadzane przez 40-roundcube.sh)
+expose_php = Off
+PHPINI
 
 if command -v setsebool >/dev/null 2>&1; then
     setsebool -P httpd_can_network_connect on || true

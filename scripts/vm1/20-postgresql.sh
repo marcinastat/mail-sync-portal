@@ -31,8 +31,8 @@ fi
 sed -i "s/^#listen_addresses.*/listen_addresses = 'localhost'/" "$PG_DATA_DIR/postgresql.conf"
 
 for role_line in \
-    "host    roundcube_db    roundcube_app    127.0.0.1/32    md5" \
-    "host    portal_db       portal_app       127.0.0.1/32    md5"
+    "host    roundcube_db    roundcube_app    127.0.0.1/32    scram-sha-256" \
+    "host    portal_db       portal_app       127.0.0.1/32    scram-sha-256"
 do
     grep -qF "$role_line" "$PG_DATA_DIR/pg_hba.conf" 2>/dev/null || echo "$role_line" >> "$PG_DATA_DIR/pg_hba.conf"
 done

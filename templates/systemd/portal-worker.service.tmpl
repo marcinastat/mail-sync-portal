@@ -47,6 +47,9 @@ PrivateTmp=true
 # zapisywalne). /var jest zapisywalny pod ProtectSystem=full — kopie konfiguracji
 # trafiają do /var/lib/portal-config-backups.
 ReadWritePaths=/var/log/portal /var/lib/portal-app /var/lib/portal-config-backups
+# Anti-tamper (audyt 2026-07): kod i venv tylko-do-odczytu dla uslugi (deploy
+# leci poza namespace). Worker pisze wylacznie do /var (powyzej).
+ReadOnlyPaths=/opt/portal-app
 
 [Install]
 WantedBy=multi-user.target

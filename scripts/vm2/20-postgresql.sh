@@ -32,7 +32,7 @@ PG_DATA_DIR="/var/lib/pgsql/${PG_VER}/data"
 sed -i "s/^#listen_addresses.*/listen_addresses = 'localhost'/" "$PG_DATA_DIR/postgresql.conf"
 
 if ! grep -q "^host    mail_db " "$PG_DATA_DIR/pg_hba.conf" 2>/dev/null; then
-    echo "host    mail_db    mail_app    127.0.0.1/32    md5" >> "$PG_DATA_DIR/pg_hba.conf"
+    echo "host    mail_db    mail_app    127.0.0.1/32    scram-sha-256" >> "$PG_DATA_DIR/pg_hba.conf"
 fi
 
 systemctl enable --now "postgresql-${PG_VER}"

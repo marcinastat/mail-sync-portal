@@ -68,6 +68,11 @@ PrivateTmp=true
 # zawodził (ProtectSystem=full czyni /etc read-only). Katalog i tak jest
 # root-owned; realną granicą pozostaje wąski sudoers (tylko te 2 skrypty).
 ReadWritePaths=/var/log/portal /var/lib/portal-app /opt/portal-app/portal_app/static /var/www/errors /etc/portal
+# Anti-tamper (audyt 2026-07): kod i venv aplikacji tylko-do-odczytu DLA USLUGI.
+# Deploy (git pull/skrypty) dziala dalej — leci POZA namespace usługi. Dzieki
+# temu ew. RCE w aplikacji nie nadpisze wlasnego kodu (trwalosc). Podkatalog
+# .../static zostaje zapisywalny (jest w ReadWritePaths — wezel wygrywa).
+ReadOnlyPaths=/opt/portal-app
 
 [Install]
 WantedBy=multi-user.target

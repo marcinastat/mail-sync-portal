@@ -25,10 +25,17 @@ server {
     # poziomu — dlatego trzymamy je tu i nie używamy add_header w location.
     # HSTS: dla dostępu po IP przeglądarki go ignorują; zaczyna działać przy
     # dostępie po nazwie hosta z zaufanym certem (docelowo certbot/manual).
-    add_header Strict-Transport-Security "max-age=15768000" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    # CSP: jeden blok obsluguje i Roundcube (webmail, sporo inline JS) i /admin
+    # (HTMX + Alpine.js — Alpine wymaga 'unsafe-eval'). 'unsafe-inline'/'eval' to
+    # kompromis pod te frameworki, ale nadal blokujemy ladowanie SKRYPTOW z obcych
+    # domen (exfiltracja/wstrzykniecie), pluginy (object-src none), osadzanie w
+    # ramce (frame-ancestors) i przejecie <base>/form-action. data:/blob: dla
+    # obrazkow i podgladu zalacznikow w Roundcube.
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; frame-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'" always;
 
     error_page 403 /errors/403.html;
     error_page 404 /errors/404.html;
