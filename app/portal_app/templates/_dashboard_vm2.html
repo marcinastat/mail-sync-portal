@@ -30,28 +30,35 @@
   {% set fn = vm2_status.findings %}
   <div style="margin-top:0.6rem">
     <p style="margin:0.2rem 0">Skan poczty:
-      {% if fn.total == 0 %}<span class="badge ok">brak wykryć</span>
-      {% else %}<span class="badge err">{{ fn.total }} wykryć</span>
-        {% if fn.by_severity.get('phishing') %}<span class="badge warn">phishing: {{ fn.by_severity['phishing'] }}</span>{% endif %}
-        {% if fn.by_severity.get('malware') %}<span class="badge err">malware: {{ fn.by_severity['malware'] }}</span>{% endif %}
-      {% endif %}
+      {% if (fn.threats or 0) > 0 %}<span class="badge err">zagrożenia: {{ fn.threats }}</span>
+      {% else %}<span class="badge ok">brak realnych zagrożeń</span>{% endif %}
+      {% if (fn.review or 0) > 0 %}<span class="badge warn">do przejrzenia: {{ fn.review }}</span>{% endif %}
+      {% if (fn.spam_reject or 0) > 0 %}<span class="badge">spam (odrzucony): {{ fn.spam_reject }}</span>{% endif %}
+      {% if (fn.spam_bulk or 0) > 0 %}<span class="hint">spam otagowany: {{ fn.spam_bulk }}</span>{% endif %}
     </p>
-    {% if fn.recent %}
+    <p class="hint" style="margin:.1rem 0 .3rem">
+      „Zagrożenia" = oficjalne sygnatury ClamAV (realne malware/phishing). „Do przejrzenia” = heurystyki/SaneSecurity (możliwe FP).
+      Spam to werdykty rspamd na poczcie masowej — nie zagrożenia.
+    </p>
+    {% set threat_rows = fn.recent | selectattr('severity', 'in', ['malware','suspicious']) | list %}
+    {% if threat_rows %}
     <div class="table-wrap" style="max-height:180px;overflow:auto;margin-top:0.3rem">
       <table style="font-size:0.82rem">
-        <thead><tr><th>Kiedy</th><th>Skrzynka</th><th>Silnik</th><th>Sygnatura</th></tr></thead>
+        <thead><tr><th>Kiedy</th><th>Skrzynka</th><th>Waga</th><th>Sygnatura</th></tr></thead>
         <tbody>
-          {% for r in fn.recent %}
+          {% for r in threat_rows %}
           <tr>
             <td>{{ r.ts }}</td>
             <td>{{ r.mailbox }}</td>
-            <td>{{ r.engine }}</td>
-            <td><span class="{{ 'err' if r.severity == 'malware' else 'warn' }}">{{ r.signature | truncate(40) }}</span></td>
+            <td><span class="badge {{ 'err' if r.severity == 'malware' else 'warn' }}">{{ 'malware' if r.severity == 'malware' else 'do przejrzenia' }}</span></td>
+            <td>{{ r.signature | truncate(40) }}</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+    {% else %}
+      <p class="hint" style="margin:.2rem 0">Brak trafień malware/heurystycznych do pokazania (same werdykty spamowe).</p>
     {% endif %}
   </div>
 {% endif %}

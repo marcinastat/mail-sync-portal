@@ -44,9 +44,15 @@
       <p><span class="badge ok">brak wykryć</span> Żadna skrzynka nie ma oznaczonych podejrzanych wiadomości.</p>
     {% else %}
       <p style="margin-top:0">
-        <span class="badge err">{{ findings.total }} wykryć</span>
-        {% if findings.by_severity.get('malware') %}<span class="badge err">malware: {{ findings.by_severity['malware'] }}</span>{% endif %}
-        {% if findings.by_severity.get('phishing') %}<span class="badge warn">phishing: {{ findings.by_severity['phishing'] }}</span>{% endif %}
+        {% if (findings.threats or 0) > 0 %}<span class="badge err">zagrożenia: {{ findings.threats }}</span>
+        {% else %}<span class="badge ok">brak realnych zagrożeń</span>{% endif %}
+        {% if (findings.review or 0) > 0 %}<span class="badge warn">do przejrzenia: {{ findings.review }}</span>{% endif %}
+        {% if (findings.spam_reject or 0) > 0 %}<span class="badge">spam (odrzucony): {{ findings.spam_reject }}</span>{% endif %}
+        {% if (findings.spam_bulk or 0) > 0 %}<span class="hint">spam otagowany: {{ findings.spam_bulk }}</span>{% endif %}
+      </p>
+      <p class="hint" style="margin:.2rem 0 .6rem">
+        „Zagrożenia" = oficjalne sygnatury ClamAV (realne malware/phishing). „Do przejrzenia" = heurystyki ClamAV/SaneSecurity (możliwe false-positive).
+        Spam to werdykty rspamd na poczcie masowej (newslettery/marketing) — nie zagrożenia. Lista poniżej: najważniejsze najpierw.
       </p>
       <div class="table-wrap">
         <table>
@@ -65,7 +71,11 @@
                 </div>
               </td>
               <td>{{ f.engine }}</td>
-              <td><span class="{{ 'err' if f.severity == 'malware' else 'warn' }}">{{ f.signature | truncate(44) }}</span></td>
+              <td>
+                <span class="badge {{ 'err' if f.severity == 'malware' else ('warn' if f.severity == 'suspicious' else '') }}">
+                  {{ {'malware':'malware','suspicious':'do przejrzenia','spam':'spam','bulk':'spam'}.get(f.severity, f.severity) }}</span>
+                <span class="hint">{{ f.signature | truncate(40) }}</span>
+              </td>
             </tr>
             {% endfor %}
           </tbody>
