@@ -5,6 +5,7 @@ from .domain import Domain
 from .imports import ImportBatch, ImportRow
 from .mailbox import Credential, Mailbox
 from .settings import (
+    AcmeDnsConfig,
     AlertChannel,
     BrandingConfig,
     ImapsyncConfig,
@@ -31,6 +32,7 @@ __all__ = [
     "ImportRow",
     "Credential",
     "Mailbox",
+    "AcmeDnsConfig",
     "AlertChannel",
     "BrandingConfig",
     "ImapsyncConfig",

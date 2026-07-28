@@ -12,6 +12,77 @@
     </p>
   </div>
 
+  <style>
+    [x-cloak]{display:none!important}
+    .acme-overlay{position:fixed;inset:0;background:rgba(2,6,23,.66);z-index:50;display:flex;align-items:center;justify-content:center;padding:1rem}
+    .acme-modal{background:#fff;color:#0f172a;border-radius:12px;padding:1.5rem;width:min(560px,97vw);max-height:92vh;overflow:auto}
+    .dns-rec{border:1px solid #e2e8f0;border-radius:8px;padding:.6rem .8rem;margin:.5rem 0;font-family:monospace;font-size:.86rem;background:#f8fafc;word-break:break-all}
+    .dns-rec .tag{display:inline-block;background:#1e293b;color:#fff;border-radius:4px;padding:0 .4rem;font-size:.72rem;margin-right:.4rem}
+  </style>
+
+  <div class="card" x-data="{ open: false }">
+    <h2 style="margin-top:0">Let's Encrypt przez acme-dns (DNS-01 za firewallem)</h2>
+    <p style="font-size:0.9rem;color:#475569">
+      Wystawia zaufany certyfikat Let's Encrypt <strong>bez wystawiania serwera do internetu</strong>.
+      Walidacja DNS-01 jest delegowana do Twojego serwera <code>acme-dns</code>: portal rejestruje tam konto,
+      a Ty dodajesz w swoim DNS <strong>jeden rekord CNAME</strong> (i opcjonalnie A). Klucz do prawdziwego DNS
+      (OVH itd.) nigdy nie trafia na serwer.
+    </p>
+
+    {% if request.query_params.get('acme_registered') %}
+      <p class="badge ok" style="display:inline-block">Zarejestrowano w acme-dns — dodaj poniższe rekordy w DNS.</p>
+    {% endif %}
+    {% if acme_error %}<p style="color:#dc2626">{{ acme_error }}</p>{% endif %}
+
+    {% if acme %}
+      <p style="margin:.4rem 0"><strong>Host:</strong> <code>{{ acme.hostname }}</code>
+        · <strong>acme-dns:</strong> <code>{{ acme.acme_dns_server }}</code>
+        · <span class="hint">konto: {{ acme.username }}, zarejestrowano {{ acme.registered_at | dt }}</span></p>
+
+      <h3 style="margin:.8rem 0 .3rem">Wpisz teraz w swoim DNS:</h3>
+      {% for r in acme_instructions %}
+        <div class="dns-rec">
+          <span class="tag">{{ r.type }}</span><strong>{{ r.name }}</strong> → {{ r.value }}
+          <div class="hint" style="font-family:system-ui;margin-top:.25rem">{{ r.note }}</div>
+        </div>
+      {% endfor %}
+      <p style="font-size:.85rem;color:#64748b;margin-top:.6rem">
+        <strong>Następny krok:</strong> po dodaniu rekordów odczekaj na propagację DNS
+        (sprawdź: <code>dig +short TXT _acme-challenge.{{ acme.hostname }}</code> zwraca coś z acme-dns),
+        a potem wystaw certyfikat certbotem z tego konta acme-dns. Ten krok dodajemy jako kolejny —
+        konto jest już zapisane w portalu.
+      </p>
+      <p style="margin-top:.8rem"><button class="btn secondary" type="button" @click="open = true">Zarejestruj ponownie</button></p>
+    {% else %}
+      <p style="margin-top:.8rem"><button class="btn" type="button" @click="open = true">Skonfiguruj acme-dns</button></p>
+    {% endif %}
+
+    <div class="acme-overlay" x-show="open" x-cloak @click.self="open=false">
+      <div class="acme-modal">
+        <h2 style="margin-top:0">Rejestracja konta acme-dns</h2>
+        <p style="font-size:.85rem;color:#64748b">Portal wyśle <code>POST /register</code> do serwera acme-dns i zapisze zwrócone konto (hasło szyfrowane). Ponowna rejestracja tworzy NOWE konto — trzeba wtedy zaktualizować CNAME.</p>
+        <form method="post" action="/admin/settings/tls/acme-dns/register">
+          <label for="acme_dns_server">Adres serwera acme-dns</label>
+          <input id="acme_dns_server" name="acme_dns_server" required style="width:100%" value="{{ acme.acme_dns_server if acme else 'https://auth.astat.cloud' }}">
+
+          <label for="hostname" style="margin-top:.6rem">Pełna nazwa hosta (FQDN certyfikatu)</label>
+          <input id="hostname" name="hostname" required style="width:100%" value="{{ acme.hostname if acme else 'poczta.example.com' }}">
+
+          <label for="a_record_ip" style="margin-top:.6rem">IP do rekordu A (opcjonalnie — pokażemy w instrukcji)</label>
+          <input id="a_record_ip" name="a_record_ip" style="width:100%" placeholder="np. 10.0.0.226 (może być wewnętrzne)" value="{{ acme.a_record_ip if acme and acme.a_record_ip else '' }}">
+
+          <label for="restrict_to_ip" style="margin-top:.6rem">Ogranicz aktualizacje do IP (opcjonalnie, allowfrom)</label>
+          <input id="restrict_to_ip" name="restrict_to_ip" style="width:100%" placeholder="np. 203.0.113.5/32 — egress serwera">
+
+          <p style="margin-top:1rem;display:flex;gap:.5rem">
+            <button class="btn" type="submit">Zarejestruj w acme-dns</button>
+            <button class="btn secondary" type="button" @click="open=false">Anuluj</button>
+          </p>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <div class="card">
     <h2 style="margin-top:0">Wklej własny certyfikat (manual)</h2>
     <form method="post" action="/admin/settings/tls/manual">

@@ -43,6 +43,26 @@ class TlsConfig(Base, TimestampMixin):
     manual_uploaded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class AcmeDnsConfig(Base, TimestampMixin):
+    """Konto w serwerze acme-dns używane do DNS-01 za firewallem. VM1 aktualizuje
+    rekord TXT challenge WYŁĄCZNIE w acme-dns (przez username/password), a w
+    prawdziwej strefie klienta wpisuje się RAZ CNAME `_acme-challenge.<host>` ->
+    fulldomain. Klucz do prawdziwego DNS (np. OVH) nigdy nie trafia na serwer."""
+
+    __tablename__ = "acme_dns_config"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    acme_dns_server: Mapped[str] = mapped_column(String(255))       # np. https://auth.astat.cloud
+    hostname: Mapped[str] = mapped_column(String(255))              # host certyfikatu, np. poczta.example.com
+    a_record_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)  # IP do rekordu A (informacyjnie)
+    username: Mapped[str] = mapped_column(String(128))             # konto acme-dns
+    password_encrypted: Mapped[str] = mapped_column(String(512))   # hasło acme-dns (Fernet)
+    subdomain: Mapped[str] = mapped_column(String(128))           # subdomena konta acme-dns
+    fulldomain: Mapped[str] = mapped_column(String(255))          # cel CNAME (np. <uuid>.auth.astat.cloud)
+    allowfrom: Mapped[str | None] = mapped_column(String(255), nullable=True)  # CIDR-y dozwolone do update (opcjonalnie)
+    registered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class InstanceState(Base, TimestampMixin):
     __tablename__ = "instance_state"
 

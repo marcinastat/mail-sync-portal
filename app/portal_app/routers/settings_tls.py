@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from ..deps import client_ip, get_db, require_login, require_setup_complete
 from ..models import AdminUser, TlsConfig
-from ..services import tls_manager
+from ..services import acmedns_service, tls_manager
 from ..services.audit_service import record
 
 router = APIRouter(prefix="/admin/settings/tls", tags=["settings-tls"], dependencies=[Depends(require_setup_complete)])
@@ -20,12 +20,59 @@ def _get_config(db: Session) -> TlsConfig:
     return config
 
 
+def _tls_context(db: Session, current_user: AdminUser, **extra) -> dict:
+    acme = acmedns_service.get_config(db)
+    ctx = {
+        "active": "settings",
+        "current_user": current_user,
+        "config": _get_config(db),
+        "acme": acme,
+        "acme_instructions": acmedns_service.dns_instructions(acme) if acme else None,
+    }
+    ctx.update(extra)
+    return ctx
+
+
 @router.get("")
 def show(request: Request, current_user: AdminUser = Depends(require_login), db: Session = Depends(get_db)):
-    config = _get_config(db)
-    return templates.TemplateResponse(
-        request, "settings/tls.html", {"active": "settings", "current_user": current_user, "config": config}
+    return templates.TemplateResponse(request, "settings/tls.html", _tls_context(db, current_user))
+
+
+@router.post("/acme-dns/register")
+def acme_dns_register(
+    request: Request,
+    acme_dns_server: str = Form(...),
+    hostname: str = Form(...),
+    a_record_ip: str = Form(""),
+    restrict_to_ip: str = Form(""),
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    allowfrom = [restrict_to_ip.strip()] if restrict_to_ip.strip() else None
+    try:
+        cfg = acmedns_service.register(
+            db,
+            server=acme_dns_server,
+            hostname=hostname,
+            a_record_ip=a_record_ip,
+            allowfrom=allowfrom,
+        )
+    except acmedns_service.AcmeDnsError as exc:
+        return templates.TemplateResponse(
+            request, "settings/tls.html",
+            _tls_context(db, current_user, acme_error=str(exc)),
+            status_code=400,
+        )
+    record(
+        db,
+        actor_admin_user_id=current_user.id,
+        action="tls.acmedns_register",
+        target_type="acme_dns",
+        target_id=cfg.hostname,
+        details={"server": cfg.acme_dns_server, "fulldomain": cfg.fulldomain},
+        source_ip=client_ip(request),
     )
+    return RedirectResponse("/admin/settings/tls?acme_registered=1", status_code=303)
 
 
 @router.post("/manual")
