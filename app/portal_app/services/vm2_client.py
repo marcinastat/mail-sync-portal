@@ -47,6 +47,32 @@ def check_health(conn: Vm2Connection) -> dict:
     return _request(conn, "GET", "/health")
 
 
+def dashboard_snapshot(conn: Vm2Connection, timeout: float = 15.0) -> dict:
+    """Trzy odczyty dashboardu (dysk + AV + wykrycia) na JEDNYM połączeniu mTLS.
+    Osobne wywołania (_request) otwierały 3 klienty = 3 handshake'i TLS, co przy
+    renderze synchronicznym dawało kilka sekund. Tu keep-alive jednego klienta
+    zdejmuje handshake z 2. i 3. żądania. Każdy odczyt jest niezależnie
+    best-effort (None przy błędzie) — dashboard i tak pokazuje resztę."""
+    out: dict = {"disk_usage": None, "av": None, "findings": None}
+    calls = [
+        ("disk_usage", "/system/disk-usage", None),
+        ("av", "/av/status", None),
+        ("findings", "/av/findings", {"since_id": 0, "limit": 8}),
+    ]
+    try:
+        with _client(conn, timeout=timeout) as client:
+            for key, path, params in calls:
+                try:
+                    resp = client.request("GET", path, params=params)
+                    resp.raise_for_status()
+                    out[key] = resp.json()
+                except httpx.HTTPError:
+                    out[key] = None  # ten jeden odczyt się nie udał — reszta leci dalej
+    except (httpx.HTTPError, OSError, ssl.SSLError):
+        pass  # VM2 niedostępna / brak certów mTLS — cała trójka None
+    return out
+
+
 def create_domain(conn: Vm2Connection, name: str) -> dict:
     return _request(conn, "POST", "/domains", json={"name": name})
 

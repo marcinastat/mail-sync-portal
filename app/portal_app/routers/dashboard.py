@@ -3,6 +3,7 @@ from pathlib import Path
 
 from cryptography import x509
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import HTMLResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -146,23 +147,11 @@ def dashboard(
     recent_audit = db.query(AuditLog).order_by(AuditLog.id.desc()).limit(10).all()
     policy = get_global_policy(db)
 
+    # UWAGA: NIE wołamy tu VM2 (dysk/AV/skan) — to synchroniczne mTLS blokowało
+    # render dashboardu na kilka sekund. Kafelek VM2 doładowuje się asynchronicznie
+    # przez /admin/dashboard/vm2-status (HTMX hx-trigger=load) — patrz dashboard.html.
     conn = db.query(Vm2Connection).first()
     vm2_status: dict = {"configured": conn is not None and bool(conn.vm2_host)}
-    if vm2_status["configured"]:
-        vm2_status["last_health_check_ok"] = conn.last_health_check_ok
-        vm2_status["last_health_check_at"] = conn.last_health_check_at
-        try:
-            vm2_status["disk_usage"] = vm2_client.disk_usage(conn)
-        except vm2_client.Vm2ApiError:
-            vm2_status["disk_usage"] = None
-        try:
-            vm2_status["av"] = vm2_client.av_status(conn)
-        except vm2_client.Vm2ApiError:
-            vm2_status["av"] = None
-        try:
-            vm2_status["findings"] = vm2_client.av_findings(conn, limit=8)
-        except vm2_client.Vm2ApiError:
-            vm2_status["findings"] = None
 
     volume = _daily_volume(db)
     return templates.TemplateResponse(
@@ -184,3 +173,25 @@ def dashboard(
             "vm2_status": vm2_status,
         },
     )
+
+
+@router.get("/dashboard/vm2-status", dependencies=[Depends(require_setup_complete)])
+def dashboard_vm2_status(
+    request: Request,
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    """Fragment karty VM2 doładowywany asynchronicznie (HTMX) po wyrenderowaniu
+    dashboardu. Tu (poza główną ścieżką) idą synchroniczne wywołania mTLS —
+    jednym połączeniem (dashboard_snapshot), więc nie blokują strony."""
+    conn = db.query(Vm2Connection).first()
+    if conn is None or not conn.vm2_host:
+        return HTMLResponse("")  # kontener hx-get istnieje tylko gdy skonfigurowane
+    snapshot = vm2_client.dashboard_snapshot(conn)
+    vm2_status = {
+        "configured": True,
+        "last_health_check_ok": conn.last_health_check_ok,
+        "last_health_check_at": conn.last_health_check_at,
+        **snapshot,
+    }
+    return templates.TemplateResponse(request, "_dashboard_vm2.html", {"vm2_status": vm2_status})

@@ -1,0 +1,72 @@
+{# Treść karty "Serwer poczty (VM2)" — doładowywana asynchronicznie (HTMX) przez
+   GET /admin/dashboard/vm2-status, żeby synchroniczne wywołania mTLS do VM2 nie
+   blokowały renderu całego dashboardu (patrz routers/dashboard.py). #}
+<p style="margin:0.2rem 0">Health: {% if vm2_status.last_health_check_ok %}<span class="badge ok">OK</span>{% else %}<span class="badge err">problem</span>{% endif %}
+  <span class="hint">{{ vm2_status.last_health_check_at | dt }}</span></p>
+{% if vm2_status.av %}
+  <p style="margin:0.2rem 0">ClamAV: {% if vm2_status.av.clamd_alive %}<span class="badge ok">aktywny</span>{% else %}<span class="badge err">nieaktywny</span>{% endif %}
+    {% if vm2_status.av.defs_current is not none %}
+      {% if vm2_status.av.defs_current %}<span class="badge ok">definicje aktualne</span>{% else %}<span class="badge warn">definicje nieaktualne</span>{% endif %}
+    {% endif %}
+  </p>
+  <p style="margin:0.1rem 0" class="hint">
+    {% if vm2_status.av.engine_version %}silnik {{ vm2_status.av.engine_version }} · {% endif %}
+    {% if vm2_status.av.defs_version %}baza sygnatur {{ vm2_status.av.defs_version }} · {% endif %}
+    aktualizacja: {{ vm2_status.av.last_defs_update | dt }}{% if vm2_status.av.defs_age_hours is not none %} ({{ vm2_status.av.defs_age_hours }}h temu){% endif %}
+  </p>
+  {% if vm2_status.av.rspamd %}
+    {% set rs = vm2_status.av.rspamd %}
+    <p style="margin:0.2rem 0">Antyspam (rspamd): {% if rs.alive %}<span class="badge ok">aktywny</span>{% else %}<span class="badge err">nieaktywny</span>{% endif %}
+      {% if rs.maps_age_hours is not none %}{% if rs.maps_age_hours < 168 %}<span class="badge ok">reguły aktualne</span>{% else %}<span class="badge warn">reguły stare</span>{% endif %}{% endif %}
+    </p>
+    <p style="margin:0.1rem 0" class="hint">
+      {% if rs.version %}wersja {{ rs.version }} · {% endif %}
+      {% if rs.messages_scanned is not none %}przeskanowano {{ rs.messages_scanned }} · {% endif %}
+      reguły/mapy: {{ rs.maps_updated | dt }}{% if rs.maps_age_hours is not none %} ({{ rs.maps_age_hours }}h temu){% endif %}
+    </p>
+  {% endif %}
+{% endif %}
+{% if vm2_status.findings is not none %}
+  {% set fn = vm2_status.findings %}
+  <div style="margin-top:0.6rem">
+    <p style="margin:0.2rem 0">Skan poczty:
+      {% if fn.total == 0 %}<span class="badge ok">brak wykryć</span>
+      {% else %}<span class="badge err">{{ fn.total }} wykryć</span>
+        {% if fn.by_severity.get('phishing') %}<span class="badge warn">phishing: {{ fn.by_severity['phishing'] }}</span>{% endif %}
+        {% if fn.by_severity.get('malware') %}<span class="badge err">malware: {{ fn.by_severity['malware'] }}</span>{% endif %}
+      {% endif %}
+    </p>
+    {% if fn.recent %}
+    <div class="table-wrap" style="max-height:180px;overflow:auto;margin-top:0.3rem">
+      <table style="font-size:0.82rem">
+        <thead><tr><th>Kiedy</th><th>Skrzynka</th><th>Silnik</th><th>Sygnatura</th></tr></thead>
+        <tbody>
+          {% for r in fn.recent %}
+          <tr>
+            <td>{{ r.ts }}</td>
+            <td>{{ r.mailbox }}</td>
+            <td>{{ r.engine }}</td>
+            <td><span class="{{ 'err' if r.severity == 'malware' else 'warn' }}">{{ r.signature | truncate(40) }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+{% endif %}
+{% if vm2_status.disk_usage %}
+  {% for dk, dlbl in [("os_disk","Dysk systemowy"), ("mail_disk","Dysk pocztowy")] %}
+    {% set d = vm2_status.disk_usage[dk] %}
+    <div style="margin-top:0.5rem">
+      <div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:0.2rem">
+        <span class="muted">{{ dlbl }}</span>
+        <span>{{ d.used_bytes | gb }} / {{ d.total_bytes | gb }} <span class="hint">(wolne {{ d.free_bytes | gb }})</span></span>
+      </div>
+      <div class="meter {{ 'err' if d.used_percent >= 90 else ('warn' if d.used_percent >= 75 else '') }}"><span style="width:{{ d.used_percent }}%"></span></div>
+    </div>
+  {% endfor %}
+{% endif %}
+{% if vm2_status.av is none and vm2_status.disk_usage is none and vm2_status.findings is none %}
+  <p class="hint">Nie udało się pobrać statusu z VM2 (serwer niedostępny lub certyfikaty mTLS). Odśwież za chwilę.</p>
+{% endif %}
