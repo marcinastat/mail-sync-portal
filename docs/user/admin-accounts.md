@@ -26,7 +26,12 @@ obowiązkowy enrollment (kod QR + kody odzyskiwania).
 
 ## Zapomniane hasło / zablokowany dostęp
 
-Gdy nikt nie może się zalogować, zresetuj hasło **na konsoli VM1** (jako root):
+Panelowy **Reset TOTP** wymaga, by ktoś **był zalogowany** i zresetował konto innego
+admina. Gdy jednak **nikt nie może się zalogować** (np. jedyny admin zapomniał hasła
+i/lub zgubił authenticator), użyj narzędzi ratunkowych **na konsoli VM1** (jako root,
+przez SSH lub lokalnie). To dwa niezależne narzędzia — użyj jednego albo obu.
+
+**Reset hasła:**
 
 ```
 sudo portal-admin-password.sh --list                 # pokaż loginy
@@ -34,4 +39,23 @@ sudo portal-admin-password.sh <login>                # ustaw nowe hasło (pyta 2
 sudo portal-admin-password.sh <login> --random       # wygeneruj losowe i pokaż raz
 ```
 
-TOTP pozostaje bez zmian. Narzędzie hashuje hasło tym samym mechanizmem co panel.
+**Reset TOTP** (gdy admin stracił telefon/aplikację — samo hasło NIE wystarczy,
+logowanie nadal żąda kodu TOTP):
+
+```
+sudo portal-admin-totp-reset.sh --list               # loginy + status TOTP
+sudo portal-admin-totp-reset.sh <login>              # kasuje 2FA (pyta o potwierdzenie)
+```
+
+Po resecie TOTP admin przy następnym logowaniu **paruje 2FA od nowa** — dostaje
+świeży kod QR i **nowe kody odzyskiwania**.
+
+**Zapomniane hasło + zgubiony authenticator** (pełne odblokowanie) — oba naraz:
+
+```
+sudo portal-admin-password.sh <login>
+sudo portal-admin-totp-reset.sh <login>
+```
+
+Oba narzędzia hashują/audytują tak samo jak panel; każdy reset jest widoczny
+w audycie (`/admin/audit`).

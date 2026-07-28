@@ -49,7 +49,7 @@ Tak — na stronie skrzynki, przycisk **„👁 Podgląd na żywo"** pokazuje wy
 Funkcja **„Otwórz w Roundcube"** (dostęp administracyjny) jest **domyślnie wyłączona** — włączasz ją w [Ustawienia → Otwórz w Roundcube](/admin/docs/user/open-in-roundcube). Po włączeniu, na stronie skrzynki pojawia się przycisk otwierający ją w webmailu od razu zalogowaną (audytowane, tylko z sieci admina).
 
 **Jak dodać/usunąć/zablokować konto administratora? Co gdy zapomnę hasła?**
-[Ustawienia → Użytkownicy](/admin/settings/users) — tworzenie, dezaktywacja/aktywacja, usuwanie, reset TOTP, zmiana własnego hasła. Zapomniane hasło resetujesz na konsoli VM1 (`sudo portal-admin-password.sh <login>`). Szczegóły: [Konta administratorów](/admin/docs/user/admin-accounts).
+[Ustawienia → Użytkownicy](/admin/settings/users) — tworzenie, dezaktywacja/aktywacja, usuwanie, reset TOTP, zmiana własnego hasła. Gdy nikt nie może się zalogować, użyj narzędzi ratunkowych na konsoli VM1 (jako root): zapomniane hasło — `sudo portal-admin-password.sh <login>`; zgubiony authenticator (samo hasło nie wystarczy, logowanie nadal żąda TOTP) — `sudo portal-admin-totp-reset.sh <login>`. Szczegóły: [Konta administratorów](/admin/docs/user/admin-accounts).
 
 **Czy mogę zrestartować serwery z panelu i jak cofnąć nieudaną aktualizację?**
 Aktualizacje idą w tle z podglądem postępu; jeśli wymagany jest restart — jest przycisk w panelu. **Przed** każdą aktualizacją robiona jest kopia konfiguracji, a na konsoli maszyny jest narzędzie ratunkowe (`portal-config-recovery.sh` / `vm2-config-recovery.sh`). Szczegóły: [Aktualizacje systemu](/admin/docs/user/system-updates).
