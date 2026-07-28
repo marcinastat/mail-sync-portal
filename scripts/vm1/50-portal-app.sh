@@ -95,6 +95,11 @@ install -m 0700 -o root -g root "$APP_DIR/portal_app/bin/acmedns-auth-hook.sh" /
 # Deploy-hook (ten sam co dla certbot-setup.sh): po udanym wystawieniu/odnowieniu
 # kopiuje cert do /etc/portal/tls/certbot i przełącza active/ (po nginx -t).
 install -D -m 0755 -o root -g root "$REPO_ROOT/templates/certbot/deploy-hook.sh.tmpl" /etc/letsencrypt/renewal-hooks/deploy/portal-activate.sh
+# certbot z góry (jest w EPEL), żeby wystawianie z panelu było SZYBKIE — inaczej
+# pierwsze kliknięcie "Przełącz na acme-dns" instalowałoby certbota w trakcie
+# żądania i mogło przekroczyć limit czasu workera gunicorna.
+rpm -q epel-release >/dev/null 2>&1 || pkg_install_idempotent epel-release
+pkg_install_idempotent certbot
 # Narzędzie konsolowe: reset hasła admina panelu (gdy zapomniane). Wrapper w
 # /usr/local/sbin (root, 0700); pomocnik pythonowy w /opt/portal-app/bin
 # (uruchamiany jako portal-app przez runuser, musi być czytelny dla usługi).

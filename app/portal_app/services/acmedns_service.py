@@ -21,9 +21,12 @@ from sqlalchemy.orm import Session
 from ..models import AcmeDnsConfig
 from . import credential_crypto
 
-# Odszyfrowane konto acme-dns dla auth-hooka certbota (czyta je root poza
-# sandboxem). portal-app ma /etc/portal w ReadWritePaths, więc może tu pisać.
-CREDS_FILE = Path("/etc/portal/secrets/acmedns.json")
+# Odszyfrowane konto acme-dns dla auth-hooka certbota. Musi być w katalogu, do
+# którego portal-app może PISAĆ (DAC): /var/lib/portal-app jest jego własnością.
+# /etc/portal/secrets jest 0711 root -> portal-app nie utworzyłby tam pliku.
+# Root (certbot/auth-hook przez systemd-run) i tak odczyta plik 0600. MUSI być
+# zgodne z CREDS w certbot-acmedns.sh i acmedns-auth-hook.sh.
+CREDS_FILE = Path("/var/lib/portal-app/acmedns.json")
 ACTIVE_CERT = Path("/etc/portal/tls/active/fullchain.pem")
 _ISSUE_HELPER = "/usr/local/sbin/certbot-acmedns.sh"
 
@@ -159,7 +162,10 @@ def issue_certificate(cfg: AcmeDnsConfig) -> tuple[bool, str]:
     """Wystawia certyfikat Let's Encrypt przez acme-dns i przełącza nginx —
     przez root-helper (systemd-run escape, bo certbot pisze /etc/letsencrypt, a
     usługa działa w sandboxie ProtectSystem=full). Zwraca (ok, komunikat)."""
-    write_creds_file(cfg)  # świeże konto dla auth-hooka
+    try:
+        write_creds_file(cfg)  # świeże konto dla auth-hooka
+    except OSError as exc:
+        return False, f"Nie udało się zapisać konta acme-dns dla certbota: {exc}"
     try:
         res = subprocess.run(
             ["/usr/bin/sudo", "-n", _ISSUE_HELPER],

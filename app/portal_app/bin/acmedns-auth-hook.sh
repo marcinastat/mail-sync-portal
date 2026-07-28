@@ -7,7 +7,7 @@
 # acme-dns trzyma tylko dwa ostatnie TXT i sam je rotuje.
 set -uo pipefail
 
-CREDS=/etc/portal/secrets/acmedns.json
+CREDS=/var/lib/portal-app/acmedns.json
 [[ -f "$CREDS" ]] || { echo "acmedns-auth-hook: brak $CREDS" >&2; exit 1; }
 
 get() { /usr/bin/python3 -c "import json;print(json.load(open('$CREDS'))['$1'])"; }

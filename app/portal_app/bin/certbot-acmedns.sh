@@ -10,7 +10,7 @@
 # bierzemy z /etc/portal/secrets/acmedns.json (zapisuje je portal przy rejestracji).
 set -uo pipefail
 
-CREDS=/etc/portal/secrets/acmedns.json
+CREDS=/var/lib/portal-app/acmedns.json
 AUTH_HOOK=/usr/local/sbin/acmedns-auth-hook.sh
 DEPLOY_HOOK=/etc/letsencrypt/renewal-hooks/deploy/portal-activate.sh
 
@@ -25,9 +25,11 @@ HOST="$(/usr/bin/python3 -c "import json;print(json.load(open('$CREDS'))['hostna
 # do zakończenia, kod wyjścia jest propagowany; wyjście leci do journala.
 run() { /usr/bin/systemd-run --quiet --wait --collect -p StandardOutput=journal -p StandardError=journal "$@"; }
 
-# certbot obecny? (Rocky Minimal go nie ma)
+# certbot obecny? (Rocky Minimal go nie ma; jest w EPEL)
 if ! command -v certbot >/dev/null 2>&1; then
-    echo "Instaluję certbot..."
+    echo "Instaluję EPEL + certbot..."
+    run /bin/sh -c 'rpm -q epel-release >/dev/null 2>&1 || dnf install -y epel-release' \
+        || { echo "Instalacja epel-release nie powiodła się." >&2; exit 1; }
     run /usr/bin/dnf install -y certbot || { echo "Instalacja certbota nie powiodła się." >&2; exit 1; }
 fi
 
