@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi import HTTPException, status
 
 from ..config import get_settings
+from . import scan_activity
 
 # Wszystkie wywołania subprocess używają stałej listy argumentów — nigdy
 # konkatenacji stringów z danych wejściowych — żeby wykluczyć iniekcję poleceń.
@@ -64,6 +65,8 @@ def get_status() -> dict:
         "defs_version": ver["defs_version"],
         "defs_age_hours": age_hours,
         "defs_current": current,
+        # Aktywność skanu maildirów (ostatni/następny przebieg + liczniki plików).
+        **scan_activity.activity("clamav", "clamav-maildir-scan.timer"),
     }
 
 

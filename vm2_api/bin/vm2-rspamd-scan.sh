@@ -19,6 +19,18 @@ FINDINGS="${STATE_DIR}/findings.jsonl"
 mkdir -p "$STATE_DIR"
 ts_now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
+# Statystyki ostatniego przebiegu (czytane przez API -> kafelek VM2). ts=epoch,
+# last=pliki w tym przebiegu, total=skumulowane. Group-readable dla vm2-api.
+STATS="${STATE_DIR}/scan-stats-rspamd"
+write_stats() {  # $1=przeskanowane w tym przebiegu
+    local scanned="${1:-0}" prev=0
+    [[ -f "$STATS" ]] && prev="$(sed -n 's/^total=//p' "$STATS" 2>/dev/null)"
+    prev="${prev:-0}"
+    { echo "ts=$(date +%s)"; echo "last=${scanned}"; echo "total=$((prev + scanned))"; } > "$STATS"
+    chgrp vm2-api "$STATS" 2>/dev/null || true
+    chmod 0640 "$STATS" 2>/dev/null || true
+}
+
 LIST="$(mktemp)"; trap 'rm -f "$LIST"' EXIT
 if [[ "$MODE" == "full" || ! -f "$MARKER" ]]; then
     find "$SCAN_ROOT" -type f -path '*/cur/*' -o -type f -path '*/new/*' > "$LIST" 2>/dev/null
@@ -27,7 +39,7 @@ else
 fi
 COUNT="$(wc -l < "$LIST" | tr -d ' ')"
 echo "$(ts_now) rspamd start: ${COUNT} plików (${MODE})" >> "$LOG"
-if [[ "$COUNT" -eq 0 ]]; then touch "$MARKER"; exit 0; fi
+if [[ "$COUNT" -eq 0 ]]; then write_stats 0; touch "$MARKER"; exit 0; fi
 
 PARSER="/usr/local/sbin/vm2-rspamd-parse.py"
 while IFS= read -r f; do
@@ -41,5 +53,6 @@ done < "$LIST"
 chgrp vm2-api "$FINDINGS" 2>/dev/null || true
 chmod 0640 "$FINDINGS" 2>/dev/null || true
 echo "$(ts_now) rspamd koniec (${MODE})" >> "$LOG"
+write_stats "$COUNT"
 touch "$MARKER"
 exit 0

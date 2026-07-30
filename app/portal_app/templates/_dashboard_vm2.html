@@ -14,6 +14,10 @@
     {% if vm2_status.av.defs_version %}baza sygnatur {{ vm2_status.av.defs_version }} · {% endif %}
     aktualizacja: {{ vm2_status.av.last_defs_update | dt }}{% if vm2_status.av.defs_age_hours is not none %} ({{ vm2_status.av.defs_age_hours }}h temu){% endif %}
   </p>
+  <p style="margin:0.1rem 0" class="hint">
+    Skan maildirów:
+    {% if vm2_status.av.last_scan_at %}ostatni {{ vm2_status.av.last_scan_at | dt }}{% if vm2_status.av.last_scan_count is not none %} ({{ vm2_status.av.last_scan_count }} nowych plików{% if vm2_status.av.total_scanned %}, łącznie {{ vm2_status.av.total_scanned }}{% endif %}){% endif %}{% else %}jeszcze nie było{% endif %}{% if vm2_status.av.next_scan_at %} · następny {{ vm2_status.av.next_scan_at | dt }}{% endif %}
+  </p>
   {% if vm2_status.av.rspamd %}
     {% set rs = vm2_status.av.rspamd %}
     <p style="margin:0.2rem 0">Antyspam (rspamd): {% if rs.alive %}<span class="badge ok">aktywny</span>{% else %}<span class="badge err">nieaktywny</span>{% endif %}
@@ -21,8 +25,12 @@
     </p>
     <p style="margin:0.1rem 0" class="hint">
       {% if rs.version %}wersja {{ rs.version }} · {% endif %}
-      {% if rs.messages_scanned is not none %}przeskanowano {{ rs.messages_scanned }} · {% endif %}
+      {% if rs.messages_scanned is not none %}przeskanowano {{ rs.messages_scanned }} (od startu usługi) · {% endif %}
       reguły/mapy: {{ rs.maps_updated | dt }}{% if rs.maps_age_hours is not none %} ({{ rs.maps_age_hours }}h temu){% endif %}
+    </p>
+    <p style="margin:0.1rem 0" class="hint">
+      Skan maildirów:
+      {% if rs.last_scan_at %}ostatni {{ rs.last_scan_at | dt }}{% if rs.last_scan_count is not none %} ({{ rs.last_scan_count }} nowych plików{% if rs.total_scanned %}, łącznie {{ rs.total_scanned }}{% endif %}){% endif %}{% else %}jeszcze nie było{% endif %}{% if rs.next_scan_at %} · następny {{ rs.next_scan_at | dt }}{% endif %}
     </p>
   {% endif %}
 {% endif %}

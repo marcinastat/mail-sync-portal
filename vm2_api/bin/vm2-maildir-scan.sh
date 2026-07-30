@@ -21,6 +21,19 @@ mkdir -p "$STATE_DIR"
 ts_now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 EMITTER="/usr/local/sbin/vm2-emit-finding.py"
 
+# Statystyki ostatniego przebiegu (czytane przez API -> kafelek VM2 w panelu):
+# ts=epoch ostatniego skanu, last=ile plików w tym przebiegu, found=ile wykryć,
+# total=skumulowana liczba przeskanowanych plików. Plik group-readable dla vm2-api.
+STATS="${STATE_DIR}/scan-stats-clamav"
+write_stats() {  # $1=przeskanowane w tym przebiegu, $2=wykrycia
+    local scanned="${1:-0}" found="${2:-0}" prev=0
+    [[ -f "$STATS" ]] && prev="$(sed -n 's/^total=//p' "$STATS" 2>/dev/null)"
+    prev="${prev:-0}"
+    { echo "ts=$(date +%s)"; echo "last=${scanned}"; echo "found=${found}"; echo "total=$((prev + scanned))"; } > "$STATS"
+    chgrp vm2-api "$STATS" 2>/dev/null || true
+    chmod 0640 "$STATS" 2>/dev/null || true
+}
+
 # --- Zbuduj listę plików do skanu --------------------------------------------
 LIST="$(mktemp)"
 trap 'rm -f "$LIST" "$OUT" 2>/dev/null' EXIT
@@ -36,6 +49,7 @@ COUNT="$(wc -l < "$LIST" | tr -d ' ')"
 echo "$(ts_now) start skan ${SCAN_KIND}: ${COUNT} plików" >> "$LOG"
 if [[ "$COUNT" -eq 0 ]]; then
     echo "$(ts_now) nic nowego do skanu" >> "$LOG"
+    write_stats 0 0
     touch "$MARKER"
     exit 0
 fi
@@ -68,6 +82,7 @@ chgrp vm2-api "$FINDINGS" 2>/dev/null || true
 chmod 0640 "$FINDINGS" 2>/dev/null || true
 
 echo "$(ts_now) koniec skan ${SCAN_KIND}: wykryto ${FOUND}, rc=${rc}" >> "$LOG"
+[[ "$rc" -le 1 ]] && write_stats "$COUNT" "$FOUND"
 # Marker przesuwamy tylko po udanym skanie (rc 0=czysto, 1=znaleziono) — rc>=2
 # to błąd, wtedy NIE przesuwamy, żeby następny przebieg spróbował ponownie.
 if [[ "$rc" -le 1 ]]; then touch "$MARKER"; fi

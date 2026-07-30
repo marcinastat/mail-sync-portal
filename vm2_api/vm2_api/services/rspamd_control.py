@@ -6,6 +6,8 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
+from . import scan_activity
+
 RSPAMD_LIB = Path("/var/lib/rspamd")
 
 
@@ -66,4 +68,6 @@ def get_status() -> dict:
         "messages_scanned": _scanned(),
         "maps_updated": updated,
         "maps_age_hours": age_hours,
+        # Aktywność skanu maildirów rspamd (ostatni/następny przebieg + liczniki).
+        **scan_activity.activity("rspamd", "rspamd-maildir-scan.timer"),
     }
