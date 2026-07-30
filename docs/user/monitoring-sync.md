@@ -45,20 +45,32 @@ Skonfiguruj kanał e-mail lub webhook i wybierz zdarzenia: nieudana synchronizac
 
 ## Raporty (`/admin/reports`)
 
+Raporty są podzielone na **trzy zakładki** (pasek u góry): **Synchronizacja**,
+**Wykrycia skanu poczty**, **fail2ban**. Każda zakładka to osobna podstrona i
+ładuje tylko swoje dane.
+
+### Zakładka „Synchronizacja"
+
 - **Podsumowanie** (kafelki): liczba skrzynek i aktywnych, wiadomości u nas / na źródle,
   **kompletność** (ile wiadomości jest na źródle a nie u nas — 0 = komplet) + drift,
   łączny rozmiar u nas, liczba błędów w ostatnich przebiegach.
 - **Tabela per skrzynka**: domena źródłowa, sync (wł/wył), dni wstecz, ostatni przebieg
   (status · czas · trwanie · ewentualny błąd), wiadomości u nas / źródło, brakujące,
   rozmiar u nas / źródło, drift.
-- **Wykrycia skanu poczty** — antywirus/phishing z podaniem **którego maila** dotyczą
-  (temat, nadawca, data). Patrz „Skanowanie poczty".
-- **Ochrona przed atakami (fail2ban)** — na dole strony: status blokad na obu serwerach
-  (VM1 i VM2). Dla każdego jaila (SSH, logowanie do /admin, Roundcube, limity nginx)
-  widać liczbę nieudanych prób, ile adresów jest aktualnie zablokowanych i **listę
-  zbanowanych IP**. Widok jest tylko do odczytu — **odblokowanie robi administrator
-  z konsoli** (bany są automatyczne i tymczasowe). Dokładne komendy do sprawdzania i
-  odbanowania: dokumentacja techniczna „Runbook fail2ban".
 - **Eksport CSV/PDF** — te same dane do dalszej obróbki lub jako gotowy raport.
+
+### Zakładka „Wykrycia skanu poczty"
+
+Antywirus/phishing z podaniem **którego maila** dotyczą (temat, nadawca, data),
+silnik i sygnatura. Szczegóły klasyfikacji: „Skanowanie poczty".
+
+### Zakładka „fail2ban"
+
+Status blokad na **obu serwerach** (VM1 i VM2). Dla każdego jaila (SSH, logowanie
+do /admin, Roundcube, limity nginx) widać liczbę nieudanych prób, ile adresów jest
+aktualnie zablokowanych i **listę zbanowanych IP**. Widok jest tylko do odczytu —
+**odblokowanie robi administrator z konsoli** (bany są automatyczne i tymczasowe).
+Dokładne komendy do sprawdzania i odbanowania: dokumentacja techniczna „Runbook
+fail2ban".
 
 Pełny log audytowy (`/admin/audit`) też eksportuje się do CSV/PDF.
