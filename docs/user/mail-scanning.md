@@ -49,10 +49,18 @@ cooldown mirrorów). Providerzy płatni (securiteinfo/malwarepatrol) są wyłąc
 
 Pulpit → kafelek **„Serwer poczty (VM2)"** pokazuje:
 
-- **ClamAV**: aktywny, wersja silnika, wersja bazy sygnatur, świeżość.
-- **Antyspam (rspamd)**: aktywny/nieaktywny, wersja, liczba przeskanowanych,
-  świeżość reguł/map.
+- **ClamAV**: aktywny, wersja silnika, wersja bazy sygnatur, świeżość, oraz
+  **Skan maildirów** — kiedy był ostatni przebieg, ile nowych plików wtedy
+  przeskanowano (i łącznie), oraz kiedy będzie następny.
+- **Antyspam (rspamd)**: aktywny/nieaktywny, wersja, liczba przeskanowanych
+  wiadomości **(od startu usługi** — po restarcie rspamd liczy od zera, to
+  normalne), świeżość reguł/map, oraz analogiczny wiersz **Skan maildirów**
+  (ostatni/następny + liczniki).
 - **Skan poczty**: liczba wykryć + ostatnie pozycje (phishing/malware).
+
+> Skany chodzą co godzinę (przyrostowo). „Następny skan" liczony jest z timera
+> systemd; jeśli licznik rspamd pokazuje 0, to znaczy tylko, że usługa była
+> niedawno zrestartowana — rośnie z każdym przebiegiem.
 
 ## Wykrycia — który to mail (raporty + alerty)
 

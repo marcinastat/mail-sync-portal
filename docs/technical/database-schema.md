@@ -1,11 +1,12 @@
 # Schemat baz danych
 
-## VM1 — `portal_db` (SQLAlchemy modele w `app/portal_app/models/`, migracja `app/portal_app/migrations/versions/0001_initial.py`)
+## VM1 — `portal_db` (SQLAlchemy modele w `app/portal_app/models/`, migracje `app/portal_app/migrations/versions/0001..0019`)
 
 | Tabela | Rola |
 |---|---|
 | `admin_users`, `totp_credentials` | konta panelu, TOTP obowiązkowe |
 | `domains` | domena źródłowa/docelowa + hostname/port serwera IMAP źródła |
+| `domain_login_aliases` | dodatkowe domeny logowania (alias → domena; migracja `0019`); portal to źródło prawdy, wypycha na VM2 |
 | `credentials` | poświadczenia źródłowe (hasło szyfrowane), `auth_type` gotowe pod OAuth2 |
 | `mailboxes` | skrzynka docelowa, `vm2_mailbox_id`, `password_override`, `destination_password_encrypted` |
 | `sync_jobs` | konfiguracja synchronizacji per skrzynka (days_back, delete_on_dest...) |
@@ -27,6 +28,7 @@ Standardowy schemat Roundcube (`SQL/postgres.initial.sql` z paczki Roundcube), o
 |---|---|
 | `virtual_domains` | domeny wirtualne obsługiwane przez Postfix/Dovecot |
 | `virtual_mailboxes` | skrzynki, hasło w formacie SHA512-CRYPT (Dovecot), `password_overridden` |
+| `virtual_domain_aliases` | aliasy domen logowania (alias_name → domain_id); używane przez `password_query`/`user_query` Dovecota, żeby login przez alias trafił do skrzynki kanonicznej |
 | `audit_log` | append-only, hash-chaining — mirror wzorca z VM1, dla wywołań provisioning API |
 
 Rola aplikacyjna `mail_app` ma `REVOKE UPDATE, DELETE` na `audit_log` — nawet kod appki nie może modyfikować historii, tylko dopisywać.

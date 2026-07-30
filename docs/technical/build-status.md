@@ -35,3 +35,13 @@ Wszystkie fazy z planu źródłowego zaimplementowane.
 - Wskaźnik "drift" to heurystyka (spadek `messages_total` względem ostatniego udanego przebiegu), nie porównanie zbiorów UID.
 - Backup/DR świadomie poza zakresem repo (snapshoty po stronie hypervisora) — patrz `docs/technical/backup-strategy.md`.
 - Rola `operator` (read-only) ma już miejsce w schemacie (`admin_users.role`), ale UI/autoryzacja rozróżnia na razie tylko `admin`.
+
+## Rozszerzenia po wdrożeniu produkcyjnym (audyt / utrzymanie)
+
+Funkcje i utwardzenia dodane po pierwszym wdrożeniu, na bazie audytu bezpieczeństwa i pracy na żywym środowisku:
+
+- **Audyt bezpieczeństwa (utwardzenie)** — SSH (X11 off, grace/tries/idle, usunięcie luźnego drop-inu), `pg_hba` `md5→scram-sha-256`, `expose_php Off`, nagłówek `Content-Security-Policy` + HSTS 1 rok, anti-tamper (kod usług read-only), moduł SELinux `dovecot_auth→postgres` (VM2), pin `rspamd` pod `dnf update`. Szczegóły: [Utwardzenie i audyt bezpieczeństwa](/admin/docs/technical/security-hardening).
+- **Aliasy domen logowania** — login `user@alias` trafia do skrzynki `user@domena-kanoniczna` (ta sama poczta/hasło). Zarządzanie w `/admin/domains`; migracja `0019` + `virtual_domain_aliases` na VM2. [Aliasy domen logowania](/admin/docs/user/login-aliases).
+- **Kafelek skanów** — statystyki ostatniego/następnego skanu maildirów (ClamAV/rspamd) + liczniki przeskanowanych plików.
+- **Lustrzana zmiana hasła** — formularz „Hasło do serwera źródłowego" ma checkbox (domyślnie wł.) ustawiający to samo hasło również na skrzynce docelowej (VM2).
+- **Status fail2ban w Raportach** — jaile + zbanowane IP obu serwerów (read-only). [Runbook fail2ban](/admin/docs/technical/runbooks/fail2ban).

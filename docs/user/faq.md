@@ -6,6 +6,9 @@ Nie. To twarde ograniczenie w kodzie (`portal_app/services/imapsync_runner.py`) 
 **Czy mogę ręcznie zmienić hasło skrzynki na serwerze docelowym?**
 Tak, na stronie skrzynki (`/admin/mailboxes/<id>`) — nie musisz znać obecnego hasła. Po tej operacji hasło przestaje być automatycznie nadpisywane lustrzaną kopią hasła źródłowego przy kolejnych importach.
 
+**Zmieniło się hasło po stronie źródła — jak to naprawić?**
+Na stronie skrzynki (`/admin/mailboxes/<id>`), sekcja **„Hasło do serwera źródłowego"**, wpisz nowe hasło. Domyślnie zaznaczony checkbox **„Zmień też hasło skrzynki docelowej na VM2"** ustawi to samo hasło również na skrzynce docelowej (logowanie w Roundcube) — jednym ruchem. Odznacz go, jeśli chcesz zmienić tylko hasło używane przez synchronizację (imapsync), bez ruszania skrzynki na VM2. Bez poprawnego hasła źródłowego kolejne synchronizacje padają na logowaniu do serwera źródłowego (`ERR_AUTHENTICATION_FAILURE_USER1`).
+
 **Dlaczego przeglądarka pokazuje ostrzeżenie o certyfikacie?**
 Domyślnie VM1 używa certyfikatu self-signed (ważnego 10 lat) — to celowe, bo VM1 nie jest wystawiona do internetu. Możesz wgrać własny certyfikat (`/admin/settings/tls`) albo skonfigurować certbota w trybie DNS-01 (`scripts/vm1/certbot-setup.sh`).
 
