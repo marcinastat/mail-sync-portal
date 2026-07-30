@@ -16,7 +16,7 @@ ręcznie po SSH:
 
 ```
 sudo dnf -y update
-sudo /mail-sync-portal/scripts/vm1/health-check.sh   # ścieżka lokalna repo na serwerze
+sudo /mail-sync-portal/scripts/vm1/health-check.sh   # ścieżka klonu repo na serwerze
 ```
 
 Skrypt sprawdza `firewalld`, `postgresql-<wersja>`, `nginx`, `php-fpm`,
