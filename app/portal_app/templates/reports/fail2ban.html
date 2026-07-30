@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Raporty — fail2ban{% endblock %}
+{% block content %}
+  <h1>Raporty</h1>
+  {% include "reports/_tabs.html" %}
+
+  <h2 style="margin-top:0">Ochrona przed atakami (fail2ban)</h2>
+  <p class="hint" style="margin-top:0">Bany nakładane są automatycznie po serii nieudanych logowań (SSH, panel /admin, Roundcube, limity nginx). Widok jest tylko do odczytu — <strong>diagnoza i odbanowanie z konsoli</strong> (patrz dokumentacja: „Runbook fail2ban").</p>
+  {% for srv, label in [(fail2ban.vm1, 'VM1 — portal'), (fail2ban.vm2, 'VM2 — serwer poczty')] %}
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+      <h2 style="margin:0">{{ label }}</h2>
+      {% if srv is none %}<span class="badge err">brak połączenia</span>
+      {% elif srv.state == 'active' %}<span class="badge ok">aktywny</span>
+      {% elif srv.state == 'inactive' %}<span class="badge err">nieaktywny</span>
+      {% elif srv.state == 'not-installed' %}<span class="badge">niezainstalowany</span>
+      {% else %}<span class="badge warn">status nieznany</span>{% endif %}
+    </div>
+    {% if srv and srv.jails %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Jail</th><th>Nieudane <span class="hint">(teraz / łącznie)</span></th><th>Zbanowane <span class="hint">(teraz / łącznie)</span></th><th>Zbanowane IP</th></tr></thead>
+        <tbody>
+          {% for j in srv.jails %}
+          <tr>
+            <td><strong>{{ j.name }}</strong></td>
+            <td>{{ j.currently_failed }} / {{ j.total_failed }}</td>
+            <td>{% if j.currently_banned %}<span class="badge warn">{{ j.currently_banned }}</span>{% else %}0{% endif %} / {{ j.total_banned }}</td>
+            <td class="hint">{% if j.banned_ips %}{{ j.banned_ips | join(', ') }}{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% elif srv and srv.state == 'active' %}
+    <p class="hint">Aktywny, brak włączonych jaili.</p>
+    {% elif srv is none %}
+    <p class="hint">Nie udało się pobrać statusu z VM2 (serwer niedostępny lub certyfikaty mTLS).</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Raporty — synchronizacja{% endblock %}
+{% block content %}
+  <h1>Raporty</h1>
+  {% include "reports/_tabs.html" %}
+
+  <h2 style="margin-top:0">Status synchronizacji</h2>
+
+  {% if summary %}
+  <div class="stat-grid" style="margin-bottom:1rem">
+    <div class="stat"><div class="label">Skrzynki</div><div class="value">{{ summary.count }}<span class="sub">aktywnych: {{ summary.active }}</span></div></div>
+    <div class="stat"><div class="label">Wiadomości u nas / źródło</div><div class="value" style="font-size:1.4rem">{{ summary.dest_msgs }}<span class="muted" style="font-size:1rem"> / {{ summary.src_msgs }}</span></div></div>
+    <div class="stat"><div class="label">Kompletność</div><div class="value" style="font-size:1.4rem">
+      {% if summary.missing == 0 %}<span class="badge ok">komplet</span>{% else %}<span class="badge err">{{ summary.missing }} brakujących</span>{% endif %}</div>
+      <div class="sub">drift: {{ summary.drift }}</div></div>
+    <div class="stat"><div class="label">Rozmiar u nas</div><div class="value" style="font-size:1.4rem">{{ summary.dest_size }}</div></div>
+    <div class="stat"><div class="label">Błędy (ostatni przebieg)</div><div class="value">{% if summary.errors == 0 %}<span class="badge ok">0</span>{% else %}<span class="badge err">{{ summary.errors }}</span>{% endif %}</div></div>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <a class="btn secondary" href="/admin/reports/mailboxes.csv">Eksport CSV</a>
+    <a class="btn secondary" href="/admin/reports/mailboxes.pdf">Eksport PDF</a>
+  </div>
+  <div class="card">
+    <div class="rep-scroll">
+      <table>
+        <thead><tr>{% for h in header %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <style>
+    .rep-scroll{max-height:60vh;overflow:auto}
+    .rep-scroll thead th{position:sticky;top:0;background:#e2e8f0;z-index:1}
+  </style>
+{% endblock %}

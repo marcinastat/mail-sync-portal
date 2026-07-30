@@ -1,0 +1,7 @@
+{# Pasek zakładek raportów. Aktywna = przycisk podstawowy, reszta = secondary.
+   Rodzic ustawia zmienną `tab` na 'sync' | 'scan' | 'fail2ban'. #}
+<div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap">
+  <a class="btn {{ '' if tab == 'sync' else 'secondary' }}" href="/admin/reports">Synchronizacja</a>
+  <a class="btn {{ '' if tab == 'scan' else 'secondary' }}" href="/admin/reports/scan">Wykrycia skanu poczty</a>
+  <a class="btn {{ '' if tab == 'fail2ban' else 'secondary' }}" href="/admin/reports/fail2ban">fail2ban</a>
+</div>

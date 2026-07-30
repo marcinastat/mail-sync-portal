@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Raporty — wykrycia skanu poczty{% endblock %}
+{% block content %}
+  <h1>Raporty</h1>
+  {% include "reports/_tabs.html" %}
+
+  <h2 style="margin-top:0">Wykrycia skanu poczty (antywirus / phishing)</h2>
+  <div class="card">
+    {% if findings is none %}
+      <p class="hint">Brak połączenia z VM2 — nie udało się pobrać wykryć.</p>
+    {% elif findings.total == 0 %}
+      <p><span class="badge ok">brak wykryć</span> Żadna skrzynka nie ma oznaczonych podejrzanych wiadomości.</p>
+    {% else %}
+      <p style="margin-top:0">
+        {% if (findings.threats or 0) > 0 %}<span class="badge err">zagrożenia: {{ findings.threats }}</span>
+        {% else %}<span class="badge ok">brak realnych zagrożeń</span>{% endif %}
+        {% if (findings.review or 0) > 0 %}<span class="badge warn">do przejrzenia: {{ findings.review }}</span>{% endif %}
+        {% if (findings.spam_reject or 0) > 0 %}<span class="badge">spam (odrzucony): {{ findings.spam_reject }}</span>{% endif %}
+        {% if (findings.spam_bulk or 0) > 0 %}<span class="hint">spam otagowany: {{ findings.spam_bulk }}</span>{% endif %}
+      </p>
+      <p class="hint" style="margin:.2rem 0 .6rem">
+        „Zagrożenia" = oficjalne sygnatury ClamAV (realne malware/phishing). „Do przejrzenia" = heurystyki ClamAV/SaneSecurity (możliwe false-positive).
+        Spam to werdykty rspamd na poczcie masowej (newslettery/marketing) — nie zagrożenia. Lista poniżej: najważniejsze najpierw.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Kiedy</th><th>Skrzynka</th><th>Wiadomość (temat / od / data)</th><th>Silnik</th><th>Wykrycie</th></tr></thead>
+          <tbody>
+            {% for f in findings.recent %}
+            <tr>
+              <td class="hint">{{ f.ts }}</td>
+              <td>{{ f.mailbox }}</td>
+              <td style="max-width:36ch">
+                <strong>{{ (f.subject or "(bez tematu)") | truncate(70) }}</strong>
+                <div class="hint" style="font-size:0.8rem">
+                  {% if f.get('from') %}od: {{ f['from'] | truncate(48) }}{% endif %}
+                  {% if f.date %} · {{ f.date }}{% endif %}
+                  {% if not f.subject and not f.get('from') %}<em>plik usunięty lub nagłówki niedostępne</em>{% endif %}
+                </div>
+              </td>
+              <td>{{ f.engine }}</td>
+              <td>
+                <span class="badge {{ 'err' if f.severity == 'malware' else ('warn' if f.severity == 'suspicious' else '') }}">
+                  {{ {'malware':'malware','suspicious':'do przejrzenia','spam':'spam','bulk':'spam'}.get(f.severity, f.severity) }}</span>
+                <span class="hint">{{ f.signature | truncate(40) }}</span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

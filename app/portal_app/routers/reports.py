@@ -105,13 +105,31 @@ def _fail2ban(db: Session) -> dict:
     return {"vm1": vm1, "vm2": vm2}
 
 
+# Raporty rozbite na 3 podstrony z zakładkami — każda ładuje TYLKO swoje dane
+# (strona synchronizacji nie woła już VM2 o wykrycia/fail2ban, więc jest szybsza).
 @router.get("")
 def show(request: Request, current_user: AdminUser = Depends(require_login), db: Session = Depends(get_db)):
     rows, summary = _report_data(db)
     return templates.TemplateResponse(
-        request, "reports/index.html",
-        {"active": "reports", "current_user": current_user, "header": HEADER, "rows": rows,
-         "summary": summary, "findings": _scan_findings(db), "fail2ban": _fail2ban(db)},
+        request, "reports/sync.html",
+        {"active": "reports", "tab": "sync", "current_user": current_user,
+         "header": HEADER, "rows": rows, "summary": summary},
+    )
+
+
+@router.get("/scan")
+def show_scan(request: Request, current_user: AdminUser = Depends(require_login), db: Session = Depends(get_db)):
+    return templates.TemplateResponse(
+        request, "reports/scan.html",
+        {"active": "reports", "tab": "scan", "current_user": current_user, "findings": _scan_findings(db)},
+    )
+
+
+@router.get("/fail2ban")
+def show_fail2ban(request: Request, current_user: AdminUser = Depends(require_login), db: Session = Depends(get_db)):
+    return templates.TemplateResponse(
+        request, "reports/fail2ban.html",
+        {"active": "reports", "tab": "fail2ban", "current_user": current_user, "fail2ban": _fail2ban(db)},
     )
 
 
