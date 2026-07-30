@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from ..deps import get_db, require_login, require_setup_complete
 from ..models import AdminUser, JobRun, Mailbox, SyncJob, Vm2Connection
-from ..services import vm2_client
+from ..services import fail2ban_service, vm2_client
 from ..services.report_export import rows_to_csv, rows_to_pdf
 
 router = APIRouter(prefix="/admin/reports", tags=["reports"], dependencies=[Depends(require_setup_complete)])
@@ -91,13 +91,27 @@ def _scan_findings(db: Session) -> dict | None:
         return None
 
 
+def _fail2ban(db: Session) -> dict:
+    """Status fail2ban obu serwerów: VM1 lokalnie (sudo-helper), VM2 przez vm2-api.
+    Read-only — unban/ban robi się z konsoli (docs/technical/runbooks/fail2ban.md)."""
+    vm1 = fail2ban_service.local_status()
+    vm2 = None
+    conn = db.query(Vm2Connection).first()
+    if conn is not None and conn.vm2_host:
+        try:
+            vm2 = vm2_client.fail2ban_status(conn)
+        except vm2_client.Vm2ApiError:
+            vm2 = None
+    return {"vm1": vm1, "vm2": vm2}
+
+
 @router.get("")
 def show(request: Request, current_user: AdminUser = Depends(require_login), db: Session = Depends(get_db)):
     rows, summary = _report_data(db)
     return templates.TemplateResponse(
         request, "reports/index.html",
         {"active": "reports", "current_user": current_user, "header": HEADER, "rows": rows,
-         "summary": summary, "findings": _scan_findings(db)},
+         "summary": summary, "findings": _scan_findings(db), "fail2ban": _fail2ban(db)},
     )
 
 

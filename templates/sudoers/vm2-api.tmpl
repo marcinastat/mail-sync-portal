@@ -14,6 +14,8 @@ vm2-api ALL=(root) NOPASSWD: /usr/bin/systemctl reboot
 # /var/log/dnf.log. Dawny bezpośredni `needs-restarting -r` usunięty (zwracał
 # mylące exit 1 => wieczny fałszywy "wymagany restart").
 vm2-api ALL=(root) NOPASSWD: /usr/local/sbin/vm2-dnf.sh reboot-check
+# Read-only status fail2ban do panelu (Raporty) — helper NIC nie modyfikuje.
+vm2-api ALL=(root) NOPASSWD: /usr/local/sbin/vm2-fail2ban-status.sh
 # Kopia configów przed aktualizacją (root-helper, systemd-run escape jak vm2-dnf.sh).
 vm2-api ALL=(root) NOPASSWD: /usr/local/sbin/vm2-config-backup.sh
 # Harmonogram skanów z panelu (przepisuje systemd timery) — helper WALIDUJE

@@ -82,6 +82,7 @@ chown root:root "$CREDS_DIR"/*.cred
 install -D -m 0700 -o root -g root "$APP_DIR/portal_app/bin/apply-branding.sh" "$APP_DIR/bin/apply-branding.sh"
 install -D -m 0700 -o root -g root "$APP_DIR/portal_app/bin/apply-tls.sh" "$APP_DIR/bin/apply-tls.sh"
 install -D -m 0700 -o root -g root "$APP_DIR/portal_app/bin/apply-network-access.sh" "$APP_DIR/bin/apply-network-access.sh"
+install -D -m 0700 -o root -g root "$APP_DIR/portal_app/bin/fail2ban-status.sh" "$APP_DIR/bin/fail2ban-status.sh"
 # Helper aktualizacji systemu (wołany fazami przez portal-worker) — root-owned
 # 0700, POZA katalogami zapisywalnymi dla konta usługi (brak eskalacji).
 install -D -m 0700 -o root -g root "$APP_DIR/portal_app/bin/apply-system-update.sh" "$APP_DIR/bin/apply-system-update.sh"

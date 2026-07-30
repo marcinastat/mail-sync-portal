@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from .routers import av, domains, health, mailboxes, system
+from .routers import av, domains, fail2ban, health, mailboxes, system
 
 app = FastAPI(
     title="VM2 Provisioning API",
@@ -14,3 +14,4 @@ app.include_router(domains.router)
 app.include_router(mailboxes.router)
 app.include_router(av.router)
 app.include_router(system.router)
+app.include_router(fail2ban.router)

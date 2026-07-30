@@ -77,6 +77,11 @@ def create_domain(conn: Vm2Connection, name: str) -> dict:
     return _request(conn, "POST", "/domains", json={"name": name})
 
 
+def fail2ban_status(conn: Vm2Connection) -> dict:
+    """Read-only status fail2ban na VM2 (do sekcji Raporty w panelu)."""
+    return _request(conn, "GET", "/fail2ban/status")
+
+
 def add_domain_alias(conn: Vm2Connection, *, domain: str, alias: str) -> dict:
     """Dopnij domenę logowania (alias) do domeny kanonicznej na VM2 — po tym
     login user@alias trafia do skrzynki user@domain (Dovecot)."""

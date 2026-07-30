@@ -4,6 +4,8 @@ portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-tls.sh manual
 portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-tls.sh certbot
 portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-tls.sh selfsigned
 portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-network-access.sh
+# Read-only status fail2ban do panelu (Raporty) — helper NIC nie modyfikuje.
+portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/fail2ban-status.sh
 # Wystawienie certyfikatu Let's Encrypt przez acme-dns (DNS-01) + przełączenie
 # nginx. Helper sam odpala certbota przez systemd-run (poza sandboxem usługi).
 portal-app ALL=(root) NOPASSWD: /usr/local/sbin/certbot-acmedns.sh
