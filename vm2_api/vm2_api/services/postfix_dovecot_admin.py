@@ -36,6 +36,61 @@ def get_domain(conn: psycopg.Connection, name: str) -> dict | None:
         return cur.fetchone()
 
 
+class DomainNotFound(Exception):
+    pass
+
+
+class AliasConflict(Exception):
+    pass
+
+
+def list_domain_aliases(conn: psycopg.Connection, domain_name: str) -> list[dict]:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT a.id, a.alias_name FROM virtual_domain_aliases a "
+            "JOIN virtual_domains d ON d.id = a.domain_id "
+            "WHERE d.name = %s ORDER BY a.alias_name",
+            (domain_name,),
+        )
+        return cur.fetchall()
+
+
+def add_domain_alias(conn: psycopg.Connection, domain_name: str, alias_name: str) -> dict:
+    """Dopnij domenę logowania (alias) do domeny kanonicznej. Alias jest globalnie
+    unikalny — jeśli już wskazuje TĘ domenę, zwracamy go (idempotencja); jeśli inną
+    — AliasConflict."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT id FROM virtual_domains WHERE name = %s", (domain_name,))
+        dom = cur.fetchone()
+        if not dom:
+            raise DomainNotFound(domain_name)
+        cur.execute(
+            "SELECT id, domain_id, alias_name FROM virtual_domain_aliases WHERE alias_name = %s",
+            (alias_name,),
+        )
+        existing = cur.fetchone()
+        if existing:
+            if existing["domain_id"] != dom["id"]:
+                raise AliasConflict(alias_name)
+            return {"id": existing["id"], "alias_name": existing["alias_name"]}
+        cur.execute(
+            "INSERT INTO virtual_domain_aliases (domain_id, alias_name) VALUES (%s, %s) "
+            "RETURNING id, alias_name",
+            (dom["id"], alias_name),
+        )
+        return cur.fetchone()
+
+
+def remove_domain_alias(conn: psycopg.Connection, domain_name: str, alias_name: str) -> int:
+    with conn.cursor() as cur:
+        cur.execute(
+            "DELETE FROM virtual_domain_aliases a USING virtual_domains d "
+            "WHERE a.domain_id = d.id AND d.name = %s AND a.alias_name = %s",
+            (domain_name, alias_name),
+        )
+        return cur.rowcount
+
+
 def create_mailbox(
     conn: psycopg.Connection,
     *,

@@ -14,6 +14,16 @@ class DomainOut(BaseModel):
     created_at: datetime
 
 
+class DomainAliasCreate(BaseModel):
+    # Dodatkowa domena logowania wskazująca na tę domenę (np. 'example.net').
+    alias: str = Field(min_length=1, max_length=255)
+
+
+class DomainAliasOut(BaseModel):
+    id: int
+    alias_name: str
+
+
 class MailboxCreate(BaseModel):
     domain: str
     local_part: str = Field(min_length=1, max_length=64)

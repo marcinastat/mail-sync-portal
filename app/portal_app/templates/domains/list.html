@@ -5,6 +5,9 @@
   <h1>Domeny <span class="hint" style="font-size:0.9rem">({{ domains|length }})</span></h1>
   <p class="hint">Domeny źródłowe powstają automatycznie przy imporcie. Tu ustawisz serwer IMAP źródła, domenę docelową na VM2 oraz domyślną quotę dla skrzynek domeny.</p>
 
+  {% if msg %}<div class="card" style="border-left:4px solid var(--ok,#16a34a)"><p style="margin:0">✅ {{ msg }}</p></div>{% endif %}
+  {% if err %}<div class="card" style="border-left:4px solid var(--err,#dc2626)"><p style="margin:0">⚠️ {{ err }}</p></div>{% endif %}
+
   {% for d in domains %}
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
@@ -63,6 +66,35 @@
         <button class="btn" type="submit">Zapisz</button>
       </div>
     </form>
+
+    {# --- Aliasy logowania: dodatkowe domeny, którymi można zalogować się do
+         skrzynek tej domeny (np. skrzynki @{{ d.destination_domain }}, ale login
+         historyczny user@inna-domena). Mapują na tę samą skrzynkę i hasło. --- #}
+    <div style="margin-top:1rem;border-top:1px solid var(--border,#e2e8f0);padding-top:0.75rem">
+      <label style="font-weight:600">Aliasy logowania <span class="hint" style="font-weight:400">— dodatkowe domeny, którymi zalogujesz się do skrzynek <code>@{{ d.destination_domain }}</code></span></label>
+      {% set al = aliases.get(d.id, []) %}
+      {% if al %}
+      <ul style="list-style:none;padding:0;margin:0.4rem 0;display:flex;flex-wrap:wrap;gap:0.4rem">
+        {% for a in al %}
+        <li>
+          <span class="badge">{{ a.alias_name }}</span>
+          <form method="post" action="/admin/domains/{{ d.id }}/aliases/{{ a.id }}/delete" style="display:inline"
+                onsubmit="return confirm('Usunąć alias logowania {{ a.alias_name }}? Login user@{{ a.alias_name }} przestanie działać.');">
+            <button class="btn secondary" type="submit" style="padding:0.05rem 0.4rem;font-size:0.75rem">usuń</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="hint" style="margin:0.4rem 0">Brak aliasów — logowanie tylko przez <code>@{{ d.destination_domain }}</code>.</p>
+      {% endif %}
+      <form method="post" action="/admin/domains/{{ d.id }}/aliases" style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin-top:0.3rem">
+        <input type="text" name="alias" placeholder="np. example.net" required
+               pattern="[a-zA-Z0-9.-]+" style="max-width:260px" title="Poprawna nazwa domeny">
+        <button class="btn secondary" type="submit">Dodaj alias</button>
+        <span class="hint">Wypycha się na VM2 (Dovecot) od razu.</span>
+      </form>
+    </div>
   </div>
   {% else %}
   <div class="card"><p class="hint">Brak domen. Zaimportuj skrzynki lub dodaj ręcznie.</p></div>

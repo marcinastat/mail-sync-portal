@@ -77,6 +77,16 @@ def create_domain(conn: Vm2Connection, name: str) -> dict:
     return _request(conn, "POST", "/domains", json={"name": name})
 
 
+def add_domain_alias(conn: Vm2Connection, *, domain: str, alias: str) -> dict:
+    """Dopnij domenę logowania (alias) do domeny kanonicznej na VM2 — po tym
+    login user@alias trafia do skrzynki user@domain (Dovecot)."""
+    return _request(conn, "POST", f"/domains/{domain}/aliases", json={"alias": alias})
+
+
+def delete_domain_alias(conn: Vm2Connection, *, domain: str, alias: str) -> dict:
+    return _request(conn, "DELETE", f"/domains/{domain}/aliases/{alias}")
+
+
 def create_mailbox(conn: Vm2Connection, *, domain: str, local_part: str, password: str, quota_mb: int = 0) -> dict:
     return _request(
         conn, "POST", "/mailboxes",

@@ -1,7 +1,7 @@
 from .admin import AdminUser, TotpCredential
 from .audit import AuditLog
 from .base import Base
-from .domain import Domain
+from .domain import Domain, DomainLoginAlias
 from .imports import ImportBatch, ImportRow
 from .mailbox import Credential, Mailbox
 from .settings import (
@@ -28,6 +28,7 @@ __all__ = [
     "AuditLog",
     "Base",
     "Domain",
+    "DomainLoginAlias",
     "ImportBatch",
     "ImportRow",
     "Credential",

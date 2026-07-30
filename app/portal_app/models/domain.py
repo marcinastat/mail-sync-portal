@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Integer, String
+from sqlalchemy import Boolean, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base, TimestampMixin
@@ -26,3 +26,19 @@ class Domain(Base, TimestampMixin):
     total_quota_mb: Mapped[int] = mapped_column(Integer, default=0)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class DomainLoginAlias(Base, TimestampMixin):
+    """Dodatkowa nazwa domeny, pod którą można zalogować się do skrzynek domeny
+    kanonicznej (domain_id). Np. skrzynki pod example.com, ale historyczne loginy
+    user@example.net — oba mają wskazywać tę samą pocztę. Portal trzyma to jako
+    źródło prawdy i wypycha na VM2 (virtual_domain_aliases) przy dodaniu/usunięciu;
+    faktyczne dopasowanie loginu robią zapytania Dovecota (patrz templates/dovecot/
+    dovecot-sql.conf.ext.tmpl). Alias jest GLOBALNIE unikalny (jedna domena logowania
+    nie może wskazywać dwóch skrzynkowych)."""
+
+    __tablename__ = "domain_login_aliases"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    domain_id: Mapped[int] = mapped_column(ForeignKey("domains.id", ondelete="CASCADE"), index=True)
+    alias_name: Mapped[str] = mapped_column(String(255), unique=True)
