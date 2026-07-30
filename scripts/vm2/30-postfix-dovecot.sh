@@ -99,6 +99,26 @@ render_template "$REPO_ROOT/templates/dovecot/20-master-user.conf.tmpl" /etc/dov
 if command -v setsebool >/dev/null 2>&1; then
     setsebool -P postfix_can_network_connect_db on || true
 fi
+
+# SELinux: Dovecot (passdb/userdb SQL) łączy się z PostgreSQL po TCP 127.0.0.1:5432.
+# Domyślna polityka RHEL blokuje name_connect z dovecot_auth_t do postgresql_port_t,
+# a NIE ma na to booleana — bez tego modułu Dovecot zwraca "Temporary authentication
+# failure" (AVC: denied { name_connect } dovecot_auth_t -> postgresql_port_t) i
+# logowanie na skrzynkę (imapsync host2, Roundcube) jest niemożliwe. checkpolicy
+# dostarcza checkmodule; semodule_package/semodule są w policycoreutils (baza).
+pkg_install_idempotent checkpolicy
+if command -v checkmodule >/dev/null 2>&1 && command -v semodule_package >/dev/null 2>&1; then
+    SELINUX_BUILD_DIR="$(mktemp -d)"
+    checkmodule -M -m -o "$SELINUX_BUILD_DIR/portal_mail_pgsql.mod" \
+        "$REPO_ROOT/templates/selinux/portal_mail_pgsql.te"
+    semodule_package -o "$SELINUX_BUILD_DIR/portal_mail_pgsql.pp" \
+        -m "$SELINUX_BUILD_DIR/portal_mail_pgsql.mod"
+    semodule -i "$SELINUX_BUILD_DIR/portal_mail_pgsql.pp"
+    rm -rf "$SELINUX_BUILD_DIR"
+    log_info "Zainstalowano moduł SELinux portal_mail_pgsql (dovecot_auth_t -> postgresql_port_t name_connect)."
+else
+    log_warn "Brak checkmodule/semodule_package (pakiet checkpolicy) — Dovecot NIE połączy się z PostgreSQL pod SELinux enforcing (logowanie skrzynek padnie)."
+fi
 if command -v semanage >/dev/null 2>&1; then
     semanage fcontext -a -t mail_spool_t "/var/mail/vhosts(/.*)?" 2>/dev/null || true
     restorecon -R /var/mail/vhosts || true
