@@ -26,6 +26,22 @@ CREATE TABLE IF NOT EXISTS virtual_mailboxes (
 
 CREATE INDEX IF NOT EXISTS idx_virtual_mailboxes_domain ON virtual_mailboxes(domain_id);
 
+-- Aliasy domen logowania: dodatkowa nazwa domeny, pod którą można zalogować się
+-- do skrzynek domeny kanonicznej (domain_id). Przypadek: skrzynki pod example.com,
+-- ale historyczne loginy user@example.net — oba mają wskazywać tę samą pocztę.
+-- Wykorzystywane przez password_query/user_query Dovecota (templates/dovecot/
+-- dovecot-sql.conf.ext.tmpl): login przez alias jest normalizowany do domeny
+-- kanonicznej, a home liczy się z d.name (kanonicznej), więc trafia w ten sam
+-- maildir. To alias LOGOWANIA (IMAP) — odbiór SMTP na alias tu nie wchodzi.
+CREATE TABLE IF NOT EXISTS virtual_domain_aliases (
+    id          serial PRIMARY KEY,
+    domain_id   integer NOT NULL REFERENCES virtual_domains(id) ON DELETE CASCADE,
+    alias_name  text NOT NULL UNIQUE,       -- np. 'example.net'
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_virtual_domain_aliases_name ON virtual_domain_aliases(alias_name);
+
 -- Append-only audit log — REVOKE UPDATE/DELETE stosowane niżej dla roli aplikacyjnej.
 CREATE TABLE IF NOT EXISTS audit_log (
     id            bigserial PRIMARY KEY,

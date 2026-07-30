@@ -2,19 +2,30 @@ driver = pgsql
 connect = host=127.0.0.1 dbname=mail_db user=mail_app password=${MAIL_DB_PASSWORD}
 default_pass_scheme = SHA512-CRYPT
 
-# WAŻNE: zwracamy '%u' (pełny login e-mail) jako "user", NIE m.local_part.
-# Gdyby zwrócić samo local_part ("marcin"), Dovecot po udanym passdb używałby
-# już tej skróconej nazwy do kolejnego zapytania userdb — z pustą domeną (%d),
-# przez co user_query nic nie zwraca i logowanie pada na "user not found from
-# userdb" MIMO poprawnego hasła. '%u' zachowuje pełny login (marcin@domena),
-# więc %n/%d w user_query pozostają prawidłowe.
+# ALIASY DOMEN LOGOWANIA (virtual_domain_aliases): pozwalają zalogować się do tej
+# samej skrzynki pod DODATKOWĄ nazwą domeny. Realny przypadek: skrzynki są pod
+# domeną kanoniczną (np. user@example.com), ale historyczne loginy to user@example.net
+# — oba mają działać i wskazywać TĘ SAMĄ pocztę. Dlatego:
+#  - WHERE dopuszcza `d.name = '%d'` LUB alias (`EXISTS ... alias_name = '%d'`);
+#    EXISTS (nie JOIN) — żeby wiele aliasów nie mnożyło wierszy wyniku.
+#  - password_query zwraca user KANONICZNY `local_part@d.name` (nie '%u'): login
+#    aliasem jest normalizowany do tożsamości kanonicznej, więc quota/sesja są
+#    spójne niezależnie od użytej domeny logowania.
+#  - user_query liczy home z domeny KANONICZNEJ `d.name` (NIE z '%d'), więc login
+#    przez alias trafia do maildira kanonicznego (/var/mail/vhosts/<kanoniczna>/…),
+#    a nie do pustego katalogu z nazwą aliasu.
+# Bez wpisów w virtual_domain_aliases zachowanie jest identyczne jak wcześniej
+# (tylko d.name = '%d'). Uwaga: to alias LOGOWANIA (Dovecot). Odbiór poczty SMTP
+# na alias wymagałby też map Postfiksa — niepotrzebne przy archiwum (imapsync APPEND).
 password_query = \
-  SELECT '%u' AS user, m.password_hash AS password \
+  SELECT concat(m.local_part, '@', d.name) AS user, m.password_hash AS password \
   FROM virtual_mailboxes m JOIN virtual_domains d ON m.domain_id = d.id \
-  WHERE d.name = '%d' AND m.local_part = '%n' AND m.is_active = true
+  WHERE m.local_part = '%n' AND m.is_active = true \
+    AND (d.name = '%d' OR EXISTS (SELECT 1 FROM virtual_domain_aliases a WHERE a.domain_id = d.id AND a.alias_name = '%d'))
 
 user_query = \
-  SELECT '/var/mail/vhosts/%d/%n' AS home, 5000 AS uid, 5000 AS gid, \
+  SELECT '/var/mail/vhosts/' || d.name || '/' || m.local_part AS home, 5000 AS uid, 5000 AS gid, \
          concat('*:bytes=', CASE WHEN m.quota_bytes > 0 THEN m.quota_bytes ELSE 1099511627776 END) AS quota_rule \
   FROM virtual_mailboxes m JOIN virtual_domains d ON m.domain_id = d.id \
-  WHERE d.name = '%d' AND m.local_part = '%n' AND m.is_active = true
+  WHERE m.local_part = '%n' AND m.is_active = true \
+    AND (d.name = '%d' OR EXISTS (SELECT 1 FROM virtual_domain_aliases a WHERE a.domain_id = d.id AND a.alias_name = '%d'))

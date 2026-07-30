@@ -4,6 +4,9 @@
 
 GRANT SELECT, INSERT, UPDATE ON virtual_domains TO :app_role;
 GRANT SELECT, INSERT, UPDATE ON virtual_mailboxes TO :app_role;
+-- Dovecot (jako mail_app) czyta aliasy przy każdym logowaniu; zarządzanie
+-- (dodawanie/usuwanie aliasów) też idzie tą rolą.
+GRANT SELECT, INSERT, UPDATE, DELETE ON virtual_domain_aliases TO :app_role;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO :app_role;
 
 GRANT SELECT, INSERT ON audit_log TO :app_role;
