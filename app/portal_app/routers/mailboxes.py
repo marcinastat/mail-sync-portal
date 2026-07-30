@@ -2,6 +2,7 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import PlainTextResponse, RedirectResponse
@@ -91,6 +92,8 @@ def create_mailbox_manual(
 def mailbox_detail(
     mailbox_id: int,
     request: Request,
+    msg: str = "",
+    err: str = "",
     current_user: AdminUser = Depends(require_login),
     db: Session = Depends(get_db),
 ):
@@ -129,6 +132,8 @@ def mailbox_detail(
             "last_success": last_success,
             "quota": quota,
             "webmail_sso_enabled": webmail_sso.is_enabled(db),
+            "msg": msg,
+            "error": err,
         },
     )
 
@@ -376,13 +381,16 @@ def update_source_password(
     mailbox_id: int,
     request: Request,
     new_source_password: str = Form(...),
+    also_destination: bool = Form(False),
     current_user: AdminUser = Depends(require_login),
     db: Session = Depends(get_db),
 ):
     # Aktualizuje hasło używane do logowania na serwer ŹRÓDŁOWY (imapsync host1).
     # Do użycia, gdy hasło zmieniło się po stronie źródła — inaczej kolejne
-    # synchronizacje padają na autoryzacji host1. NIE dotyka hasła docelowego
-    # na VM2 (to osobna operacja "reset hasła"). Hasło nigdy nie trafia do audytu.
+    # synchronizacje padają na autoryzacji host1. Gdy `also_destination` (domyślnie
+    # zaznaczone w UI) — ustawia TO SAMO hasło także na skrzynce docelowej na VM2
+    # (tryb lustrzany), żeby jednym ruchem zsynchronizować obie strony. Hasło
+    # nigdy nie trafia do audytu.
     mailbox = db.get(Mailbox, mailbox_id)
     if mailbox is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
@@ -397,10 +405,45 @@ def update_source_password(
         action="mailbox.source_password_update",
         target_type="mailbox",
         target_id=str(mailbox.id),
-        details={},  # hasło nigdy nie trafia do audit logu
+        details={"also_destination": also_destination},  # hasło NIGDY do audytu
         source_ip=client_ip(request),
     )
-    return RedirectResponse(f"/admin/mailboxes/{mailbox_id}", status_code=303)
+
+    dest_done = False
+    dest_note = ""
+    if also_destination:
+        if not mailbox.vm2_mailbox_id:
+            dest_note = " Hasło docelowe pominięte — skrzynka nie jest jeszcze zaprowizonowana na VM2."
+        else:
+            conn = db.query(Vm2Connection).first()
+            if conn is None or not conn.vm2_host:
+                dest_note = " Hasło docelowe pominięte — brak połączenia z VM2."
+            else:
+                try:
+                    vm2_client.reset_mailbox_password(conn, mailbox.vm2_mailbox_id, new_source_password)
+                except vm2_client.Vm2ApiError as exc:
+                    # Hasło źródłowe JUŻ zmienione (zacommitowane) — zgłoś tylko błąd docelowego.
+                    return RedirectResponse(
+                        f"/admin/mailboxes/{mailbox_id}?err="
+                        + quote(f"Zmieniono hasło źródłowe, ale VM2 odrzuciło zmianę hasła docelowego: {exc}"),
+                        status_code=303,
+                    )
+                mailbox.destination_password_encrypted = encrypt_password(new_source_password)
+                mailbox.password_override = False  # dest == source => tryb lustrzany
+                db.add(mailbox)
+                record(
+                    db,
+                    actor_admin_user_id=current_user.id,
+                    action="mailbox.reset_password",
+                    target_type="mailbox",
+                    target_id=str(mailbox.id),
+                    details={"source": "source_password_form_mirror"},  # hasło NIGDY do audytu
+                    source_ip=client_ip(request),
+                )
+                dest_done = True
+
+    msg = "Zmieniono hasło źródłowe" + (" i docelowe (VM2)." if dest_done else ".") + dest_note
+    return RedirectResponse(f"/admin/mailboxes/{mailbox_id}?msg=" + quote(msg), status_code=303)
 
 
 @router.post("/{mailbox_id}/reset-password")

@@ -4,7 +4,8 @@
 {% block content %}
   <p style="margin-top:0"><a href="/admin/mailboxes" class="hint">← Skrzynki</a></p>
   <h1 style="margin-bottom:0.4rem">{{ mailbox.destination_address }}</h1>
-  {% if error %}<div class="card" style="border-color:#dc2626;color:#991b1b">{{ error }}</div>{% endif %}
+  {% if error %}<div class="card" style="border-color:#dc2626;color:#991b1b">⚠️ {{ error }}</div>{% endif %}
+  {% if msg %}<div class="card" style="border-color:#16a34a;color:#166534">✅ {{ msg }}</div>{% endif %}
 
   <div class="stat-grid">
     <div class="stat">
@@ -124,10 +125,14 @@
       </form>
 
       <h2 style="margin-top:1.5rem">Hasło do serwera źródłowego</h2>
-      <p class="hint">Zmień, gdy hasło zmieniło się po stronie źródła — inaczej kolejne synchronizacje padną na logowaniu. Dotyczy tylko logowania na serwer źródłowy (imapsync), nie skrzynki na VM2.</p>
+      <p class="hint">Zmień, gdy hasło zmieniło się po stronie źródła — inaczej kolejne synchronizacje padną na logowaniu. Dotyczy logowania na serwer źródłowy (imapsync); domyślnie ustawia też lustrzane hasło na skrzynce docelowej (VM2).</p>
       <form method="post" action="/admin/mailboxes/{{ mailbox.id }}/source-password">
         <label for="new_source_password">Nowe hasło źródłowe</label>
         <input type="password" id="new_source_password" name="new_source_password" required>
+        <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.75rem;font-weight:500">
+          <input type="checkbox" name="also_destination" value="1" checked>
+          Zmień też hasło skrzynki docelowej na VM2 <span class="hint" style="font-weight:400">(lustrzane — logowanie w Roundcube; odznacz, by zmienić tylko źródło)</span>
+        </label>
         <p style="margin-top:1rem"><button class="btn" type="submit">Zmień hasło źródłowe</button></p>
       </form>
 
