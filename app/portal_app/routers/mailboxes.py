@@ -166,18 +166,8 @@ def runs_json(
     return {"runs": [_run_row(r) for r in runs]}
 
 
-@router.get("/{mailbox_id}/runs/{run_id}/live")
-def run_live(
-    mailbox_id: int,
-    run_id: int,
-    current_user: AdminUser = Depends(require_login),
-    db: Session = Depends(get_db),
-):
-    """Podgląd NA ŻYWO trwającego (lub właśnie zakończonego) przebiegu: status +
-    bieżąca zawartość pliku logu, do której imapsync dopisuje w trakcie."""
-    run = db.get(JobRun, run_id)
-    if run is None or run.mailbox_id != mailbox_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND)
+def _run_live_dict(run: JobRun) -> dict:
+    """Status + bieżąca zawartość pliku logu przebiegu (imapsync dopisuje w trakcie)."""
     log = ""
     if run.imapsync_log_path:
         p = Path(run.imapsync_log_path)
@@ -191,6 +181,52 @@ def run_live(
         "finished_at": run.finished_at.isoformat() if run.finished_at else None,
         "error_summary": run.error_summary,
     }
+
+
+@router.get("/{mailbox_id}/runs/{run_id}/live")
+def run_live(
+    mailbox_id: int,
+    run_id: int,
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    """Podgląd NA ŻYWO konkretnego przebiegu (po run_id)."""
+    run = db.get(JobRun, run_id)
+    if run is None or run.mailbox_id != mailbox_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    return _run_live_dict(run)
+
+
+@router.get("/{mailbox_id}/live-latest")
+def run_live_latest(
+    mailbox_id: int,
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    """Podgląd NA ŻYWO po kliknięciu „Synchronizuj teraz": zwraca NAJNOWSZY przebieg
+    tej skrzynki. Gdy zadanie jest dopiero w kolejce (worker jeszcze go nie podjął),
+    zwraca status 'queued' — modal pokazuje „w kolejce" i odpytuje dalej, aż ruszy."""
+    mailbox = db.get(Mailbox, mailbox_id)
+    if mailbox is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    run = db.query(JobRun).filter(JobRun.mailbox_id == mailbox_id).order_by(JobRun.id.desc()).first()
+    if run is not None and run.status == "running":
+        return _run_live_dict(run)
+    pending = (
+        db.query(JobQueue)
+        .filter(
+            JobQueue.job_type == "sync",
+            JobQueue.status.in_(["queued", "running", "retrying"]),
+            JobQueue.payload["mailbox_id"].astext == str(mailbox_id),
+        )
+        .first()
+    )
+    if pending is not None:
+        return {"id": run.id if run else None, "status": "queued", "log": "",
+                "started_at": None, "finished_at": None, "error_summary": None}
+    if run is not None:
+        return _run_live_dict(run)
+    return {"id": None, "status": "none", "log": "", "started_at": None, "finished_at": None, "error_summary": None}
 
 
 SSO_TOKEN_TTL_SECONDS = 60
@@ -299,7 +335,8 @@ def sync_now(
             target_id=str(mailbox_id),
             source_ip=client_ip(request),
         )
-    return RedirectResponse(f"/admin/mailboxes/{mailbox_id}", status_code=303)
+    # ?live=1 -> strona skrzynki od razu otworzy podgląd na żywo najnowszego przebiegu.
+    return RedirectResponse(f"/admin/mailboxes/{mailbox_id}?live=1", status_code=303)
 
 
 @router.get("/{mailbox_id}/runs/{run_id}/log", response_class=PlainTextResponse)

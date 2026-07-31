@@ -299,7 +299,52 @@
         `<td>${r.source_messages_total || "—"}</td><td>${r.drift}</td><td>${log}</td></tr>`;
     }
 
-    // Jeśli synchronizacja właśnie trwa — od razu pokaż podgląd na żywo.
-    {% if running_now and running_run_id %}openLive({{ running_run_id }});{% endif %}
+    // --- Podgląd na żywo NAJNOWSZEGO przebiegu (po kliknięciu „Synchronizuj teraz") ---
+    function openLiveLatest() {
+      document.getElementById("live-log").textContent = "Uruchamiam synchronizację…";
+      document.getElementById("live-status").textContent = "";
+      document.querySelector("#live-title .spin").style.display = "";
+      document.getElementById("live-overlay").classList.add("open");
+      pollLiveLatest();
+    }
+    async function pollLiveLatest() {
+      let d;
+      try {
+        const r = await fetch(`/admin/mailboxes/${MB_ID}/live-latest`);
+        d = await r.json();
+      } catch (e) { liveTimer = setTimeout(pollLiveLatest, 3000); return; }
+      const pre = document.getElementById("live-log");
+      if (d.status === "queued") {
+        pre.textContent = "W kolejce — czekam na start synchronizacji…";
+        document.getElementById("live-status").innerHTML = '<span class="badge warn">w kolejce</span>';
+        liveTimer = setTimeout(pollLiveLatest, 1500);
+        return;
+      }
+      if (d.status === "none") {
+        pre.textContent = "Brak przebiegu do pokazania.";
+        document.querySelector("#live-title .spin").style.display = "none";
+        return;
+      }
+      const atBottom = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 40;
+      pre.textContent = d.log || "(log jeszcze pusty — imapsync się rozpędza…)";
+      if (atBottom) pre.scrollTop = pre.scrollHeight;
+      document.getElementById("live-status").innerHTML =
+        `${badge(d.status)} start: ${fmt(d.started_at)}` +
+        (d.status !== "running" ? ` · koniec: ${fmt(d.finished_at)}` : "") +
+        (d.error_summary ? ` · <span style="color:#dc2626">${d.error_summary}</span>` : "");
+      if (d.status === "running") {
+        liveTimer = setTimeout(pollLiveLatest, 2000);
+      } else {
+        document.querySelector("#live-title .spin").style.display = "none";
+      }
+    }
+
+    // Po „Synchronizuj teraz" (redirect ?live=1) — otwórz podgląd na żywo OD RAZU.
+    // Samo wejście na skrzynkę NIE otwiera liva automatycznie (nawet gdy coś trwa) —
+    // jest do tego przycisk „👁 Podgląd na żywo".
+    if (new URLSearchParams(location.search).get("live") === "1") {
+      history.replaceState(null, "", location.pathname);  // odświeżenie nie otworzy ponownie
+      openLiveLatest();
+    }
   </script>
 {% endblock %}
