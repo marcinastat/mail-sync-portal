@@ -65,7 +65,11 @@ def get_status() -> dict:
     return {
         "alive": _alive(),
         "version": _version(),
-        "messages_scanned": _scanned(),
+        # `rspamc stat` bywa WOLNE (~4s — komunikacja z kontrolerem rspamd), a licznik
+        # „od startu usługi" i tak zerował się przy restarcie i był mylący. Rezygnujemy
+        # z niego na rzecz trwałych liczników z pliku statystyk skanu (scan_activity:
+        # last_scan_count / total_scanned), które są szybkie i przetrwają restart.
+        "messages_scanned": None,
         "maps_updated": updated,
         "maps_age_hours": age_hours,
         # Aktywność skanu maildirów rspamd (ostatni/następny przebieg + liczniki).
