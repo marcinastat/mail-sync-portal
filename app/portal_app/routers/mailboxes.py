@@ -578,7 +578,20 @@ def delete_mailbox(
         conn = db.query(Vm2Connection).first()
         if conn is None:
             raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Brak konfiguracji połączenia z VM2.")
-        vm2_client.delete_mailbox(conn, mailbox.vm2_mailbox_id)
+        try:
+            vm2_client.delete_mailbox(conn, mailbox.vm2_mailbox_id)
+        except vm2_client.Vm2ApiError as exc:
+            # Błąd po stronie VM2 — NIE kasujemy lokalnie (stan po obu stronach ma
+            # się nie rozjechać). Zamiast 500 pokazujemy czytelny komunikat.
+            sync_job = db.query(SyncJob).filter(SyncJob.mailbox_id == mailbox_id).first()
+            return templates.TemplateResponse(
+                request, "mailboxes/detail.html",
+                {"active": "mailboxes", "current_user": current_user, "mailbox": mailbox,
+                 "sync_job": sync_job,
+                 "error": f"Nie udało się usunąć skrzynki na serwerze poczty (VM2): {exc}. "
+                          f"Skrzynka NIE została usunięta — spróbuj ponownie."},
+                status_code=502,
+            )
 
     deleted_address = mailbox.destination_address
     credential_id = mailbox.credential_id

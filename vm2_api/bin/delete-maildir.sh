@@ -32,10 +32,16 @@ if [[ ! -e "$target" ]]; then
     echo "delete-maildir: brak katalogu $target (pomijam)"
     exit 0
 fi
+# Porównujemy ROZWINIĘTĄ ścieżkę celu z ROZWINIĘTYM korzeniem — bo /var/mail/vhosts
+# na produkcji bywa dowiązaniem/montowaniem na osobnym dysku pocztowym; porównanie
+# z literalnym MAIL_ROOT dawało fałszywe „poza korzeniem" (exit 3) i blokowało
+# kasowanie. Zabezpieczenie przed path-traversal zostaje: jeśli maildir wskazuje
+# poza rozwinięty korzeń, nadal odmawiamy.
+root_resolved="$(readlink -f "$MAIL_ROOT")"
 resolved="$(readlink -f "$target")"
 case "$resolved" in
-    "$MAIL_ROOT"/*) : ;;
-    *) echo "delete-maildir: ścieżka poza $MAIL_ROOT — odmawiam" >&2; exit 3 ;;
+    "$root_resolved"/*) : ;;
+    *) echo "delete-maildir: ścieżka poza $MAIL_ROOT ($root_resolved) — odmawiam" >&2; exit 3 ;;
 esac
 
 rm -rf -- "$resolved"
