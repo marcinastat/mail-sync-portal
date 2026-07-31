@@ -38,6 +38,10 @@ def defs_version() -> dict:
     """Wersja silnika i sygnatur ClamAV z `clamdscan --version`.
     Format: 'ClamAV <engine>/<sig_version>/<data_bazy>'."""
     result = _run(["/usr/bin/sudo", "-n", "/usr/bin/clamdscan", "--version", "-c", CLAMD_CONF], timeout=10)
+    # returncode==0 oznacza, że clamdscan dogadał się z demonem clamd -> żywy.
+    # Wykorzystujemy TO wywołanie także jako test „alive" (zamiast osobnego --ping),
+    # bo drugie odpytanie zajętego clamd niepotrzebnie podwaja czas /av/status.
+    alive = result.returncode == 0
     engine = sig = None
     line = (result.stdout or "").strip().splitlines()[0] if result.stdout.strip() else ""
     parts = line.split("/")
@@ -45,7 +49,7 @@ def defs_version() -> dict:
         engine = parts[0].replace("ClamAV", "").strip() or None
     if len(parts) >= 2 and parts[1].strip().isdigit():
         sig = int(parts[1].strip())
-    return {"engine_version": engine, "defs_version": sig}
+    return {"engine_version": engine, "defs_version": sig, "alive": alive}
 
 
 def get_status() -> dict:
@@ -59,7 +63,7 @@ def get_status() -> dict:
         # ostatnia aktualizacja jest młodsza niż 48h, uznajemy bazy za aktualne.
         current = age_hours < 48
     return {
-        "clamd_alive": clamd_alive(),
+        "clamd_alive": ver["alive"],  # z tego samego `clamdscan --version` (bez osobnego --ping)
         "last_defs_update": updated,
         "engine_version": ver["engine_version"],
         "defs_version": ver["defs_version"],

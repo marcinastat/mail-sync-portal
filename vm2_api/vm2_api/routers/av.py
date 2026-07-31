@@ -1,3 +1,5 @@
+import time
+
 import psycopg
 from fastapi import APIRouter, Depends, Request
 
@@ -9,11 +11,25 @@ from ..services import clamav_control, rspamd_control, scan_findings
 
 router = APIRouter(prefix="/av", tags=["av"])
 
+# Cache statusu AV: get_status odpala serię podprocesów do clamd/rspamd
+# (clamdscan --version, rspamc stat, systemctl...), co potrafi trwać kilka sekund,
+# gdy demon akurat obsługuje skan. Kafelek na pulpicie doładowuje się przy KAŻDYM
+# wejściu — bez cache serwer był niepotrzebnie odpytywany za każdym razem. Status
+# jest informacyjny (nie musi być co do sekundy świeży), więc trzymamy go krótko.
+_STATUS_TTL = 60.0
+_status_cache: dict = {"at": 0.0, "data": None}
+
 
 @router.get("/status")
 def av_status(actor: str = Depends(require_vm1_ip)):
+    now = time.monotonic()
+    cached = _status_cache["data"]
+    if cached is not None and (now - _status_cache["at"]) < _STATUS_TTL:
+        return cached
     status = clamav_control.get_status()
     status["rspamd"] = rspamd_control.get_status()  # status antispamu do panelu
+    _status_cache["at"] = now
+    _status_cache["data"] = status
     return status
 
 
