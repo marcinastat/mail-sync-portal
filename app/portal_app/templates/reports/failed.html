@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Raporty — nieudane synchronizacje{% endblock %}
+{% block content %}
+  <h1>Raporty</h1>
+  {% include "reports/_tabs.html" %}
+
+  <h2 style="margin-top:0">Nieudane synchronizacje <span class="hint" style="font-size:0.9rem">({{ failed|length }})</span></h2>
+  <div class="card">
+    {% if not failed %}
+      <p><span class="badge ok">brak</span> Żadna synchronizacja nie zakończyła się błędem.</p>
+    {% else %}
+      <p class="hint" style="margin-top:0">Najnowsze najpierw. Kliknij skrzynkę, by przejść do jej szczegółów, albo „log", by zobaczyć pełny log imapsync danego przebiegu.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Kiedy</th><th>Skrzynka</th><th>Błąd</th><th>Log</th></tr></thead>
+          <tbody>
+            {% for f in failed %}
+            <tr>
+              <td class="hint">{{ f.started_at | dt }}</td>
+              <td><a href="/admin/mailboxes/{{ f.mailbox_id }}">{{ f.address }}</a></td>
+              <td style="max-width:52ch"><span class="badge err">błąd</span> {{ f.error or "—" }}</td>
+              <td>{% if f.has_log %}<a href="/admin/mailboxes/{{ f.mailbox_id }}/runs/{{ f.run_id }}/log" target="_blank">log</a>{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

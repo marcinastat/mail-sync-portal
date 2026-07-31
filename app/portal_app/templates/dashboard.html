@@ -50,7 +50,7 @@
     <div class="card">
       <h2>Synchronizacja — teraz</h2>
       <p style="margin:0.2rem 0"><strong>{{ sync.running }}</strong> w toku
-        {% if sync.failed_recent %}· <span class="badge err">{{ sync.failed_recent }} błędów (24h)</span>{% endif %}
+        {% if sync.failed_recent %}· <a href="/admin/reports/failed" title="Zobacz listę nieudanych synchronizacji" style="text-decoration:none"><span class="badge err">{{ sync.failed_recent }} błędów (24h)</span></a>{% endif %}
       </p>
       <p style="margin:0.2rem 0" class="hint">Ostatnia sync.: {{ sync.last_sync_at | dt }}</p>
       <p style="margin:0.2rem 0" class="hint">Następna zaplanowana: <strong>{{ next_sync | dt }}</strong></p>

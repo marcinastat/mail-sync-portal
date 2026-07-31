@@ -133,6 +133,31 @@ def show_fail2ban(request: Request, current_user: AdminUser = Depends(require_lo
     )
 
 
+def _failed_syncs(db: Session, limit: int = 200) -> list[dict]:
+    """Nieudane przebiegi synchronizacji (najnowsze pierwsze) + do której skrzynki."""
+    rows = (
+        db.query(JobRun, Mailbox)
+        .join(Mailbox, Mailbox.id == JobRun.mailbox_id)
+        .filter(JobRun.status == "failed")
+        .order_by(JobRun.id.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        {"run_id": r.id, "mailbox_id": m.id, "address": m.destination_address,
+         "started_at": r.started_at, "error": r.error_summary, "has_log": bool(r.imapsync_log_path)}
+        for r, m in rows
+    ]
+
+
+@router.get("/failed")
+def show_failed(request: Request, current_user: AdminUser = Depends(require_login), db: Session = Depends(get_db)):
+    return templates.TemplateResponse(
+        request, "reports/failed.html",
+        {"active": "reports", "tab": "failed", "current_user": current_user, "failed": _failed_syncs(db)},
+    )
+
+
 @router.get("/mailboxes.csv")
 def export_csv(current_user: AdminUser = Depends(require_login), db: Session = Depends(get_db)):
     csv_bytes = rows_to_csv(HEADER, _report_rows(db))
