@@ -9,14 +9,17 @@
       <div class="sub">aktywne / wszystkie</div>
     </div>
     <div class="stat">
-      <div class="label">Zsynchronizowane wiadomości</div>
+      <div class="label">Wiadomości u nas</div>
       <div class="value">{{ sync.messages_on_dest }}</div>
       <div class="sub">na serwerze docelowym ({{ sync.synced_mailboxes }} skrzynek)</div>
     </div>
     <div class="stat">
-      <div class="label">Przesłane łącznie</div>
-      <div class="value">{{ sync.total_transferred }}</div>
-      <div class="sub">wiadomości od początku</div>
+      <div class="label">Kompletność</div>
+      <div class="value" style="font-size:1.6rem">
+        {% if sync.source_missing_total == 0 %}<span class="badge ok">komplet</span>
+        {% else %}<span class="badge err">{{ sync.source_missing_total }} brakujących</span>{% endif %}
+      </div>
+      <div class="sub">brakujące ze źródła · przesłano łącznie {{ sync.total_transferred }}</div>
     </div>
     <div class="stat">
       <div class="label">Certyfikat TLS</div>

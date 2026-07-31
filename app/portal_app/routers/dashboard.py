@@ -55,8 +55,14 @@ def _sync_summary(db: Session) -> dict:
     rows = latest.all()
     synced_mailboxes = len(rows)
     drift_total = sum(r.messages_missing_from_source_retained for r in rows)
-    # łączna liczba wiadomości obecnych na docelowym wg ostatnich udanych sync
-    messages_on_dest = sum(r.messages_total for r in rows)
+    # FAKTYCZNA liczba wiadomości na docelowym (Host2 Nb messages); dla starszych
+    # przebiegów bez tej metryki — fallback na liczbę zidentyfikowaną na źródle.
+    messages_on_dest = sum((r.dest_nb_messages or r.messages_total) for r in rows)
+    # Kompletność: ile wiadomości jest na źródle, a NIE ma ich u nas (0 = komplet).
+    # To właściwy wskaźnik „czy kopia pełna", nie różnica ze skumulowanym licznikiem
+    # „przesłane łącznie" (ten jest miarą PRACY imapsync i przy wznawianym pierwszym
+    # syncu bywa niższy niż stan skrzynek — nie oznacza braków).
+    source_missing_total = sum(r.source_missing for r in rows)
     total_transferred = db.query(func.coalesce(func.sum(JobRun.messages_transferred), 0)).scalar() or 0
     last_sync_at = db.query(func.max(JobRun.finished_at)).scalar()
     running = db.query(func.count(JobRun.id)).filter(JobRun.status == "running").scalar() or 0
@@ -70,6 +76,7 @@ def _sync_summary(db: Session) -> dict:
         "synced_mailboxes": synced_mailboxes,
         "messages_on_dest": messages_on_dest,
         "total_transferred": total_transferred,
+        "source_missing_total": source_missing_total,
         "drift_total": drift_total,
         "last_sync_at": last_sync_at,
         "running": running,
