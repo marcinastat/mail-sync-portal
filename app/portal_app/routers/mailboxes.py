@@ -459,18 +459,10 @@ def reset_password(
     if mailbox is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
     if confirm_text != CONFIRM_PHRASE:
-        sync_job = db.query(SyncJob).filter(SyncJob.mailbox_id == mailbox_id).first()
-        return templates.TemplateResponse(
-            request,
-            "mailboxes/detail.html",
-            {
-                "active": "mailboxes",
-                "current_user": current_user,
-                "mailbox": mailbox,
-                "sync_job": sync_job,
-                "error": f"Reset hasła wymaga wpisania '{CONFIRM_PHRASE}' w polu potwierdzenia.",
-            },
-            status_code=400,
+        return RedirectResponse(
+            f"/admin/mailboxes/{mailbox_id}?err="
+            + quote(f"Reset hasła wymaga wpisania '{CONFIRM_PHRASE}' w polu potwierdzenia."),
+            status_code=303,
         )
     if not mailbox.vm2_mailbox_id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Skrzynka nie jest jeszcze zaprowizonowana na VM2.")
@@ -514,12 +506,9 @@ def update_custom_flags(
     try:
         imapsync_flags.validate_custom_flags(custom_flags)
     except imapsync_flags.ImapsyncFlagError as exc:
-        return templates.TemplateResponse(
-            request,
-            "mailboxes/detail.html",
-            {"active": "mailboxes", "current_user": current_user, "mailbox": mailbox,
-             "sync_job": sync_job, "error": str(exc)},
-            status_code=400,
+        return RedirectResponse(
+            f"/admin/mailboxes/{mailbox_id}?err=" + quote(f"Nieprawidłowe flagi imapsync: {exc}"),
+            status_code=303,
         )
 
     if sync_job is None:
@@ -557,18 +546,10 @@ def delete_mailbox(
         raise HTTPException(status.HTTP_404_NOT_FOUND)
 
     if confirm_text.strip() != mailbox.destination_address:
-        sync_job = db.query(SyncJob).filter(SyncJob.mailbox_id == mailbox_id).first()
-        return templates.TemplateResponse(
-            request,
-            "mailboxes/detail.html",
-            {
-                "active": "mailboxes",
-                "current_user": current_user,
-                "mailbox": mailbox,
-                "sync_job": sync_job,
-                "error": f"Usunięcie wymaga wpisania dokładnego adresu skrzynki: {mailbox.destination_address}",
-            },
-            status_code=400,
+        return RedirectResponse(
+            f"/admin/mailboxes/{mailbox_id}?err="
+            + quote(f"Usunięcie wymaga wpisania dokładnego adresu skrzynki: {mailbox.destination_address}"),
+            status_code=303,
         )
 
     # Najpierw VM2 (rekord + maildir). Gdyby padło — przerywamy i NIE kasujemy
@@ -582,15 +563,13 @@ def delete_mailbox(
             vm2_client.delete_mailbox(conn, mailbox.vm2_mailbox_id)
         except vm2_client.Vm2ApiError as exc:
             # Błąd po stronie VM2 — NIE kasujemy lokalnie (stan po obu stronach ma
-            # się nie rozjechać). Zamiast 500 pokazujemy czytelny komunikat.
-            sync_job = db.query(SyncJob).filter(SyncJob.mailbox_id == mailbox_id).first()
-            return templates.TemplateResponse(
-                request, "mailboxes/detail.html",
-                {"active": "mailboxes", "current_user": current_user, "mailbox": mailbox,
-                 "sync_job": sync_job,
-                 "error": f"Nie udało się usunąć skrzynki na serwerze poczty (VM2): {exc}. "
-                          f"Skrzynka NIE została usunięta — spróbuj ponownie."},
-                status_code=502,
+            # się nie rozjechać). Redirect z komunikatem (render detail.html tu nie
+            # ma pełnego kontekstu -> dawał UndefinedError).
+            return RedirectResponse(
+                f"/admin/mailboxes/{mailbox_id}?err="
+                + quote(f"Nie udało się usunąć skrzynki na serwerze poczty (VM2): {exc}. "
+                        f"Skrzynka NIE została usunięta — spróbuj ponownie."),
+                status_code=303,
             )
 
     deleted_address = mailbox.destination_address
