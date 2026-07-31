@@ -28,11 +28,29 @@ class portal_sso extends rcube_plugin
     {
         $this->add_hook('startup', array($this, 'startup'));
         $this->add_hook('authenticate', array($this, 'authenticate'));
+        $this->add_hook('login_after', array($this, 'login_after'));
     }
 
     function startup($args)
     {
         $rcmail = rcmail::get_instance();
+
+        // TWARDY limit ważności sesji SSO (peek admina „Otwórz w Roundcube"). Sesji
+        // nie da się zamknąć „przy zamknięciu karty" (serwer tego nie widzi — to samo
+        // cookie co nawigacja), więc ograniczamy ją CZASOWO: liczona od OTWARCIA
+        // (nie odświeżana aktywnością), żeby po chwili re-wejście wymagało nowego
+        // handoffu z panelu. Zwykłych sesji użytkowników NIE dotyczy (nie mają
+        // markera portal_sso_started). Wartość: portal_sso_session_max (domyślnie 600s).
+        if (!empty($_SESSION['portal_sso_started'])) {
+            $ttl = (int) $rcmail->config->get('portal_sso_session_max', 600);
+            if ($ttl > 0 && (time() - (int) $_SESSION['portal_sso_started']) > $ttl) {
+                rcube::write_log('portal_sso', 'Sesja SSO wygasła (limit ' . $ttl . 's) — wylogowanie');
+                $rcmail->kill_session();
+                header('Location: ./');  // czysty ekran logowania
+                exit;
+            }
+        }
+
         // Bez parametru _sso NIC nie zmieniamy — respektujemy istniejącą sesję
         // (zwykłe korzystanie z Roundcube działa normalnie).
         $token = rcube_utils::get_input_value('_sso', rcube_utils::INPUT_GET);
@@ -78,6 +96,17 @@ class portal_sso extends rcube_plugin
             $args['cookiecheck'] = false;
             $args['valid'] = true;
             rcube::write_log('portal_sso', 'SSO login jako ' . $this->login_user);
+        }
+        return $args;
+    }
+
+    /** Po udanym logowaniu SSO oznacz sesję znacznikiem czasu OTWARCIA — od niego
+     *  liczony jest twardy limit ważności (patrz startup). Sesje zwykłych
+     *  użytkowników (logowanie hasłem) tego markera nie dostają. */
+    function login_after($args)
+    {
+        if ($this->do_login) {
+            $_SESSION['portal_sso_started'] = time();
         }
         return $args;
     }

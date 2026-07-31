@@ -13,3 +13,9 @@ $config['portal_sso_master_pass'] = '${SSO_MASTER_PASSWORD}';
 
 // Lista sieci ADMINA (te same co strefa /admin) — do kontroli IP w SSO.
 $config['portal_sso_admin_acl_file'] = '/etc/portal/nginx/admin-access.conf';
+
+// TWARDY limit ważności sesji SSO (peek admina „Otwórz w Roundcube"), w sekundach,
+// liczony od OTWARCIA (nie odświeżany aktywnością). Po upływie re-wejście do
+// webmaila wymaga nowego handoffu z panelu — sesja nie zostaje po zamknięciu karty.
+// 0 = bez limitu (stare zachowanie). Zwykłych sesji użytkowników NIE dotyczy.
+$config['portal_sso_session_max'] = 600;  // 10 minut
