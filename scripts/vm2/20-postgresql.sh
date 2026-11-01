@@ -65,10 +65,12 @@ sudo -u postgres psql -v ON_ERROR_STOP=1 -d mail_db -v app_role=mail_app < "$REP
 
 systemctl reload "postgresql-${PG_VER}"
 
-# -libs razem z resztą (patrz scripts/vm1/20-postgresql.sh): bez niego nowy
-# minor w PGDG rozbija cały `dnf update` konfliktem libs vs zablokowany server.
-pkg_install_idempotent python3-dnf-plugin-versionlock
-dnf versionlock add "postgresql${PG_VER}-server" "postgresql${PG_VER}" "postgresql${PG_VER}-contrib" "postgresql${PG_VER}-libs" 2>/dev/null || true
+# BEZ versionlock — uzasadnienie w scripts/vm1/20-postgresql.sh (nazwa pakietu
+# trzyma gałąź 17, wydania 17.x to łatki bezpieczeństwa). Usuwamy lock z
+# wcześniejszych instalacji (przy FORCE_REAPPLY).
+for pkg in "postgresql${PG_VER}" "postgresql${PG_VER}-server" "postgresql${PG_VER}-contrib" "postgresql${PG_VER}-libs"; do
+    dnf versionlock delete "$pkg" >/dev/null 2>&1 || true
+done
 
 log_info "PostgreSQL ${PG_VER} + mail_db gotowe."
 mark_step_done "$STEP_NAME"

@@ -64,14 +64,16 @@ create_role_and_db portal_app portal_db "$SECRETS_DIR/vm1-portal-db.pass"
 
 systemctl reload "postgresql-${PG_VER}"
 
-# Odporność na `dnf update`: blokujemy wersję główną, żeby zwykła aktualizacja
-# systemu nigdy niespodziewanie nie przeskoczyła na inną gałąź PostgreSQL.
-# -libs MUSI być w locku razem z resztą: -server wymaga libs w IDENTYCZNEJ
-# wersji, więc gdy repo PGDG wyda nowy minor (np. 17.11), dnf chce podnieść
-# odblokowane libs, zablokowany server go nie puszcza i CAŁY `dnf update`
-# pada na konflikcie („cannot install both postgresql17-libs...").
-pkg_install_idempotent python3-dnf-plugin-versionlock
-dnf versionlock add "postgresql${PG_VER}-server" "postgresql${PG_VER}" "postgresql${PG_VER}-contrib" "postgresql${PG_VER}-libs" 2>/dev/null || true
+# BEZ versionlock: gałąź główną trzyma już sama nazwa pakietu (postgresql17-*;
+# 18 to osobne pakiety postgresql18-*, `dnf update` nigdy na nie nie przejdzie).
+# Wydania poprawkowe 17.x nie wymagają dump/restore i niosą łatki bezpieczeństwa
+# (17.11: ~28 CVE) — lock je blokował, a do tego, nie obejmując -libs, wywracał
+# cały `dnf update` konfliktem libs vs zablokowany server. RPM PGDG sam robi
+# `try-restart postgresql-17` przy aktualizacji (kilka sekund przerwy).
+# Usuwamy lock z wcześniejszych instalacji (przy FORCE_REAPPLY).
+for pkg in "postgresql${PG_VER}" "postgresql${PG_VER}-server" "postgresql${PG_VER}-contrib" "postgresql${PG_VER}-libs"; do
+    dnf versionlock delete "$pkg" >/dev/null 2>&1 || true
+done
 
 log_info "PostgreSQL ${PG_VER} gotowe: roundcube_db + portal_db (osobne role, schematy stosowane w kolejnych fazach)."
 mark_step_done "$STEP_NAME"

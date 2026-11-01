@@ -98,11 +98,16 @@ VM2 jest w `fstab` z `nofail`.
 > „nieznany" — **nie** zgaduje na siłę „wymagany" (to był wcześniejszy błąd, przez
 > który restart wydawał się wymagany także tuż po restarcie).
 
-## Wersje kluczowych pakietów są zablokowane
+## Wersje kluczowych pakietów
 
-PostgreSQL 17 (obie VM) oraz nginx (VM1) mają **versionlock** — pełny `dnf update`
-nie przeskoczy ich na nową wersję major i nie rozłoży bazy ani serwera WWW. Dovecot,
-Postfix i ClamAV są aktualizowane w ramach wydań point-release systemu (bezpieczne).
+- **nginx (VM1)** i **rspamd (VM2)** mają **versionlock**: pełny `dnf update` ich nie podnosi.
+- **PostgreSQL 17 (obie VM)** nie jest blokowany, ale zostaje w gałęzi 17. Pakiety
+  nazywają się `postgresql17-*`, więc aktualizacja nigdy nie przejdzie na 18. Instalują
+  się tylko wydania poprawkowe 17.x, które niosą łatki bezpieczeństwa i nie wymagają
+  migracji danych. W trakcie aktualizacji baza restartuje się sama (kilka sekund).
+  Uwaga: wydania PostgreSQL przychodzą **tylko w trybie „wszystkie”**, bo „tylko
+  bezpieczeństwa” ich nie obejmuje (repo PGDG nie oznacza łatek jako bezpieczeństwa).
+- Dovecot, Postfix i ClamAV są aktualizowane w ramach wydań point-release systemu (bezpieczne).
 
 ## Jak to działa pod spodem
 
