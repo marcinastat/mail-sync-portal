@@ -8,6 +8,12 @@
 #   roundcube-upgrade.sh upgrade [wersja]     — domyślnie najnowsza w tej samej gałęzi (np. 1.7.x)
 #   roundcube-upgrade.sh list                 — kopie zapasowe
 #   roundcube-upgrade.sh rollback <katalog>   — przywrócenie plików + bazy z kopii
+#   roundcube-upgrade.sh status               — panel: wersje jako key=value (bez zmian)
+#   roundcube-upgrade.sh upgrade-panel        — panel: upgrade w gałęzi, poza piaskownicą workera
+#
+# Panel woła kopię zainstalowaną przez 50-portal-app.sh w /opt/portal-app/bin
+# (+ biblioteki w /opt/portal-app/lib, root-owned) — wyłącznie dwa ostatnie tryby
+# (sudoers bez argumentów dowolnych: tylko gałąź bieżąca, auto-rollback zawsze).
 #
 # Bezpieczniki: podpis GPG paczki (lib/roundcube.sh); kopia plików i roundcube_db
 # PRZED zmianą; webmail zatrzymany na czas podmiany (bez pół-zaktualizowanego
@@ -28,22 +34,41 @@ LOCK_FILE="/run/roundcube-upgrade.lock"
 # właściciela, więc zapamiętujemy i odtwarzamy ich uprawnienia.
 SECRET_FILES=(config/config.inc.php plugins/portal_sso/config.inc.php)
 RELEASES_API="https://api.github.com/repos/roundcube/roundcubemail/releases?per_page=50"
+# Cache listy wydań dla trybu status (panel pyta przy każdym wejściu na stronę,
+# a GitHub API bez tokenu ma limit 60 zapytań/h na adres).
+RELEASES_CACHE="/run/roundcube-releases.cache"
+PANEL_OUT="/run/roundcube-upgrade-panel.out"
 
-# pg_dump/pg_restore z PGDG (gdyby alternatives nie dały ich w PATH).
-PATH="$PATH:$(ls -d /usr/pgsql-*/bin 2>/dev/null | sort -V | tail -1)"
+# pg_dump/pg_restore z PGDG (gdyby alternatives nie dały ich w PATH). `|| true`:
+# bez katalogu PGDG ls pada, a pod set -e + pipefail skrypt kończyłby się po cichu.
+PATH="$PATH:$(ls -d /usr/pgsql-*/bin 2>/dev/null | sort -V | tail -1 || true)"
 
+# Pusto, gdy pliku nie ma. `|| true` jest KLUCZOWE: verify() woła to po instalacji —
+# bez niego brak pliku zakończyłby skrypt po cichu (set -e) ZAMIAST auto-rollbacku.
 installed_version() {
     sed -n "s/.*define('RCMAIL_VERSION', '\([^']*\)').*/\1/p" \
-        "$RC_ROOT/program/include/iniset.php" 2>/dev/null | head -1
+        "$RC_ROOT/program/include/iniset.php" 2>/dev/null | head -1 || true
 }
 
 branch_of() { cut -d. -f1,2 <<<"$1"; }
 
 # Stabilne wydania (bez rc/beta), rosnąco. Pusto, gdy GitHub API niedostępne.
+# Argument "cached": użyj listy sprzed < 15 min (tryb status).
 stable_releases() {
-    curl -fsSL --max-time 30 "$RELEASES_API" 2>/dev/null \
+    if [[ "${1:-}" == "cached" && -s "$RELEASES_CACHE" && -n "$(find "$RELEASES_CACHE" -mmin -15 2>/dev/null)" ]]; then
+        cat "$RELEASES_CACHE"; return 0
+    fi
+    local list
+    list="$(curl -fsSL --max-time 30 "$RELEASES_API" 2>/dev/null \
         | grep -o '"tag_name": *"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/' \
-        | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V || true
+        | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V || true)"
+    if [[ -n "$list" ]]; then printf '%s\n' "$list" 2>/dev/null > "$RELEASES_CACHE" || true; fi
+    printf '%s\n' "$list"
+}
+
+# Najnowsze wydanie w gałęzi wersji $1 (np. 1.7.2 -> najnowsze 1.7.x) z listy $2.
+latest_in_branch() {
+    grep -E "^$(branch_of "$1" | sed 's/\./\\./')\.[0-9]+$" <<<"$2" | tail -1 || true
 }
 
 # Kontrola wstępna — nic nie zmienia. Kończy skrypt (die), gdy aktualizacja
@@ -104,6 +129,7 @@ make_backup() {
     tar -czf "$BACKUP_DIR/files.tar.gz" -C "$(dirname "$RC_ROOT")" "$(basename "$RC_ROOT")"
     runuser -u postgres -- pg_dump -Fc "$RC_DB" > "$BACKUP_DIR/db.dump"
     echo "$cur" > "$BACKUP_DIR/VERSION"
+    echo "backup_path=$BACKUP_DIR"   # dla panelu (parsowane przez services/roundcube_update.py)
 }
 
 prune_backups() {
@@ -145,7 +171,7 @@ do_check() {
     cur="$(installed_version)"
     releases="$(stable_releases)"
     [[ -n "$releases" ]] || die "Nie udało się pobrać listy wydań z GitHub (brak internetu?)."
-    in_branch="$(grep -E "^$(branch_of "$cur" | sed 's/\./\\./')\.[0-9]+$" <<<"$releases" | tail -1 || true)"
+    in_branch="$(latest_in_branch "$cur" "$releases")"
     newest="$(tail -1 <<<"$releases")"
     log_info "Zainstalowana: $cur | najnowsza w gałęzi $(branch_of "$cur"): ${in_branch:-?} | najnowsza ogółem: $newest"
     if [[ -n "$in_branch" && "$in_branch" != "$cur" ]]; then
@@ -166,7 +192,7 @@ do_upgrade() {
     cur="$(installed_version)"
 
     if [[ -z "$target" ]]; then
-        target="$(grep -E "^$(branch_of "$cur" | sed 's/\./\\./')\.[0-9]+$" <<<"$(stable_releases)" | tail -1 || true)"
+        target="$(latest_in_branch "$cur" "$(stable_releases)")"
         [[ -n "$target" ]] || die "Nie udało się ustalić najnowszej wersji (GitHub API) — podaj ją jawnie: $0 upgrade 1.7.5"
     fi
     [[ "$target" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "Nieprawidłowa wersja: '$target' (oczekiwano np. 1.7.5)."
@@ -179,7 +205,10 @@ do_upgrade() {
         die "Zmiana gałęzi $(branch_of "$cur") → $(branch_of "$target"). Przeczytaj UPGRADING w informacjach o wydaniu i uruchom z ALLOW_BRANCH_CHANGE=1."
     fi
 
-    pkg_install_idempotent rsync gnupg2   # installto.sh używa rsync; gpg do weryfikacji podpisu
+    # installto.sh używa rsync; gpg do weryfikacji podpisu. dnf tylko gdy brakuje —
+    # nie blokujemy się o lock dnf trwającej aktualizacji systemu.
+    command -v rsync >/dev/null 2>&1 && command -v gpg >/dev/null 2>&1 \
+        || pkg_install_idempotent rsync gnupg2
     work="$(mktemp -d -p /var/tmp roundcube-upgrade.XXXXXX)"
     # Ścieżka rozwinięta TERAZ ("..."): pułapka EXIT odpala się po wyjściu z
     # funkcji, gdy lokalnej zmiennej $work już nie ma.
@@ -224,11 +253,39 @@ do_upgrade() {
     log_info "Roundcube zaktualizowany: $cur → $target. Kopia: $BACKUP_DIR (cofnięcie: $0 rollback $BACKUP_DIR)."
 }
 
+do_status() {
+    local cur releases
+    cur="$(installed_version)"
+    [[ -n "$cur" ]] || die "Nie da się odczytać wersji Roundcube z $RC_ROOT."
+    releases="$(stable_releases cached)"
+    echo "installed=$cur"
+    echo "latest_branch=$(latest_in_branch "$cur" "$releases")"
+    echo "latest=$(tail -1 <<<"$releases")"
+}
+
+# Z panelu helper startuje w piaskownicy portal-workera (ProtectSystem=full:
+# /usr i /etc tylko do odczytu) — właściwą aktualizację uruchamiamy jako
+# transient unit POZA nią (ten sam wzorzec co dnf w apply-system-update.sh).
+# Wynik przez plik pod stałą ścieżką + cat (nie --pipe). Środowisko transient
+# unitu jest czyste: zawsze najnowsza w TEJ SAMEJ gałęzi, z auto-rollbackiem.
+do_upgrade_panel() {
+    if [[ "${RC_UPGRADE_ONHOST:-0}" == "1" ]]; then
+        do_upgrade ""
+        return
+    fi
+    local rc=0
+    /usr/bin/systemd-run --quiet --wait --collect --setenv=RC_UPGRADE_ONHOST=1 \
+        -p "StandardOutput=truncate:$PANEL_OUT" -p "StandardError=inherit" \
+        "$(readlink -f "${BASH_SOURCE[0]}")" upgrade-panel || rc=$?
+    cat "$PANEL_OUT" 2>/dev/null || true
+    return "$rc"
+}
+
 do_list() {
     local d
     ls -1dt "$BACKUP_ROOT"/*/ 2>/dev/null | while read -r d; do
         printf '%s  (wersja %s)\n' "${d%/}" "$(cat "$d/VERSION" 2>/dev/null || echo '?')"
-    done
+    done || log_info "Brak kopii w $BACKUP_ROOT."
 }
 
 require_root
@@ -239,5 +296,7 @@ case "${1:-}" in
     rollback) [[ -n "${2:-}" ]] || die "Podaj katalog kopii (zobacz: $0 list)."
               exec 9>"$LOCK_FILE"; flock -n 9 || die "Trwa aktualizacja Roundcube."
               do_rollback "$2" ;;
+    status)        do_status ;;
+    upgrade-panel) do_upgrade_panel ;;
     *) echo "Użycie: $0 check | upgrade [wersja] | list | rollback <katalog-kopii>" >&2; exit 2 ;;
 esac

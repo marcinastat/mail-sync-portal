@@ -58,10 +58,13 @@ Funkcja **„Otwórz w Roundcube"** (dostęp administracyjny) jest **domyślnie 
 Aktualizacje idą w tle z podglądem postępu; jeśli wymagany jest restart — jest przycisk w panelu. **Przed** każdą aktualizacją robiona jest kopia konfiguracji, a na konsoli maszyny jest narzędzie ratunkowe (`portal-config-recovery.sh` / `vm2-config-recovery.sh`). Szczegóły: [Aktualizacje systemu](/admin/docs/user/system-updates).
 
 **Czy aktualizacje systemu aktualizują też Roundcube?**
-Nie. Roundcube jest instalowany z oficjalnej paczki, więc ani `dnf`, ani aktualizacje z panelu go nie obejmują. Na VM1 (root) uruchom `scripts/vm1/roundcube-upgrade.sh check`, a potem `upgrade`. Narzędzie weryfikuje podpis paczki, robi kopię plików i bazy, a jeśli test po aktualizacji nie przejdzie, samo cofa zmiany. Szczegóły: [Runbook: aktualizacja Roundcube](/admin/docs/technical/runbooks/roundcube-upgrade).
+Nie. Roundcube jest instalowany z oficjalnej paczki, więc `dnf` go nie obejmuje. Aktualizuje się go osobno: w [Ustawienia → Aktualizacje systemu](/admin/settings/updates) jest karta „Roundcube (webmail)” (albo na konsoli VM1: `scripts/vm1/roundcube-upgrade.sh`). Narzędzie weryfikuje podpis paczki, robi kopię plików i bazy, a jeśli test po aktualizacji nie przejdzie, samo cofa zmiany. Szczegóły: [Runbook: aktualizacja Roundcube](/admin/docs/technical/runbooks/roundcube-upgrade).
 
 **Jak ograniczyć zużycie łącza przez synchronizację?**
 Ustaw **Limit łącza (Mbit/s)** w [Ustawienia → Opcje imapsync](/admin/docs/user/imapsync-options) (0 = bez limitu). Dotyczy pojedynczego przebiegu.
 
 **Zmienił się adres IP serwera poczty (VM2) i portal stracił połączenie — co zrobić?**
 Na VM1 popraw wpis VM2 w `/etc/hosts` i przełącz portal na łączenie się z VM2 po nazwie hosta (jedno polecenie SQL). Na VM2 nie trzeba wystawiać nowego certyfikatu. Szczegóły: [Runbook: zmiana adresu IP VM2](/admin/docs/technical/runbooks/vm2-ip-change).
+
+**Zmienił się adres IP portalu (VM1) — co zrobić?**
+Poprawki robi się na serwerze poczty (VM2), bo to on wpuszcza portal po IP: trzeba podmienić reguły firewalla i allowlistę provisioning API. Szczegóły: [Runbook: zmiana adresu IP VM1](/admin/docs/technical/runbooks/vm1-ip-change).

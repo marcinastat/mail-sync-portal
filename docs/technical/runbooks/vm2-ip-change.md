@@ -82,7 +82,7 @@ CA zostaje to samo (skrypt go nie regeneruje), więc certyfikat kliencki VM1 dal
 - **Timeout przy `curl` / `Connection refused`**: sprawdź, czy VM2 w ogóle odpowiada pod nowym adresem (`ping`, `nc -zv <IP> 8443`) i czy działa `vm2-provisioning-api` (`systemctl status vm2-provisioning-api` na VM2).
 - **Roundcube: „Connection to storage server failed”**: stary wpis w `/etc/hosts` na VM1. Sprawdź `getent hosts <VM2_HOSTNAME>`.
 - **SSH z VM1 na VM2 (`sync-to-vm2.sh`, `fetch-vm2-client-cert.sh`) ostrzega o zmienionym kluczu hosta**: nowe IP było wcześniej używane przez inną maszynę. Usuń stary wpis: `ssh-keygen -R <nowe IP>`.
-- **Zmieniło się też IP VM1**: to inna sytuacja, której ten runbook nie obejmuje. Na VM2 trzeba wtedy zaktualizować reguły firewalld (`scripts/vm2/60-firewall-rules.sh`) oraz allowlistę API (`VM2_API_ALLOWED_CLIENT_IP` w unicie `vm2-provisioning-api`, renderowanym z `VM1_IP`).
+- **Zmieniło się też IP VM1**: zobacz [Runbook: zmiana adresu IP VM1](/admin/docs/technical/runbooks/vm1-ip-change) (firewall i allowlista API na VM2).
 
 ## Zapobieganie
 

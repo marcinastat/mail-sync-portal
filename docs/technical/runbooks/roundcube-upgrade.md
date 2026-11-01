@@ -2,7 +2,11 @@
 
 Roundcube (webmail na VM1) jest instalowany z oficjalnej paczki (`40-roundcube.sh`), a **nie z dnf**. Dlatego aktualizacje systemu, ani z panelu, ani `dnf update`, **nie obejmują Roundcube**. Wydania Roundcube często zawierają poprawki bezpieczeństwa (XSS, SSRF, wstrzykiwanie poleceń IMAP), więc aktualizuj go regularnie.
 
-Służy do tego narzędzie konsolowe `scripts/vm1/roundcube-upgrade.sh`. Działa tak samo na każdej instalacji portalu, także u klienta: nic w nim nie zależy od konkretnej maszyny (adresów, nazw hostów).
+Służy do tego narzędzie `scripts/vm1/roundcube-upgrade.sh`, dostępne na dwa sposoby:
+- **z panelu**: Ustawienia → Aktualizacje systemu → karta „Roundcube (webmail)”. Pokazuje zainstalowaną i najnowszą wersję, a przycisk „Zaktualizuj Roundcube do …” uruchamia aktualizację w tle z podglądem postępu;
+- **z konsoli VM1**: daje więcej możliwości, bo tylko tu da się wybrać konkretną wersję, zmienić gałąź i ręcznie cofnąć aktualizację.
+
+Oba sposoby korzystają z tego samego narzędzia i tych samych bezpieczników. Działa ono tak samo na każdej instalacji portalu, także u klienta: nic w nim nie zależy od konkretnej maszyny (adresów, nazw hostów). Panel używa kopii zainstalowanej przez `50-portal-app.sh` w `/opt/portal-app/bin/`. Do panelu udostępnione są tylko dwa tryby: `status` i aktualizacja do najnowszej wersji w bieżącej gałęzi.
 
 ## Co robi narzędzie (bezpieczniki)
 
@@ -19,7 +23,15 @@ Służy do tego narzędzie konsolowe `scripts/vm1/roundcube-upgrade.sh`. Działa
 
 Domyślnie aktualizacja zostaje **w tej samej gałęzi** (np. 1.7.x → najnowsza 1.7.x). Zmiana gałęzi (np. 1.6 → 1.7) wymaga świadomej decyzji, opisanej niżej.
 
-## Procedura (VM1, root)
+## Procedura z panelu
+
+1. Ustawienia → Aktualizacje systemu → karta **Roundcube (webmail)**. Odznaka „dostępna aktualizacja” oznacza, że jest nowsza wersja w tej samej gałęzi.
+2. Kliknij **Zaktualizuj Roundcube do …** i potwierdź.
+3. Okno postępu pokaże wynik. Przy powodzeniu wyświetli też ścieżkę kopii i polecenie do ręcznego cofnięcia. Jeśli test nie przejdzie, narzędzie samo przywróci poprzednią wersję, a okno pokaże przyczynę.
+
+Jeśli karta pokazuje „nie udało się sprawdzić (brak dostępu do GitHub?)”, VM1 nie ma dostępu do internetu. Aktualizacja wymaga dostępu do `github.com` i `roundcube.net`.
+
+## Procedura z konsoli (VM1, root)
 
 ```bash
 cd /mail-sync-portal            # klon repo na VM1
@@ -49,6 +61,8 @@ Jeśli narzędzie zgłosi `HTTP 403` z 127.0.0.1, to nie jest błąd: strefy dos
 ```bash
 bash scripts/vm1/roundcube-upgrade.sh list                       # kopie (z wersjami)
 bash scripts/vm1/roundcube-upgrade.sh rollback /var/backups/roundcube/<katalog>
+# albo kopią zainstalowaną dla panelu (bez klonu repo):
+/opt/portal-app/bin/roundcube-upgrade.sh rollback /var/backups/roundcube/<katalog>
 ```
 
 Rollback przywraca pliki i bazę `roundcube_db`. Bieżący katalog przenosi do `/var/www/roundcube.failed-<data>`, żeby można go było obejrzeć; usuń go po sprawdzeniu, bo zawiera konfigurację z hasłem do bazy. Kopia bazy obejmuje kontakty, ustawienia i tożsamości użytkowników zapisane w Roundcube. Zmiany zrobione przez użytkowników **po** aktualizacji zostaną cofnięte razem z nią. Sama poczta leży na VM2 i rollback jej nie dotyczy.

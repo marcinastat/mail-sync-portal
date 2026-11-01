@@ -86,6 +86,16 @@ install -D -m 0700 -o root -g root "$APP_DIR/portal_app/bin/fail2ban-status.sh" 
 # Helper aktualizacji systemu (wołany fazami przez portal-worker) — root-owned
 # 0700, POZA katalogami zapisywalnymi dla konta usługi (brak eskalacji).
 install -D -m 0700 -o root -g root "$APP_DIR/portal_app/bin/apply-system-update.sh" "$APP_DIR/bin/apply-system-update.sh"
+# Aktualizacja Roundcube z panelu: TO SAMO narzędzie co z konsoli + jego biblioteki,
+# root-owned (uruchamiane przez sudo jako root — portal-app nie może ich nadpisać).
+# Układ bin/ + lib/ zachowuje względne `source ../lib/*.sh` w narzędziu.
+install -D -m 0700 -o root -g root "$REPO_ROOT/scripts/vm1/roundcube-upgrade.sh" "$APP_DIR/bin/roundcube-upgrade.sh"
+install -D -m 0600 -o root -g root "$REPO_ROOT/scripts/lib/common.sh" "$APP_DIR/lib/common.sh"
+install -D -m 0600 -o root -g root "$REPO_ROOT/scripts/lib/roundcube.sh" "$APP_DIR/lib/roundcube.sh"
+chmod 0700 "$APP_DIR/lib"
+# rsync (installto.sh) i gpg (podpis paczki) muszą być, zanim panel ich użyje —
+# helper z panelu nie powinien sam wołać dnf.
+pkg_install_idempotent rsync gnupg2
 # Narzędzie ratunkowe na konsolę (przywraca kopię configów sprzed aktualizacji).
 install -m 0700 -o root -g root "$APP_DIR/portal_app/bin/portal-config-recovery.sh" /usr/local/sbin/portal-config-recovery.sh
 # TLS przez acme-dns (DNS-01 za firewallem): helper wystawiający cert (certbot

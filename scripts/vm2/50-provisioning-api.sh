@@ -15,6 +15,43 @@ REPO_ROOT="$(repo_root)"
 APP_DIR="/opt/vm2-api"
 TLS_DIR="/etc/portal/vm2-api"
 
+# --- Bezpieczniki ponownego wdrożenia (PRZED jakąkolwiek zmianą) -----------------
+# CA mTLS żyje w katalogu repo ($REPO_ROOT/ca, poza gitem). Instalacja mogła iść
+# z klonu git albo z kopii wgranej sync-to-vm2.sh (INSTALL.md, opcje A/B) — na
+# jednej maszynie bywają OBA katalogi z RÓŻNYMI CA. Uruchomienie z niewłaściwego
+# wystawiłoby cert serwera obcym (lub nowym) CA: VM1 przestałaby ufać VM2 i panel
+# straciłby połączenie. Gdy CA jest już wdrożone, wymagamy, by repo miało to samo.
+if [[ -f "$TLS_DIR/ca.crt" ]]; then
+    deployed_ca="$(openssl x509 -noout -fingerprint -sha256 -in "$TLS_DIR/ca.crt")"
+    repo_ca="$(openssl x509 -noout -fingerprint -sha256 -in "$REPO_ROOT/ca/ca.crt" 2>/dev/null || true)"
+    if [[ "$deployed_ca" != "$repo_ca" ]]; then
+        match=""
+        while read -r cand; do
+            if [[ "$(openssl x509 -noout -fingerprint -sha256 -in "$cand" 2>/dev/null)" == "$deployed_ca" ]]; then
+                match="${cand%/ca/ca.crt}"; break
+            fi
+        done < <(find / -xdev -maxdepth 4 -path '*/ca/ca.crt' 2>/dev/null)
+        if [[ -n "$match" ]]; then
+            hint="Uruchom skrypt z katalogu: $match"
+        else
+            hint="Nie znaleziono kopii repo z wdrożonym CA — nie generuj nowego, skontaktuj się z dostawcą."
+        fi
+        die "Katalog $REPO_ROOT ma INNE CA niż wdrożone w $TLS_DIR — przerywam, nic nie zmieniono (inaczej panel straciłby połączenie z VM2). $hint"
+    fi
+fi
+# VM2_IP trafia do SAN certyfikatu serwera — musi być adresem TEJ maszyny.
+if [[ -n "${VM2_IP:-}" ]] && ! hostname -I | tr ' ' '\n' | grep -qxF "$VM2_IP"; then
+    die "VM2_IP=$VM2_IP w install.conf nie jest adresem tej maszyny ($(hostname -I | xargs)). Popraw config/install.conf (runbook: zmiana adresu IP VM2)."
+fi
+# VM1_IP trafia do allowlisty API. Różnica względem wdrożonej wartości to albo
+# nieaktualny install.conf (panel dostałby 403), albo realna zmiana IP VM1.
+if [[ -f /etc/systemd/system/vm2-provisioning-api.service ]]; then
+    deployed_vm1="$(sed -n 's/^Environment=VM2_API_ALLOWED_CLIENT_IP=//p' /etc/systemd/system/vm2-provisioning-api.service)"
+    if [[ -n "$deployed_vm1" && "$deployed_vm1" != "$VM1_IP" && "${ALLOW_VM1_IP_CHANGE:-0}" != "1" ]]; then
+        die "VM1_IP=$VM1_IP w install.conf różni się od wdrożonego ($deployed_vm1). Jeśli install.conf jest nieaktualny — popraw go. Jeśli VM1 naprawdę zmieniła adres — runbook: zmiana adresu IP VM1 (albo ALLOW_VM1_IP_CHANGE=1)."
+    fi
+fi
+
 pkg_install_idempotent python3.12 python3.12-devel gcc sudo dnf-utils
 
 if ! id vm2-api >/dev/null 2>&1; then

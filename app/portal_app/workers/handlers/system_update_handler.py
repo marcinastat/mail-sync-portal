@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 from ...db import session_scope
 from ...models import SystemUpdateRun, Vm2Connection
-from ...services import system_update_vm1, vm2_client
+from ...services import roundcube_update, system_update_vm1, vm2_client
 from ...services.audit_service import record
 
 _MAX_OUTPUT = 200000  # pełne wyjście (dnf potrafi być długi) — modal scrolluje
@@ -146,13 +146,27 @@ def _handle_vm2(run_id: int, security_only: bool) -> None:
             error=None if ok else "health-check VM2 zgłosił problem po aktualizacji.")
 
 
+def _handle_webmail(run_id: int) -> None:
+    """Roundcube (host „webmail” w system_update_runs): jedno wywołanie helpera,
+    który sam robi kopię, instalację, test i — przy porażce — rollback."""
+    _update(run_id, phase="webmail",
+            append="### Aktualizacja Roundcube (podpis paczki → kopia → instalacja → test)...\n")
+    res = roundcube_update.run_upgrade()
+    _update(run_id, append=res["output"], backup_path=res["backup_path"], healthy=True if res["ok"] else None)
+    _finish(run_id, status="success" if res["ok"] else "failed",
+            error=None if res["ok"] else
+            "Aktualizacja Roundcube nie powiodła się — przyczyna i informacja o cofnięciu zmian w wyjściu powyżej.")
+
+
 def handle(payload: dict) -> None:
     run_id = payload["run_id"]
     host = payload.get("host", "vm1")
     security_only = payload.get("mode", "security") != "all"
     _update(run_id, started_at=datetime.now(timezone.utc), status="running")
     try:
-        if host == "vm2":
+        if host == "webmail":
+            _handle_webmail(run_id)
+        elif host == "vm2":
             _handle_vm2(run_id, security_only)
         else:
             _handle_vm1(run_id, security_only)

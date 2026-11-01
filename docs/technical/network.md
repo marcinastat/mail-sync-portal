@@ -25,7 +25,7 @@ Domyślna polityka na obu VM: `drop` (patrz `scripts/vm1/80-firewall-rules.sh`, 
 
 Lokalne CA generowane przez `scripts/lib/mtls.sh` (nigdy nie commitowane, katalog `ca/` w `.gitignore`). VM2 wystawia jeden certyfikat kliencki (`vm1-client`) — to jedyny podmiot, który TLS-owo może w ogóle nawiązać połączenie z provisioning API; adres IP jest dodatkową warstwą (obrona w głąb), nie jedynym zabezpieczeniem.
 
-Certyfikat serwera API na VM2 ma w SAN nazwę hosta (`VM2_HOSTNAME`) i IP (`VM2_IP`) z chwili wystawienia. Gdy zmieni się IP VM2, zobacz [Runbook: zmiana adresu IP VM2](/admin/docs/technical/runbooks/vm2-ip-change).
+Certyfikat serwera API na VM2 ma w SAN nazwę hosta (`VM2_HOSTNAME`) i IP (`VM2_IP`) z chwili wystawienia. Gdy zmieni się IP VM2, zobacz [Runbook: zmiana adresu IP VM2](/admin/docs/technical/runbooks/vm2-ip-change). Gdy zmieni się IP VM1 (reguły firewalld i allowlista API na VM2), zobacz [Runbook: zmiana adresu IP VM1](/admin/docs/technical/runbooks/vm1-ip-change).
 
 ## Dlaczego VM2 nie jest osiągalna z podsieci admina
 

@@ -57,6 +57,31 @@
   {{ host_card("vm1", "VM1 (portal)", "host aplikacji, nginx, PostgreSQL") }}
   {{ host_card("vm2", "VM2 (serwer poczty)", "Postfix, Dovecot, ClamAV", vm2_configured) }}
 
+  <div class="card" id="card-webmail">
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <h2 style="margin:0">Roundcube (webmail)</h2>
+      <span class="hint">na VM1, z oficjalnej paczki — nie obejmują go aktualizacje systemu</span>
+    </div>
+    <div class="stat-grid" style="margin:0.75rem 0">
+      <div class="stat">
+        <div class="label">Zainstalowana wersja</div>
+        <div class="value" id="rc-installed"><span class="spin"></span> <span class="hint">sprawdzam…</span></div>
+      </div>
+      <div class="stat">
+        <div class="label">Najnowsza w gałęzi</div>
+        <div class="value" id="rc-latest" style="font-size:1.5rem">—</div>
+        <div class="sub" id="rc-note"></div>
+      </div>
+    </div>
+    <p class="hint" style="max-width:78ch;margin-top:0">
+      Przebieg: weryfikacja podpisu paczki → kopia plików i bazy Roundcube → instalacja (webmail niedostępny
+      ok. 1–2 min) → test. Jeśli test nie przejdzie, <strong>poprzednia wersja wraca automatycznie</strong>.
+      Zmiana gałęzi (np. 1.6 → 1.7) i ręczne cofnięcie — tylko z konsoli
+      (<a href="/admin/docs/technical/runbooks/roundcube-upgrade">runbook</a>).
+    </p>
+    <button class="btn" type="button" id="rc-btn" disabled onclick="startWebmailUpdate()">Zaktualizuj Roundcube</button>
+  </div>
+
   <!-- Modal postępu aktualizacji -->
   <div id="upd-overlay" class="upd-overlay">
     <div class="upd-modal">
@@ -96,9 +121,10 @@
       dnf: "Pobieram i instaluję pakiety (to może chwilę potrwać)…",
       health: "Sprawdzam, czy kluczowe usługi wstały po aktualizacji…",
       "reboot-check": "Sprawdzam, czy wymagany jest restart…",
+      webmail: "Aktualizuję Roundcube: podpis → kopia → instalacja → test (1–2 min)…",
       done: "Zakończono",
     };
-    const HOST_TITLES = { vm1: "VM1 (portal)", vm2: "VM2 (serwer poczty)" };
+    const HOST_TITLES = { vm1: "VM1 (portal)", vm2: "VM2 (serwer poczty)", webmail: "Roundcube (webmail)" };
     let pollTimer = null, elapsedTimer = null, currentHost = null, lastRun = null;
     const RECOVERY_TOOL = { vm1: "portal-config-recovery.sh", vm2: "vm2-config-recovery.sh" };
 
@@ -127,6 +153,46 @@
       } catch (e) {
         sec.innerHTML = `<span class="badge err">błąd</span>`;
       }
+    }
+
+    async function checkWebmail() {
+      const inst = document.getElementById("rc-installed");
+      const latest = document.getElementById("rc-latest");
+      const note = document.getElementById("rc-note");
+      const btn = document.getElementById("rc-btn");
+      btn.disabled = true;
+      try {
+        const d = await (await fetch("/admin/settings/updates/webmail/check")).json();
+        if (d.error) { inst.innerHTML = `<span class="badge err">błąd</span>`;
+          note.innerHTML = `<span class="hint">${d.error}</span>`; return; }
+        inst.textContent = d.installed;
+        if (!d.latest_branch) { latest.textContent = "?";
+          note.innerHTML = `<span class="hint">nie udało się sprawdzić (brak dostępu do GitHub?)</span>`; return; }
+        latest.textContent = d.latest_branch;
+        if (d.latest_branch !== d.installed) {
+          note.innerHTML = `<span class="badge err">dostępna aktualizacja</span>`;
+          btn.textContent = `Zaktualizuj Roundcube do ${d.latest_branch}`;
+          btn.disabled = false;
+        } else {
+          note.innerHTML = `<span class="badge ok">aktualna</span>`;
+          btn.textContent = "Zaktualizuj Roundcube";
+        }
+        if (d.latest && d.latest !== d.latest_branch)
+          note.innerHTML += ` <span class="hint">nowsza gałąź: ${d.latest} (tylko z konsoli)</span>`;
+      } catch (e) {
+        inst.innerHTML = `<span class="badge err">błąd</span>`;
+      }
+    }
+
+    async function startWebmailUpdate() {
+      const target = document.getElementById("rc-latest").textContent;
+      if (!confirm(`Zaktualizować Roundcube do ${target}?\nWebmail będzie niedostępny ok. 1–2 min. ` +
+                   `Przed aktualizacją zrobię kopię plików i bazy Roundcube; jeśli test nie przejdzie, ` +
+                   `poprzednia wersja wróci automatycznie.`)) return;
+      const r = await fetch("/admin/settings/updates/webmail", { method: "POST" });
+      if (!r.ok) { alert("Nie udało się uruchomić aktualizacji Roundcube."); return; }
+      const d = await r.json();
+      openModal(d.run_id, "webmail");
     }
 
     function showRebootBtn(host) {
@@ -168,7 +234,7 @@
       if (pollTimer) clearTimeout(pollTimer);
       if (elapsedTimer) clearInterval(elapsedTimer);
       // odśwież liczniki po zakończonej aktualizacji
-      checkHost("vm1"); {% if vm2_configured %}checkHost("vm2");{% endif %}
+      checkHost("vm1"); {% if vm2_configured %}checkHost("vm2");{% endif %} checkWebmail();
     }
 
     function fmtElapsed(startIso) {
@@ -215,6 +281,15 @@
       else if (d.healthy === false) html += ` <span class="badge err">usługi: sprawdź</span>`;
       if (d.error) html += `<div class="hint" style="margin-top:.4rem;color:#dc2626">${d.error}</div>`;
 
+      // Roundcube: kopia plików + bazy i ręczne cofnięcie (automatyczne już było, jeśli test padł).
+      if (d.host === "webmail" && d.backup_path) {
+        html += `<div class="upd-restore">
+          <strong>Kopia Roundcube sprzed aktualizacji (pliki + baza roundcube_db):</strong><br>
+          <code>${d.backup_path}</code>
+          <div style="margin-top:.45rem">Ręczne cofnięcie na konsoli VM1 (jako root):</div>
+          <div style="margin-top:.25rem"><code>sudo /opt/portal-app/bin/roundcube-upgrade.sh rollback ${d.backup_path}</code></div>
+        </div>`;
+      } else
       // Kopia konfiguracji + JAK ją przywrócić (dokładna komenda ze znacznikiem).
       if (d.backup_path) {
         const tag = d.backup_path.replace(/\/+$/, "").split("/").pop();
@@ -285,6 +360,8 @@
     // Na starcie: dociągnij liczniki (AJAX) i podłącz się do trwających przebiegów.
     checkHost("vm1");
     {% if vm2_configured %}checkHost("vm2");{% endif %}
+    checkWebmail();
+    {% if webmail_running %}openModal({{ webmail_running.id }}, "webmail");{% endif %}
     {% if vm1_running %}openModal({{ vm1_running.id }}, "vm1");{% endif %}
     {% if vm2_running %}openModal({{ vm2_running.id }}, "vm2");{% endif %}
     {% if vm1_last and vm1_last.reboot_needed and not vm1_running %}showRebootBtn("vm1");{% endif %}

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from ..deps import client_ip, get_db, require_login, require_setup_complete
 from ..models import AdminUser, JobQueue, SystemUpdateRun, Vm2Connection
-from ..services import system_update_vm1, vm2_client
+from ..services import roundcube_update, system_update_vm1, vm2_client
 from ..services.audit_service import record
 from ..templating import templates
 
@@ -79,6 +79,7 @@ def updates_page(request: Request, current_user: AdminUser = Depends(require_log
             "vm2_running": _running_run(db, "vm2"),
             "vm1_last": _last_run(db, "vm1"),
             "vm2_last": _last_run(db, "vm2"),
+            "webmail_running": _running_run(db, "webmail"),
         },
     )
 
@@ -102,8 +103,17 @@ def check_vm2(current_user: AdminUser = Depends(require_login), db: Session = De
         return {"error": str(exc)}
 
 
+@router.get("/webmail/check")
+def check_webmail(current_user: AdminUser = Depends(require_login)):
+    try:
+        return roundcube_update.status()
+    except Exception as exc:  # noqa: BLE001
+        return {"error": str(exc)}
+
+
 def _start_run(db: Session, request: Request, current_user: AdminUser, host: str, mode: str) -> dict:
-    mode = "all" if mode == "all" else "security"
+    # Roundcube ma jeden tryb: najnowsza wersja w bieżącej gałęzi.
+    mode = "branch" if host == "webmail" else ("all" if mode == "all" else "security")
     existing = _running_run(db, host)
     if existing is not None:
         return {"run_id": existing.id, "already_running": True}
@@ -152,6 +162,15 @@ def apply_vm2(
     if conn is None or not conn.vm2_host:
         raise HTTPException(400, "Brak skonfigurowanego połączenia z VM2.")
     return _start_run(db, request, current_user, "vm2", mode)
+
+
+@router.post("/webmail")
+def apply_webmail(
+    request: Request,
+    current_user: AdminUser = Depends(require_login),
+    db: Session = Depends(get_db),
+):
+    return _start_run(db, request, current_user, "webmail", "branch")
 
 
 @router.get("/run/{run_id}")

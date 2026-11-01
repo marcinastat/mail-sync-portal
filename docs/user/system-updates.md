@@ -98,6 +98,8 @@ VM2 jest w `fstab` z `nofail`.
 > „nieznany" — **nie** zgaduje na siłę „wymagany" (to był wcześniejszy błąd, przez
 > który restart wydawał się wymagany także tuż po restarcie).
 
+> **Pełna aktualizacja krok po kroku** (nowy kod portalu na obu VM, pakiety systemu, Roundcube, weryfikacja i droga odwrotu): [Runbook: pełna aktualizacja portalu](/admin/docs/technical/runbooks/full-update).
+
 ## Wersje kluczowych pakietów
 
 - **nginx (VM1)** i **rspamd (VM2)** mają **versionlock**: pełny `dnf update` ich nie podnosi.
@@ -108,7 +110,7 @@ VM2 jest w `fstab` z `nofail`.
   Uwaga: wydania PostgreSQL przychodzą **tylko w trybie „wszystkie”**, bo „tylko
   bezpieczeństwa” ich nie obejmuje (repo PGDG nie oznacza łatek jako bezpieczeństwa).
 - Dovecot, Postfix i ClamAV są aktualizowane w ramach wydań point-release systemu (bezpieczne).
-- **Roundcube (webmail) nie jest aktualizowany przez dnf ani z tego panelu**, bo jest instalowany z oficjalnej paczki, a nie z repozytorium systemu. Aktualizuje się go osobnym narzędziem konsolowym z kopią zapasową i automatycznym cofnięciem: [Runbook: aktualizacja Roundcube](/admin/docs/technical/runbooks/roundcube-upgrade).
+- **Roundcube (webmail) nie jest objęty aktualizacjami systemu (dnf)**, bo jest instalowany z oficjalnej paczki. Ma na tej stronie osobną kartę „Roundcube (webmail)”: pokazuje wersję zainstalowaną i najnowszą, a aktualizacja robi kopię plików i bazy, a jeśli test nie przejdzie, sama wraca do poprzedniej wersji. Szczegóły i tryb konsolowy: [Runbook: aktualizacja Roundcube](/admin/docs/technical/runbooks/roundcube-upgrade).
 
 ## Jak to działa pod spodem
 

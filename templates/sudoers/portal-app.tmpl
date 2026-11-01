@@ -17,6 +17,10 @@ portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-system-update.sh updat
 portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-system-update.sh health
 portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-system-update.sh reboot-check
 portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-system-update.sh reboot
+# Aktualizacja Roundcube z panelu — wyłącznie te dwa tryby, bez dowolnych argumentów
+# (zawsze najnowsza w bieżącej gałęzi, z automatycznym rollbackiem).
+portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/roundcube-upgrade.sh status
+portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/roundcube-upgrade.sh upgrade-panel
 # Sprawdzanie dostępnych aktualizacji (read-only) — konto portal-app nie ma
 # dostępu do systemowego cache metadanych dnf, więc liczymy przez sudo.
 portal-app ALL=(root) NOPASSWD: /usr/bin/dnf -q check-update

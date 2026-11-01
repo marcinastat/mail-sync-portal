@@ -78,8 +78,10 @@ Pełne szczegóły w dedykowanych dokumentach:
 - Schemat baz danych: `docs/technical/database-schema.md`
 - Cykl życia TLS: `docs/technical/tls-lifecycle.md`
 - Backup/DR: `docs/technical/backup-strategy.md`
+- Runbook pełnej aktualizacji (VM1 + VM2): `docs/technical/runbooks/full-update.md`
 - Runbook po `dnf update`: `docs/technical/runbooks/post-update-checklist.md`
 - Runbook zmiany IP VM2: `docs/technical/runbooks/vm2-ip-change.md`
+- Runbook zmiany IP VM1: `docs/technical/runbooks/vm1-ip-change.md`
 - Runbook aktualizacji Roundcube: `docs/technical/runbooks/roundcube-upgrade.md`
 - Status implementacji per faza: `docs/technical/build-status.md`
 - Instalacja krok po kroku: `INSTALL.md` (root repo)
