@@ -59,3 +59,6 @@ Aktualizacje idą w tle z podglądem postępu; jeśli wymagany jest restart — 
 
 **Jak ograniczyć zużycie łącza przez synchronizację?**
 Ustaw **Limit łącza (Mbit/s)** w [Ustawienia → Opcje imapsync](/admin/docs/user/imapsync-options) (0 = bez limitu). Dotyczy pojedynczego przebiegu.
+
+**Zmienił się adres IP serwera poczty (VM2) i portal stracił połączenie — co zrobić?**
+Na VM1 popraw wpis VM2 w `/etc/hosts` i przełącz portal na łączenie się z VM2 po nazwie hosta (jedno polecenie SQL). Na VM2 nie trzeba wystawiać nowego certyfikatu. Szczegóły: [Runbook: zmiana adresu IP VM2](/admin/docs/technical/runbooks/vm2-ip-change).

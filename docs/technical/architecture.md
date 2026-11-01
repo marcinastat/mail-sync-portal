@@ -79,6 +79,7 @@ Pełne szczegóły w dedykowanych dokumentach:
 - Cykl życia TLS: `docs/technical/tls-lifecycle.md`
 - Backup/DR: `docs/technical/backup-strategy.md`
 - Runbook po `dnf update`: `docs/technical/runbooks/post-update-checklist.md`
+- Runbook zmiany IP VM2: `docs/technical/runbooks/vm2-ip-change.md`
 - Status implementacji per faza: `docs/technical/build-status.md`
 - Instalacja krok po kroku: `INSTALL.md` (root repo)
 - Dokumentacja użytkowa: `docs/user/` (dostępna też w panelu pod `/admin/docs`)
