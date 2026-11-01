@@ -58,14 +58,12 @@ do_start() {
     systemctl is-active --quiet "$UNIT" && err "Aktualizacja aplikacji już trwa."
     RUN_STARTED="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
     if [[ "$ROLE" == vm2 ]]; then
-        # Wywołujący vm2-api działa pod ProtectSystem=strict (/var tylko do odczytu),
-        # więc stan zapisujemy dopiero w transient unicie (run-local, poza piaskownicą).
+        # Stan „running” zapisuje run-local (tuż przed update.sh), w tym samym unicie.
         systemd-run --quiet --unit="$UNIT" --collect --setenv=RUN_STARTED="$RUN_STARTED" \
             -p StandardOutput=null -p StandardError=null \
             "$(readlink -f "${BASH_SOURCE[0]}")" run-local || err "Nie udało się uruchomić aktualizacji (systemd-run)."
     else
-        # VM1: wywołujący (gunicorn) ma ProtectSystem=full — /var zapisywalny, więc
-        # stan „running” zapisujemy od razu (panel widzi go przy pierwszym odczycie).
+        # Stan „running” od razu — panel widzi go przy pierwszym odczycie.
         install -d -m 0700 "$LOG_DIR"
         RUN_LOG="$LOG_DIR/app-run-$(date '+%Y%m%d-%H%M%S').log"
         write_state running start
@@ -173,7 +171,26 @@ do_run_all() {
 }
 
 main() {
-    case "${1:-}" in
+    local mode="${1:-}" self out rc=0
+    # Wywołujące usługi (gunicorn, vm2-api) mają piaskownicę systemd: ProtectHome
+    # ukrywa /root — a tam bywa katalog instalacji (np. /root/mail-sync-portal na
+    # VM2), ProtectSystem blokuje zapisy. check/start (git, repo, systemd-run)
+    # wykonujemy więc jako transient unit NA HOŚCIE; wynik przez plik + cat (nie
+    # --pipe). status czyta tylko /var — zostaje w miejscu (panel odpytuje go co 2 s).
+    if [[ "${APP_UPDATE_ONHOST:-0}" != 1 && ( "$mode" == check || "$mode" == start ) ]]; then
+        self="$(readlink -f "${BASH_SOURCE[0]}")"
+        # Wspólny plik wyniku na tryb — równoległe wywołania kolejno (flock na
+        # samym skrypcie: w piaskownicy /run jest tylko do odczytu).
+        exec 9<"$self"
+        flock 9
+        out="/run/portal-app-update-$mode.out"
+        systemd-run --quiet --wait --collect --setenv=APP_UPDATE_ONHOST=1 \
+            -p StandardOutput="truncate:$out" -p StandardError=inherit \
+            "$self" "$mode" || rc=$?
+        cat "$out" 2>/dev/null || true
+        exit "$rc"
+    fi
+    case "$mode" in
         check)   do_check ;;
         start)   do_start ;;
         status)  do_status ;;
