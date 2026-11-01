@@ -108,6 +108,7 @@ VM2 jest w `fstab` z `nofail`.
   Uwaga: wydania PostgreSQL przychodzą **tylko w trybie „wszystkie”**, bo „tylko
   bezpieczeństwa” ich nie obejmuje (repo PGDG nie oznacza łatek jako bezpieczeństwa).
 - Dovecot, Postfix i ClamAV są aktualizowane w ramach wydań point-release systemu (bezpieczne).
+- **Roundcube (webmail) nie jest aktualizowany przez dnf ani z tego panelu**, bo jest instalowany z oficjalnej paczki, a nie z repozytorium systemu. Aktualizuje się go osobnym narzędziem konsolowym z kopią zapasową i automatycznym cofnięciem: [Runbook: aktualizacja Roundcube](/admin/docs/technical/runbooks/roundcube-upgrade).
 
 ## Jak to działa pod spodem
 

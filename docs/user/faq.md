@@ -57,6 +57,9 @@ Funkcja **„Otwórz w Roundcube"** (dostęp administracyjny) jest **domyślnie 
 **Czy mogę zrestartować serwery z panelu i jak cofnąć nieudaną aktualizację?**
 Aktualizacje idą w tle z podglądem postępu; jeśli wymagany jest restart — jest przycisk w panelu. **Przed** każdą aktualizacją robiona jest kopia konfiguracji, a na konsoli maszyny jest narzędzie ratunkowe (`portal-config-recovery.sh` / `vm2-config-recovery.sh`). Szczegóły: [Aktualizacje systemu](/admin/docs/user/system-updates).
 
+**Czy aktualizacje systemu aktualizują też Roundcube?**
+Nie. Roundcube jest instalowany z oficjalnej paczki, więc ani `dnf`, ani aktualizacje z panelu go nie obejmują. Na VM1 (root) uruchom `scripts/vm1/roundcube-upgrade.sh check`, a potem `upgrade`. Narzędzie weryfikuje podpis paczki, robi kopię plików i bazy, a jeśli test po aktualizacji nie przejdzie, samo cofa zmiany. Szczegóły: [Runbook: aktualizacja Roundcube](/admin/docs/technical/runbooks/roundcube-upgrade).
+
 **Jak ograniczyć zużycie łącza przez synchronizację?**
 Ustaw **Limit łącza (Mbit/s)** w [Ustawienia → Opcje imapsync](/admin/docs/user/imapsync-options) (0 = bez limitu). Dotyczy pojedynczego przebiegu.
 

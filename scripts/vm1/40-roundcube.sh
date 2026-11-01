@@ -4,6 +4,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
+source "$SCRIPT_DIR/../lib/roundcube.sh"
 
 STEP_NAME="vm1-40-roundcube"
 require_root
@@ -23,9 +24,9 @@ pkg_install_idempotent php-fpm php-cli php-common php-json php-xml php-mbstring 
 
 if [[ ! -d "$RC_ROOT/public_html" ]]; then
     log_info "Pobieram Roundcube ${RC_VERSION}..."
+    pkg_install_idempotent gnupg2
     TMP_TARBALL="$(mktemp)"
-    curl -fsSL -o "$TMP_TARBALL" \
-        "https://github.com/roundcube/roundcubemail/releases/download/${RC_VERSION}/roundcubemail-${RC_VERSION}-complete.tar.gz"
+    rc_fetch_verified "$RC_VERSION" "$TMP_TARBALL"
     mkdir -p "$RC_ROOT"
     tar -xzf "$TMP_TARBALL" -C "$RC_ROOT" --strip-components=1
     rm -f "$TMP_TARBALL"
