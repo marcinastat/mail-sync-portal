@@ -191,6 +191,17 @@ Z komputera znajdującego się w podsieci `ADMIN_SUBNET_CIDR`:
    logo/kolory.
 4. Zaloguj się i wejdź w **Import XLS**, żeby zaimportować pierwsze skrzynki.
 
+## 5. Późniejsze aktualizacje
+
+Działającą instalację aktualizuje jedno polecenie, uruchamiane jako root z katalogu repozytorium, **najpierw na VM2, potem na VM1**:
+
+```bash
+bash scripts/update.sh --check   # kontrola, bez zmian
+bash scripts/update.sh           # kopia katalogu repo → pobranie kodu → wdrożenie → weryfikacja
+```
+
+Skrypt sam pobiera najnowszy kod, także swoją nową wersję. Pakiety systemu i Roundcube aktualizuje się potem z panelu (Ustawienia → Aktualizacje systemu). Pełna procedura, z pierwszą aktualizacją starszej instalacji i drogą odwrotu: `docs/technical/runbooks/full-update.md` (w panelu: Dokumentacja → Techniczna).
+
 ## Jeśli coś pójdzie nie tak
 
 - Każdy skrypt loguje się czytelnie i można go uruchomić ponownie (jest
