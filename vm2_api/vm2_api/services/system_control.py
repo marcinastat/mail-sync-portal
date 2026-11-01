@@ -236,3 +236,50 @@ def reboot(confirm_token: str | None = None) -> None:
     if confirm_token:
         _pending_reboot_token.pop(confirm_token, None)
     subprocess.Popen(["/usr/bin/sudo", "-n", "/usr/bin/systemctl", "reboot"])
+
+
+# --- Aktualizacja APLIKACJI z panelu (scripts/update.sh) --------------------------
+# Root-helper (ten sam plik co na VM1, scripts/app-update-helper.sh) uruchamia
+# update.sh jako osobny transient unit — update.sh restartuje tę usługę, więc nie
+# może być jej procesem potomnym. Panel (orkiestracja na VM1) odpytuje status.
+_APP_UPDATE_HELPER = "/usr/local/sbin/vm2-app-update.sh"
+
+
+def _app_update(mode: str, timeout: int = 60) -> tuple[dict, str]:
+    try:
+        res = _run(["/usr/bin/sudo", "-n", _APP_UPDATE_HELPER, mode], timeout=timeout)
+    except FileNotFoundError:
+        raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, "Brak helpera aktualizacji aplikacji na VM2.")
+    head, _, log = res.stdout.partition("---log---\n")
+    kv = {}
+    for line in head.splitlines():
+        key, sep, value = line.partition("=")
+        if sep:
+            kv[key.strip()] = value.strip()
+    if "error" in kv:
+        code = status.HTTP_409_CONFLICT if "już trwa" in kv["error"] else status.HTTP_400_BAD_REQUEST
+        raise HTTPException(code, kv["error"])
+    if res.returncode != 0:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, (res.stderr or res.stdout)[-1000:])
+    return kv, log
+
+
+def app_update_check() -> dict:
+    kv, _ = _app_update("check")
+    return {k: kv.get(k) or None for k in ("local", "local_date", "local_subject", "remote")}
+
+
+def app_update_start() -> dict:
+    _app_update("start")
+    return {"started": True}
+
+
+def app_update_status() -> dict:
+    kv, log = _app_update("status")
+    return {
+        "state": kv.get("state", "none"),
+        "step": kv.get("step"),
+        "updated": kv.get("updated"),
+        "active": kv.get("active") == "yes",
+        "log_tail": log[-20000:],
+    }

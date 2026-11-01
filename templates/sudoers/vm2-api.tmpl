@@ -18,6 +18,10 @@ vm2-api ALL=(root) NOPASSWD: /usr/local/sbin/vm2-dnf.sh reboot-check
 vm2-api ALL=(root) NOPASSWD: /usr/local/sbin/vm2-fail2ban-status.sh
 # Kopia configów przed aktualizacją (root-helper, systemd-run escape jak vm2-dnf.sh).
 vm2-api ALL=(root) NOPASSWD: /usr/local/sbin/vm2-config-backup.sh
+# Aktualizacja aplikacji z panelu (orkiestracja z VM1) — tylko te trzy tryby.
+vm2-api ALL=(root) NOPASSWD: /usr/local/sbin/vm2-app-update.sh check
+vm2-api ALL=(root) NOPASSWD: /usr/local/sbin/vm2-app-update.sh start
+vm2-api ALL=(root) NOPASSWD: /usr/local/sbin/vm2-app-update.sh status
 # Harmonogram skanów z panelu (przepisuje systemd timery) — helper WALIDUJE
 # argumenty (liczba minut / ścisły OnCalendar), więc wieloznacznik jest bezpieczny.
 vm2-api ALL=(root) NOPASSWD: /usr/local/sbin/vm2-scan-schedule.sh *

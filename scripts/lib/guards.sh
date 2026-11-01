@@ -33,7 +33,9 @@ guard_vm2_deploy() {
         fi
     fi
     # VM2_IP trafia do SAN certyfikatu serwera — musi być adresem TEJ maszyny.
-    if [[ -n "${VM2_IP:-}" ]] && ! hostname -I | tr ' ' '\n' | grep -qxF "$VM2_IP"; then
+    # Porównanie w [[ ]], nie `hostname -I | grep -q` (pod pipefail SIGPIPE potrafi
+    # dać fałszywy wynik).
+    if [[ -n "${VM2_IP:-}" && " $(hostname -I) " != *" $VM2_IP "* ]]; then
         die "VM2_IP=$VM2_IP w install.conf nie jest adresem tej maszyny ($(hostname -I | xargs)). Popraw $repo/config/install.conf (runbook: zmiana adresu IP VM2)."
     fi
     # VM1_IP trafia do allowlisty API. Różnica względem wdrożonej wartości to albo
@@ -50,7 +52,7 @@ guard_vm2_deploy() {
 # więc rozjazd to tylko ostrzeżenie — ale zwykle oznacza, że zmienił się adres.
 guard_vm1_deploy() {
     local resolved
-    if [[ -n "${VM1_IP:-}" ]] && ! hostname -I | tr ' ' '\n' | grep -qxF "$VM1_IP"; then
+    if [[ -n "${VM1_IP:-}" && " $(hostname -I) " != *" $VM1_IP "* ]]; then
         log_warn "VM1_IP=$VM1_IP w install.conf nie jest adresem tej maszyny ($(hostname -I | xargs)) — jeśli VM1 zmieniła adres, patrz runbook: zmiana adresu IP VM1."
     fi
     resolved="$(getent hosts "${VM2_HOSTNAME:-}" 2>/dev/null | awk '{print $1; exit}' || true)"

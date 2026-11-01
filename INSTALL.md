@@ -193,14 +193,13 @@ Z komputera znajdującego się w podsieci `ADMIN_SUBNET_CIDR`:
 
 ## 5. Późniejsze aktualizacje
 
-Działającą instalację aktualizuje jedno polecenie, uruchamiane jako root z katalogu repozytorium, **najpierw na VM2, potem na VM1**:
+**Aplikację** (kod panelu i API VM2) aktualizuje jedno polecenie, uruchamiane jako root **najpierw na VM2, potem na VM1**. Działa także na starszych instalacjach, bo sam znajduje katalog instalacji:
 
 ```bash
-bash scripts/update.sh --check   # kontrola, bez zmian
-bash scripts/update.sh           # kopia katalogu repo → pobranie kodu → wdrożenie → weryfikacja
+curl -fsSL https://raw.githubusercontent.com/marcinastat/mail-sync-portal/master/scripts/update.sh -o /root/portal-update.sh && bash /root/portal-update.sh
 ```
 
-Skrypt sam pobiera najnowszy kod, także swoją nową wersję. Pakiety systemu i Roundcube aktualizuje się potem z panelu (Ustawienia → Aktualizacje systemu). Pełna procedura, z pierwszą aktualizacją starszej instalacji i drogą odwrotu: `docs/technical/runbooks/full-update.md` (w panelu: Dokumentacja → Techniczna).
+Gdy obie VM mają już aktualną wersję, to samo można zrobić z panelu: Ustawienia → Aktualizacje systemu → karta „Aplikacja portalu” → „Aktualizuj aplikację”. Kolejność VM2 → VM1 pilnuje się wtedy sama. **Pakiety systemu** i **Roundcube** aktualizuje się z tej samej strony panelu. Pełna procedura z drogą odwrotu: `docs/technical/runbooks/full-update.md` (w panelu: Dokumentacja → Techniczna).
 
 ## Jeśli coś pójdzie nie tak
 

@@ -2,16 +2,15 @@
 
 Procedura dla administratora z dostępem root do obu maszyn i kontem administratora panelu. Jest napisana tak, żeby dało się ją przejść **samodzielnie, bez kontaktu z dostawcą**.
 
-Obejmuje:
-1. nowy kod portalu (VM1) i API serwera poczty (VM2);
-2. aktualizacje systemu (pakiety, w tym PostgreSQL 17.x i jądro);
-3. aktualizację Roundcube (webmail).
+Aktualizacja składa się z trzech części:
 
-Kod aktualizuje skrypt **`scripts/update.sh`**, który za każdym razem sam pobiera najnowszą wersję z repozytorium. Pakiety i Roundcube aktualizuje się z panelu.
+| Część | Czym | Kolejność |
+|---|---|---|
+| 1. **Aplikacja** (kod panelu VM1 i API VM2) | jedno polecenie na VM **albo** przycisk w panelu | VM2, potem VM1 |
+| 2. **Pakiety systemu** (w tym PostgreSQL 17.x, jądro) | panel | VM2, potem VM1 |
+| 3. **Roundcube** (webmail) | panel | — |
 
-**Czas:** ok. 30–45 minut. **Przerwy w działaniu:** webmail i synchronizacja kilka razy po 1–2 minuty, panel na czas restartu VM1. Zaplanuj okno serwisowe.
-
-**Kolejność zawsze: najpierw VM2, potem VM1.**
+**Czas:** ok. 30–45 minut. **Przerwy w działaniu:** panel, webmail i synchronizacja kilka razy po 1–2 minuty. Zaplanuj okno serwisowe.
 
 ---
 
@@ -23,88 +22,50 @@ Kod aktualizuje skrypt **`scripts/update.sh`**, który za każdym razem sam pobi
 
 ---
 
-## Krok 1. Tylko przy pierwszej aktualizacji starszej instalacji
+## Krok 1. Aplikacja
 
-Jeśli w katalogu repozytorium jest już plik `scripts/update.sh`, **pomiń ten krok**.
+### 1A. Z konsoli: jedno polecenie na VM (zawsze działa, także na starszych instalacjach)
 
-Starsze instalacje nie mają jeszcze skryptu, a samo `git pull` może na nich nie zadziałać, bo historia repozytorium była zmieniana. Raz trzeba więc pobrać kod ręcznie, poleceniami z punktu 1.3.
-
-**1.1. VM1: katalog repozytorium**
+Jako **root**, najpierw na **VM2**, a gdy skończy, na **VM1**:
 ```bash
-find / -xdev -maxdepth 4 -path '*/config/install.conf' 2>/dev/null
-REPO=/mail-sync-portal          # podstaw wynik (bez /config/install.conf)
-```
-
-**1.2. VM2: katalog repozytorium.** Na VM2 bywają dwa katalogi z repo. Właściwy jest ten, w którym CA certyfikatów jest **identyczne z używanym przez API**:
-```bash
-A=$(openssl x509 -noout -fingerprint -sha256 -in /etc/portal/vm2-api/ca.crt)
-for f in $(find / -xdev -maxdepth 4 -path '*/ca/ca.crt' 2>/dev/null); do
-  [ "$(openssl x509 -noout -fingerprint -sha256 -in "$f")" = "$A" ] && echo "KATALOG REPO: ${f%/ca/ca.crt}"
-done
-REPO=/root/mail-sync-portal     # podstaw wynik
-```
-Jeśli nie pojawi się żaden wiersz `KATALOG REPO:`, **przerwij** i skontaktuj się z dostawcą. Nie instaluj niczego od nowa.
-
-**1.3. Na obu VM: pobranie kodu**
-```bash
-umask 077; tar -czf /root/repo-backup-pierwszy-$(date +%Y%m%d-%H%M).tar.gz -C "$(dirname "$REPO")" "$(basename "$REPO")"
-command -v git >/dev/null || dnf install -y git
-cd "$REPO"
-[ -d .git ] || { git init -q && git remote add origin https://github.com/marcinastat/mail-sync-portal.git; }
-git fetch -q origin master && git reset --hard origin/master
-ls scripts/update.sh config/install.conf
-```
-`config/install.conf` i katalog `ca/` są poza repozytorium, więc **zostają nietknięte**. Nie używaj `git clean`, bo by je usunął.
-
----
-
-## Krok 2. VM2: aktualizacja kodu
-
-```bash
-cd /root/mail-sync-portal         # katalog repo VM2 (z kroku 1.2)
-bash scripts/update.sh --check    # tylko kontrola, nic nie zmienia
-bash scripts/update.sh            # właściwa aktualizacja
+curl -fsSL https://raw.githubusercontent.com/marcinastat/mail-sync-portal/master/scripts/update.sh -o /root/portal-update.sh && bash /root/portal-update.sh
 ```
 Skrypt kolejno:
-1. sprawdza internet, adresy w `install.conf` i zgodność CA;
-2. robi kopię katalogu repo (`/root/repo-backup-vm2-*.tar.gz`);
-3. pobiera kod;
-4. wdraża go;
-5. zdejmuje dawną blokadę wersji PostgreSQL;
-6. sprawdza usługi.
+1. rozpoznaje maszynę i **sam znajduje katalog instalacji** (na VM2 po certyfikacie CA, bo bywają tam dwa katalogi z repo);
+2. robi kopię tego katalogu (`/root/repo-backup-<vm>-<data>.tar.gz`);
+3. pobiera najnowszy kod (`config/install.conf` i CA zostają nietknięte);
+4. sprawdza adresy i zgodność certyfikatów;
+5. wdraża kod;
+6. wykonuje jednorazowe migracje;
+7. testuje usługi, a na VM1 także połączenie z VM2.
 
-Na końcu wypisuje **„Aktualizacja kodu VM2 zakończona powodzeniem”** i co dalej.
+Na końcu wypisuje **„Aktualizacja aplikacji VM2/VM1 zakończona powodzeniem”** i następny krok.
 
-**Jeśli skrypt się zatrzyma**, przy kontroli w punkcie 1 **nic nie zostało zmienione**. Komunikat mówi, co poprawić:
+Samą kontrolę, bez żadnych zmian, uruchomisz tak: `bash /root/portal-update.sh --check`.
+
+### 1B. Z panelu (gdy obie VM mają już aktualną wersję z przyciskiem)
+
+Panel → **Ustawienia → Aktualizacje systemu** → karta **Aplikacja portalu**. Karta pokazuje wersje VM1, VM2 i najnowszą na GitHub. Przycisk **„Aktualizuj aplikację”** robi to samo co 1A na obu maszynach, sam pilnując kolejności: najpierw VM2, potem VM1.
+
+Pod koniec panel restartuje się na chwilę, ale okno postępu samo wznowi odczyt. Po wyniku **„gotowe”** odśwież stronę (Ctrl+F5). Jeśli karta pokazuje, że VM2 „nie obsługuje jeszcze aktualizacji z panelu”, zrób raz krok 1A.
+
+### Gdy skrypt (lub okno w panelu) się zatrzyma
+
+Zatrzymanie w kontroli wstępnej **niczego nie zmienia**. Komunikat mówi, co poprawić:
 
 | Komunikat | Co zrobić |
 |---|---|
-| `Katalog … ma INNE CA niż wdrożone … Uruchom z katalogu: X` | przejdź do katalogu `X` i uruchom skrypt stamtąd |
-| `VM2_IP=… nie jest adresem tej maszyny` | popraw adres w `config/install.conf` (na **obu** VM): `sed -i 's/^VM2_IP=.*/VM2_IP="<adres VM2>"/' config/install.conf`, potem uruchom ponownie |
+| `VM2_IP=… nie jest adresem tej maszyny … Popraw <katalog>/config/install.conf` | popraw adres w podanym pliku (na **obu** VM): `sed -i 's/^VM2_IP=.*/VM2_IP="<adres VM2>"/' <katalog>/config/install.conf`, potem uruchom polecenie ponownie |
 | `VM1_IP=… różni się od wdrożonego` | jeśli `install.conf` ma zły adres, popraw go; jeśli VM1 naprawdę zmieniła adres, przejdź [runbook zmiany IP VM1](/admin/docs/technical/runbooks/vm1-ip-change) |
-| `Lokalne zmiany w plikach repo` | ktoś zmieniał pliki repo ręcznie. Jeśli zmiany nie są potrzebne: `bash scripts/update.sh --force` (kopia powstanie) |
+| `Katalog … ma INNE CA niż wdrożone … Uruchom z katalogu: X` | uruchom ponownie z `PORTAL_REPO=X bash /root/portal-update.sh` |
+| `Nie znaleziono katalogu repo z CA wdrożonym na tej VM2` | **przerwij**, skontaktuj się z dostawcą. Nie instaluj niczego od nowa |
+| `Lokalne zmiany w plikach repo` | ktoś zmieniał pliki repo ręcznie. Jeśli zmiany nie są potrzebne: `bash /root/portal-update.sh --force` (kopia powstanie) |
 | `Brak dostępu do github.com` | maszyna musi mieć dostęp do internetu |
+| `VM2 odrzuca adres VM1 (403)` (na VM1) | VM2 nie zna aktualnego adresu VM1: [runbook zmiany IP VM1](/admin/docs/technical/runbooks/vm1-ip-change) |
 
 ---
 
-## Krok 3. VM1: aktualizacja kodu
-
-```bash
-cd /mail-sync-portal              # katalog repo VM1 (z kroku 1.1)
-bash scripts/update.sh --check
-bash scripts/update.sh
-```
-Skrypt robi to samo co na VM2. Dodatkowo:
-- przed startem sprawdza, czy w panelu nie trwa żadna aktualizacja;
-- na końcu testuje połączenie **VM1 → VM2**.
-
-Oczekiwany wynik to **„Połączenie VM1 → VM2 (mTLS): OK”** i **„Aktualizacja kodu VM1 zakończona powodzeniem”**. Jeśli test połączenia zgłosi `403`, VM2 nie zna aktualnego adresu VM1 ([runbook zmiany IP VM1](/admin/docs/technical/runbooks/vm1-ip-change)).
-
-W panelu odśwież **Pulpit** (Ctrl+F5): kafelek VM2 powinien pokazywać dane.
-
----
-
-## Krok 4. Aktualizacje systemu (z panelu): najpierw VM2, potem VM1
+## Krok 2. Pakiety systemu (z panelu): najpierw VM2, potem VM1
 
 Panel → **Ustawienia → Aktualizacje systemu**.
 
@@ -117,7 +78,7 @@ Jeśli wynik to **„sprawdź wynik”**, kliknij **„Zapisz log do pliku”** 
 
 ---
 
-## Krok 5. Roundcube (z panelu)
+## Krok 3. Roundcube (z panelu)
 
 Na tej samej stronie, karta **Roundcube (webmail)**:
 1. Odznaka **„dostępna aktualizacja”** → **„Zaktualizuj Roundcube do …”** → potwierdź.
@@ -128,15 +89,15 @@ Szczegóły: [runbook Roundcube](/admin/docs/technical/runbooks/roundcube-upgrad
 
 ---
 
-## Krok 6. Weryfikacja końcowa
+## Krok 4. Weryfikacja końcowa
 
 | Co | Jak | Oczekiwane |
 |---|---|---|
-| Kod VM1 i VM2 | `bash scripts/update.sh --check` na każdej VM | „Kod jest aktualny” |
+| Aplikacja | karta „Aplikacja portalu” | VM1 i VM2 = najnowsza, odznaka „aktualna” |
+| Pakiety | karty VM1 i VM2 | 0 łatek bezpieczeństwa, brak „wymagany restart” |
+| Roundcube | karta „Roundcube (webmail)” | „aktualna” |
 | PostgreSQL (obie VM) | `sudo -u postgres psql -tAc 'show server_version'` | najnowsze 17.x |
-| Blokady wersji | `dnf -q versionlock list` | VM1: tylko nginx; VM2: tylko rspamd |
-| Panel: Pulpit | kafelek VM2 | dane, bez błędu połączenia |
-| Panel: Aktualizacje | karty VM1/VM2 i Roundcube | 0 łatek bezpieczeństwa, brak „wymagany restart”, Roundcube „aktualna” |
+| Pulpit | kafelek VM2 | dane, bez błędu połączenia |
 | Synchronizacja | dowolna skrzynka → „Synchronizuj teraz” | przebieg zakończony sukcesem |
 | Webmail | logowanie na skrzynkę; „Otwórz w Roundcube”, jeśli włączone | skrzynka otwiera się poprawnie |
 
@@ -144,32 +105,22 @@ Po kilku dniach spokojnej pracy możesz usunąć snapshoty z kroku 0.
 
 ---
 
-## Kolejne aktualizacje
-
-Gdy instalacja ma już `scripts/update.sh`, każda kolejna aktualizacja to:
-1. snapshot obu VM;
-2. `bash scripts/update.sh` na VM2, potem na VM1. Skrypt sam pobiera najnowszy kod, także swoją nową wersję;
-3. kroki 4–6 w panelu.
-
----
-
 ## Gdy coś pójdzie nie tak
 
-Stan ostatniego przebiegu skryptu jest w `/var/lib/portal-update/last-run`, a pełny log w `/var/log/portal-update/`.
+Stan ostatniej aktualizacji aplikacji jest w `/var/lib/portal-update/last-run` (z panelu: `app-run`), a pełne logi w `/var/log/portal-update/`.
 
 | Gdzie | Co się stało | Co zrobić |
 |---|---|---|
-| krok 1 | nie znaleziono katalogu z CA (VM2) | przerwij, skontaktuj się z dostawcą. Nie generuj nowego CA |
-| krok 2–3 | skrypt zatrzymał się na kontroli | nic nie zostało zmienione; popraw według komunikatu (tabela w kroku 2) |
-| krok 2–3 | błąd przy wdrożeniu lub weryfikacji | zapisz log. Powrót do poprzedniego kodu: `tar -xzf /root/repo-backup-<vm>-<data>.tar.gz -C "$(dirname "$REPO")"`, potem `FORCE_REAPPLY=1 bash scripts/vm2/50-provisioning-api.sh` (VM2) lub `… scripts/vm1/50-portal-app.sh` (VM1). Albo snapshot |
-| krok 4 | aktualizacja „sprawdź wynik” | zapisz log z okna. Kopie configów: polecenie przywrócenia jest w oknie (`portal-config-recovery.sh` / `vm2-config-recovery.sh`) |
-| krok 4 | maszyna nie wraca po restarcie | konsola hypervisora; w ostateczności snapshot **obu** VM |
-| krok 5 | aktualizacja Roundcube nieudana | poprzednia wersja wróciła automatycznie; zapisz log z okna |
+| krok 1 | zatrzymanie w kontroli | nic nie zostało zmienione; popraw według tabeli w kroku 1 |
+| krok 1 | błąd przy wdrożeniu lub teście | zapisz log. Powrót do poprzedniego kodu: rozpakuj kopię `tar -xzf /root/repo-backup-<vm>-<data>.tar.gz -C <katalog nadrzędny>`, potem z katalogu instalacji `FORCE_REAPPLY=1 bash scripts/vm2/50-provisioning-api.sh` (VM2) lub `… scripts/vm1/50-portal-app.sh` (VM1). Albo snapshot |
+| krok 2 | aktualizacja „sprawdź wynik” | zapisz log z okna. Kopie configów: polecenie przywrócenia jest w oknie (`portal-config-recovery.sh` / `vm2-config-recovery.sh`) |
+| krok 2 | maszyna nie wraca po restarcie | konsola hypervisora; w ostateczności snapshot **obu** VM |
+| krok 3 | aktualizacja Roundcube nieudana | poprzednia wersja wróciła automatycznie; zapisz log z okna |
 | dowolny | stan niejasny, panel nie działa | przywróć snapshot **obu** VM z kroku 0 |
 
 ### Co przesłać dostawcy, gdy potrzebna pomoc
 
-- log skryptu: `/var/log/portal-update/update-<vm>-<data>.log` (z obu VM);
+- logi z `/var/log/portal-update/` (z obu VM);
 - log z okna aktualizacji w panelu („Zapisz log do pliku”);
 - VM1: pliki z `/var/log/portal/system-updates/` oraz `journalctl -u portal-gunicorn -u portal-worker --since "-3h" > /root/vm1-journal.txt`;
 - VM2: pliki z `/var/log/vm2-api/system-updates/` oraz `journalctl -u vm2-provisioning-api --since "-3h" > /root/vm2-journal.txt`;

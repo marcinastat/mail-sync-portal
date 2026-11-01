@@ -98,7 +98,13 @@ VM2 jest w `fstab` z `nofail`.
 > „nieznany" — **nie** zgaduje na siłę „wymagany" (to był wcześniejszy błąd, przez
 > który restart wydawał się wymagany także tuż po restarcie).
 
-> **Pełna aktualizacja krok po kroku** (nowy kod portalu na obu VM, pakiety systemu, Roundcube, weryfikacja i droga odwrotu): [Runbook: pełna aktualizacja portalu](/admin/docs/technical/runbooks/full-update).
+> **Pełna aktualizacja krok po kroku** (aplikacja na obu VM, pakiety systemu, Roundcube, weryfikacja i droga odwrotu): [Runbook: pełna aktualizacja portalu](/admin/docs/technical/runbooks/full-update).
+
+## Aplikacja portalu
+
+Karta **Aplikacja portalu** pokazuje wersję kodu na VM1 (panel), na VM2 (API serwera poczty) i najnowszą w repozytorium. **„Aktualizuj aplikację”** aktualizuje najpierw VM2, potem VM1. Na każdej maszynie robi kopię katalogu instalacji, wdraża nowy kod i testuje usługi.
+
+Pod koniec panel restartuje się na chwilę, a okno postępu samo wznawia odczyt. Po zakończeniu odśwież stronę (Ctrl+F5). To samo da się zrobić z konsoli jednym poleceniem na VM (patrz runbook). Konsola jest też jedyną drogą przy pierwszej aktualizacji starszej instalacji, która nie ma jeszcze tej karty.
 
 ## Wersje kluczowych pakietów
 

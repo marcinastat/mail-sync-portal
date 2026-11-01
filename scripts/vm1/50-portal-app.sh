@@ -93,6 +93,10 @@ install -D -m 0700 -o root -g root "$REPO_ROOT/scripts/vm1/roundcube-upgrade.sh"
 install -D -m 0600 -o root -g root "$REPO_ROOT/scripts/lib/common.sh" "$APP_DIR/lib/common.sh"
 install -D -m 0600 -o root -g root "$REPO_ROOT/scripts/lib/roundcube.sh" "$APP_DIR/lib/roundcube.sh"
 chmod 0700 "$APP_DIR/lib"
+# Aktualizacja aplikacji z panelu (VM2, potem VM1): helper + katalog instalacji,
+# z którego uruchamia scripts/update.sh (ten, z którego właśnie wdrażamy).
+install -D -m 0700 -o root -g root "$REPO_ROOT/scripts/app-update-helper.sh" "$APP_DIR/bin/portal-app-update.sh"
+echo "$REPO_ROOT" > /etc/portal/repo-path && chmod 0644 /etc/portal/repo-path
 # rsync (installto.sh) i gpg (podpis paczki) muszą być, zanim panel ich użyje —
 # helper z panelu nie powinien sam wołać dnf.
 pkg_install_idempotent rsync gnupg2

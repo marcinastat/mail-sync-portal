@@ -78,6 +78,10 @@ install -m 0755 -o root -g root "$REPO_ROOT/vm2_api/bin/vm2-config-recovery.sh" 
 # Harmonogram skanów sterowany z panelu (przepisuje systemd timery).
 install -m 0755 -o root -g root "$REPO_ROOT/vm2_api/bin/vm2-scan-schedule.sh" /usr/local/sbin/vm2-scan-schedule.sh
 install -m 0755 -o root -g root "$REPO_ROOT/vm2_api/bin/vm2-fail2ban-status.sh" /usr/local/sbin/vm2-fail2ban-status.sh
+# Aktualizacja aplikacji z panelu: helper + katalog instalacji, z którego go
+# uruchamia (ten, z którego właśnie wdrażamy — z właściwym CA, patrz guards.sh).
+install -m 0755 -o root -g root "$REPO_ROOT/scripts/app-update-helper.sh" /usr/local/sbin/vm2-app-update.sh
+echo "$REPO_ROOT" > /etc/portal/repo-path && chmod 0644 /etc/portal/repo-path
 install -d -m 0700 -o root -g root /var/lib/vm2-config-backups
 # API (vm2-api) czyta wykrycia skanów z /var/lib/vm2-scan/findings.jsonl —
 # katalog tworzy 40-clamav.sh (root:root); tu dokładamy grupę vm2-api do odczytu.

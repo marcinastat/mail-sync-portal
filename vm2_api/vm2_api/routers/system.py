@@ -85,3 +85,27 @@ def system_reboot(
         source_ip=request.client.host if request.client else None,
     )
     return {"status": "reboot_scheduled"}
+
+
+# --- Aktualizacja aplikacji (orkiestruje ją VM1: najpierw VM2, potem VM1) ----------
+
+@router.get("/app-update/check")
+def app_update_check(actor: str = Depends(require_vm1_ip)):
+    return system_control.app_update_check()
+
+
+@router.get("/app-update/status")
+def app_update_status(actor: str = Depends(require_vm1_ip)):
+    return system_control.app_update_status()
+
+
+@router.post("/app-update")
+def app_update_start(request: Request, actor: str = Depends(require_vm1_ip)):
+    result = system_control.app_update_start()
+    # Połączenie z bazą dopiero tutaj (krótko): za chwilę update.sh zrestartuje usługę.
+    with contextmanager(get_conn)() as conn:
+        insert_audit_log(
+            conn, actor=actor, action="system.app_update", target_type=None, target_id=None,
+            details={}, source_ip=request.client.host if request.client else None,
+        )
+    return result

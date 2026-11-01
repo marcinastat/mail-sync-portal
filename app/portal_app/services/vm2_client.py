@@ -155,6 +155,11 @@ def av_findings(conn: Vm2Connection, since_id: int = 0, limit: int = 100) -> dic
     return _request(conn, "GET", "/av/findings", params={"since_id": since_id, "limit": limit})
 
 
+def app_update_check(conn: Vm2Connection) -> dict:
+    """Wersja kodu na VM2 (git ls-remote na VM2 bywa wolny — dłuższy timeout)."""
+    return _request(conn, "GET", "/system/app-update/check", timeout=40.0)
+
+
 def get_system_updates(conn: Vm2Connection) -> dict:
     # check-update może pobierać metadane — dłuższy timeout niż domyślny.
     return _request(conn, "GET", "/system/updates", timeout=180.0)

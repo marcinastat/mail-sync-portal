@@ -54,6 +54,36 @@
     i można je też pobrać przyciskiem po zakończeniu. Instrukcję przywrócenia configów pokazujemy w oknie po aktualizacji.
   </p>
 
+  <div class="card" id="card-app">
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <h2 style="margin:0">Aplikacja portalu</h2>
+      <span class="hint">kod panelu (VM1) i API serwera poczty (VM2) z repozytorium</span>
+    </div>
+    <div class="stat-grid" style="margin:0.75rem 0">
+      <div class="stat">
+        <div class="label">VM1 (panel)</div>
+        <div class="value" id="app-vm1" style="font-size:1.5rem"><span class="spin"></span></div>
+        <div class="sub" id="app-vm1-sub"></div>
+      </div>
+      <div class="stat">
+        <div class="label">VM2 (API)</div>
+        <div class="value" id="app-vm2" style="font-size:1.5rem">—</div>
+        <div class="sub" id="app-vm2-sub"></div>
+      </div>
+      <div class="stat">
+        <div class="label">Najnowsza (GitHub)</div>
+        <div class="value" id="app-remote" style="font-size:1.5rem">—</div>
+        <div class="sub" id="app-note"></div>
+      </div>
+    </div>
+    <p class="hint" style="max-width:78ch;margin-top:0">
+      Przebieg: <strong>najpierw VM2, potem VM1</strong> — na każdej kopia katalogu instalacji → nowy kod →
+      wdrożenie → test usług (to samo co <code>scripts/update.sh</code> z konsoli). Pod koniec panel restartuje
+      się na chwilę — okno postępu samo wznowi odczyt. Pakiety systemu i Roundcube aktualizuje się osobno, niżej.
+    </p>
+    <button class="btn" type="button" id="app-btn" disabled onclick="startAppUpdate()">Aktualizuj aplikację</button>
+  </div>
+
   {{ host_card("vm1", "VM1 (portal)", "host aplikacji, nginx, PostgreSQL") }}
   {{ host_card("vm2", "VM2 (serwer poczty)", "Postfix, Dovecot, ClamAV", vm2_configured) }}
 
@@ -122,9 +152,13 @@
       health: "Sprawdzam, czy kluczowe usługi wstały po aktualizacji…",
       "reboot-check": "Sprawdzam, czy wymagany jest restart…",
       webmail: "Aktualizuję Roundcube: podpis → kopia → instalacja → test (1–2 min)…",
+      start: "Uruchamiam aktualizację aplikacji…",
+      vm2: "VM2: aktualizacja aplikacji (kopia → kod → wdrożenie → test)…",
+      vm1: "VM1: aktualizacja aplikacji — panel zrestartuje się na chwilę, okno samo wznowi odczyt…",
       done: "Zakończono",
     };
-    const HOST_TITLES = { vm1: "VM1 (portal)", vm2: "VM2 (serwer poczty)", webmail: "Roundcube (webmail)" };
+    const HOST_TITLES = { vm1: "VM1 (portal)", vm2: "VM2 (serwer poczty)", webmail: "Roundcube (webmail)",
+                          app: "Aplikacja portalu (VM2 → VM1)" };
     let pollTimer = null, elapsedTimer = null, currentHost = null, lastRun = null;
     const RECOVERY_TOOL = { vm1: "portal-config-recovery.sh", vm2: "vm2-config-recovery.sh" };
 
@@ -153,6 +187,48 @@
       } catch (e) {
         sec.innerHTML = `<span class="badge err">błąd</span>`;
       }
+    }
+
+    function appVersion(id, v) {
+      const val = document.getElementById(id), sub = document.getElementById(id + "-sub");
+      if (!v) { val.textContent = "—"; sub.innerHTML = `<span class="hint">brak VM2</span>`; return; }
+      if (v.error) { val.innerHTML = `<span class="badge err">błąd</span>`;
+        sub.innerHTML = `<span class="hint">${v.error}</span>`; return; }
+      val.textContent = v.local ? v.local.slice(0, 7) : "?";
+      sub.innerHTML = `<span class="hint">${v.local_date ? v.local_date.slice(0, 10) : ""} ${v.local_subject || ""}</span>`;
+    }
+
+    async function checkApp() {
+      const btn = document.getElementById("app-btn"), note = document.getElementById("app-note");
+      btn.disabled = true;
+      try {
+        const d = await (await fetch("/admin/settings/updates/app/check")).json();
+        if (d.error) { document.getElementById("app-vm1").innerHTML = `<span class="badge err">błąd</span>`;
+          note.innerHTML = `<span class="hint">${d.error}</span>`; return; }
+        appVersion("app-vm1", d.vm1);
+        appVersion("app-vm2", d.vm2);
+        document.getElementById("app-remote").textContent = d.remote ? d.remote.slice(0, 7) : "?";
+        if (!d.remote) { note.innerHTML = `<span class="hint">nie udało się sprawdzić (brak dostępu do GitHub?)</span>`; return; }
+        if (d.vm1.error) return;
+        const outdated = d.vm1.local !== d.remote || (d.vm2 && d.vm2.local && d.vm2.local !== d.remote);
+        note.innerHTML = outdated ? `<span class="badge err">dostępna aktualizacja</span>`
+                                  : `<span class="badge ok">aktualna</span>`;
+        btn.disabled = !outdated;
+      } catch (e) {
+        document.getElementById("app-vm1").innerHTML = `<span class="badge err">błąd</span>`;
+      }
+    }
+
+    async function startAppUpdate() {
+      if (!confirm("Zaktualizować aplikację portalu do najnowszej wersji?\n\nNajpierw VM2, potem VM1. " +
+                   "Na każdej powstanie kopia katalogu instalacji, a po wdrożeniu — test usług. " +
+                   "Pod koniec panel zrestartuje się na chwilę.")) return;
+      const r = await fetch("/admin/settings/updates/app", { method: "POST" });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        alert("Nie udało się uruchomić aktualizacji aplikacji: " + (d.detail || r.status)); return;
+      }
+      openModal("app", "app");
     }
 
     async function checkWebmail() {
@@ -234,7 +310,7 @@
       if (pollTimer) clearTimeout(pollTimer);
       if (elapsedTimer) clearInterval(elapsedTimer);
       // odśwież liczniki po zakończonej aktualizacji
-      checkHost("vm1"); {% if vm2_configured %}checkHost("vm2");{% endif %} checkWebmail();
+      checkHost("vm1"); {% if vm2_configured %}checkHost("vm2");{% endif %} checkWebmail(); checkApp();
     }
 
     function fmtElapsed(startIso) {
@@ -246,8 +322,11 @@
 
     async function poll(runId) {
       let d;
+      // Aktualizacja aplikacji ma własny stan (plik na VM1, nie wiersz w bazie).
+      // Restart panelu w trakcie = chwilowe błędy odczytu → ponawiamy.
+      const url = (runId === "app") ? "/admin/settings/updates/app/status" : `/admin/settings/updates/run/${runId}`;
       try {
-        const r = await fetch(`/admin/settings/updates/run/${runId}`);
+        const r = await fetch(url);
         d = await r.json();
       } catch (e) { pollTimer = setTimeout(() => poll(runId), 3000); return; }
 
@@ -306,7 +385,7 @@
       if (d.log_path) {
         // Gdy VM2 nie oddała ścieżki swojego logu (błąd), handler pokazuje kopię
         // z VM1 (/var/log/portal/...) — etykieta musi wtedy mówić VM1, nie VM2.
-        const logHost = d.log_path.startsWith('/var/log/portal/') ? 'VM1' : d.host.toUpperCase();
+        const logHost = (d.host === 'app' || d.log_path.startsWith('/var/log/portal/')) ? 'VM1' : d.host.toUpperCase();
         html += `<div class="hint" style="margin-top:.5rem">Pełny log zapisany na ${logHost}:
           <code>${d.log_path}</code></div>`;
       }
@@ -317,6 +396,9 @@
         rbtn.style.display = "";
         rbtn.onclick = () => rebootHost(d.host);
         showRebootBtn(d.host);
+      }
+      if (d.host === "app" && d.status === "success") {
+        html += `<div style="margin-top:.5rem"><strong>Odśwież stronę (Ctrl+F5)</strong>, aby załadować nową wersję panelu.</div>`;
       }
       document.getElementById("upd-result").innerHTML = html;
       document.getElementById("upd-save").style.display = "";
@@ -361,6 +443,10 @@
     checkHost("vm1");
     {% if vm2_configured %}checkHost("vm2");{% endif %}
     checkWebmail();
+    checkApp();
+    // Trwająca aktualizacja aplikacji (np. po restarcie panelu w jej trakcie) — podłącz okno.
+    fetch("/admin/settings/updates/app/status").then(r => r.json())
+      .then(d => { if (d.status === "running") openModal("app", "app"); }).catch(() => {});
     {% if webmail_running %}openModal({{ webmail_running.id }}, "webmail");{% endif %}
     {% if vm1_running %}openModal({{ vm1_running.id }}, "vm1");{% endif %}
     {% if vm2_running %}openModal({{ vm2_running.id }}, "vm2");{% endif %}

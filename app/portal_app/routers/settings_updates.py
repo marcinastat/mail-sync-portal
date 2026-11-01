@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from ..deps import client_ip, get_db, require_login, require_setup_complete
 from ..models import AdminUser, JobQueue, SystemUpdateRun, Vm2Connection
-from ..services import roundcube_update, system_update_vm1, vm2_client
+from ..services import app_update, roundcube_update, system_update_vm1, vm2_client
 from ..services.audit_service import record
 from ..templating import templates
 
@@ -171,6 +171,43 @@ def apply_webmail(
     db: Session = Depends(get_db),
 ):
     return _start_run(db, request, current_user, "webmail", "branch")
+
+
+@router.get("/app/check")
+def check_app(current_user: AdminUser = Depends(require_login), db: Session = Depends(get_db)):
+    try:
+        return app_update.check(db.query(Vm2Connection).first())
+    except Exception as exc:  # noqa: BLE001
+        return {"error": str(exc)}
+
+
+@router.post("/app")
+def apply_app(request: Request, current_user: AdminUser = Depends(require_login), db: Session = Depends(get_db)):
+    # Aplikacja: najpierw VM2, potem VM1 — orkiestruje to transient unit na VM1
+    # (przeżywa restart panelu w trakcie), panel tylko startuje i odczytuje stan.
+    try:
+        app_update.start()
+    except RuntimeError as exc:
+        raise HTTPException(409 if "już trwa" in str(exc) else 400, str(exc))
+    record(
+        db,
+        actor_admin_user_id=current_user.id,
+        action="app.update.start",
+        target_type="system",
+        target_id="app",
+        details={},
+        source_ip=client_ip(request),
+    )
+    return {"run_id": "app", "already_running": False}
+
+
+@router.get("/app/status")
+def app_status(current_user: AdminUser = Depends(require_login)):
+    try:
+        return app_update.status()
+    except Exception as exc:  # noqa: BLE001
+        return {"id": "app", "host": "app", "status": "failed", "phase": "done", "output": "",
+                "error": f"Nie udało się odczytać stanu aktualizacji: {exc}"}
 
 
 @router.get("/run/{run_id}")

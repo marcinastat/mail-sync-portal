@@ -21,6 +21,10 @@ portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/apply-system-update.sh reboo
 # (zawsze najnowsza w bieżącej gałęzi, z automatycznym rollbackiem).
 portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/roundcube-upgrade.sh status
 portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/roundcube-upgrade.sh upgrade-panel
+# Aktualizacja aplikacji z panelu (orkiestracja VM2 → VM1) — tylko te trzy tryby.
+portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/portal-app-update.sh check
+portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/portal-app-update.sh start
+portal-app ALL=(root) NOPASSWD: /opt/portal-app/bin/portal-app-update.sh status
 # Sprawdzanie dostępnych aktualizacji (read-only) — konto portal-app nie ma
 # dostępu do systemowego cache metadanych dnf, więc liczymy przez sudo.
 portal-app ALL=(root) NOPASSWD: /usr/bin/dnf -q check-update
