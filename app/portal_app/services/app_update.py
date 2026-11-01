@@ -54,6 +54,11 @@ def start() -> None:
 def status() -> dict:
     """Stan w kształcie przebiegu aktualizacji (ten sam modal co dnf/Roundcube)."""
     kv, log = _helper("status")
+    if "state" not in kv:
+        # Helper nie odpowiedział stanem (np. chwilowo niedostępny w trakcie
+        # wdrożenia VM1) — to NIE jest wynik aktualizacji; front ponawia odczyt.
+        return {"id": "app", "host": "app", "mode": "app", "status": "running", "unavailable": True,
+                "phase": "vm1", "error": kv.get("error")}
     state = kv.get("state", "none")
     active = kv.get("active") == "yes"
     error = None

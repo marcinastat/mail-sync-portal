@@ -43,8 +43,13 @@ mkdir -p "$APP_DIR"
 # portal_app/static/branding/ WYKLUCZONE z --delete: tam ląduje logo wgrane
 # przez admina (nie ma go w repo), a bez wykluczenia rsync --delete kasowałby
 # je przy każdym redeployu — obserwowane: znikające logo brandingu.
+# /bin i /lib (zakotwiczone w korzeniu transferu) to root-helpery instalowane niżej
+# osobno, nie z app/ — bez wykluczenia --delete kasował je na kilka sekund każdego
+# wdrożenia i panel dostawał „sudo: …: command not found” (np. odczyt stanu
+# aktualizacji aplikacji uruchomionej z panelu).
 rsync -a --delete --exclude '__pycache__' --exclude 'venv' --exclude 'tests' \
-    --exclude 'portal_app/static/branding' "$REPO_ROOT/app/" "$APP_DIR/"
+    --exclude 'portal_app/static/branding' --exclude '/bin' --exclude '/lib' \
+    "$REPO_ROOT/app/" "$APP_DIR/"
 rsync -a --delete "$REPO_ROOT/docs/" "$APP_DIR/docs/"
 chown -R portal-app:portal-app "$APP_DIR"
 

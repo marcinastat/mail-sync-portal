@@ -159,7 +159,7 @@
     };
     const HOST_TITLES = { vm1: "VM1 (portal)", vm2: "VM2 (serwer poczty)", webmail: "Roundcube (webmail)",
                           app: "Aplikacja portalu (VM2 → VM1)" };
-    let pollTimer = null, elapsedTimer = null, currentHost = null, lastRun = null;
+    let pollTimer = null, elapsedTimer = null, currentHost = null, lastRun = null, unavailableCount = 0;
     const RECOVERY_TOOL = { vm1: "portal-config-recovery.sh", vm2: "vm2-config-recovery.sh" };
 
     async function checkHost(host) {
@@ -329,6 +329,19 @@
         const r = await fetch(url);
         d = await r.json();
       } catch (e) { pollTimer = setTimeout(() => poll(runId), 3000); return; }
+      // Chwilowy brak odczytu stanu (np. w trakcie wdrożenia VM1) — ponawiamy do ~5 min,
+      // zostawiając dotychczasowe wyjście; dopiero potem pokazujemy błąd.
+      if (d.unavailable) {
+        unavailableCount++;
+        if (unavailableCount < 150) {
+          document.getElementById("upd-phase-label").textContent = "Odczyt stanu chwilowo niedostępny — ponawiam…";
+          pollTimer = setTimeout(() => poll(runId), 2000);
+          return;
+        }
+        d.status = "failed";
+      } else {
+        unavailableCount = 0;
+      }
 
       document.getElementById("upd-phase-label").textContent = PHASE_LABELS[d.phase] || d.phase;
       const out = document.getElementById("upd-output");
