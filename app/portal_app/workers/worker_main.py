@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from ..db import session_scope
-from ..models import JobQueue, JobRun
+from ..models import JobQueue, JobRun, SystemUpdateRun
 from ..services import throttle_service
 from .handlers import provision_handler, sync_job_handler, system_update_handler
 
@@ -93,11 +93,38 @@ def _reap_orphans() -> None:
                 j.locked_at = None
                 j.run_after = now
             db.add(j)
-        if stuck_runs or stuck_jobs:
+        # Przebieg aktualizacji w panelu (system_update_runs) też — inaczej modal
+        # czekał na zakończenie, którego nikt już nie zapisze („running” na zawsze),
+        # a nowej aktualizacji tej maszyny nie dało się uruchomić.
+        stuck_updates = db.query(SystemUpdateRun).filter(SystemUpdateRun.status == "running").all()
+        for u in stuck_updates:
+            u.status = "failed"
+            u.phase = "done"
+            u.finished_at = now
+            u.error = ("Przebieg przerwany restartem portal-worker (np. reboot VM). Sam dnf mógł "
+                       "się zakończyć — sprawdź liczby łatek i „wymagany restart” na tej stronie.")
+            tail = _dnf_output_tail(u)
+            if tail:
+                u.output = (u.output or "") + "\n### Wyjście dnf (odczytane po restarcie workera):\n" + tail
+            db.add(u)
+        if stuck_runs or stuck_jobs or stuck_updates:
             logger.warning(
-                "Reaper: %d osieroconych job_runs -> failed, %d wpisów kolejki wznowiono/zamknięto.",
-                len(stuck_runs), len(stuck_jobs),
+                "Reaper: %d osieroconych job_runs -> failed, %d wpisów kolejki wznowiono/zamknięto, "
+                "%d przebiegów aktualizacji -> failed.",
+                len(stuck_runs), len(stuck_jobs), len(stuck_updates),
             )
+
+
+def _dnf_output_tail(run: SystemUpdateRun) -> str | None:
+    """Wynik dnf VM1 leży w pliku pisanym przez transient unit (apply-system-update.sh)
+    — przeżywa restart workera, więc pokazujemy go w przerwanym przebiegu."""
+    if run.host != "vm1" or run.mode not in ("security", "all"):
+        return None
+    try:
+        with open(f"/run/portal-dnf-{run.mode}.out", encoding="utf-8", errors="replace") as fh:
+            return fh.read()[-20000:]
+    except OSError:
+        return None
 
 
 def run_forever() -> None:

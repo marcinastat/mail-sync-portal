@@ -69,8 +69,11 @@ preflight() {
 
     if [[ "$ROLE" == vm1 ]]; then
         local busy
+        # Kolejka, nie system_update_runs: wpis przebiegu potrafi zostać „running”
+        # po restarcie workera (sprząta go dopiero reaper nowej wersji) — nie może
+        # blokować wdrożenia, które tę poprawkę przynosi.
         busy="$(runuser -u postgres -- psql -d portal_db -tAc \
-            "SELECT count(*) FROM system_update_runs WHERE status='running'" 2>/dev/null || echo 0)"
+            "SELECT count(*) FROM job_queue WHERE job_type='system_update' AND status IN ('queued','running')" 2>/dev/null || echo 0)"
         [[ "${busy//[[:space:]]/}" == "0" ]] \
             || die "W panelu trwa aktualizacja (systemu lub Roundcube) — poczekaj, aż się skończy."
         busy="$(runuser -u postgres -- psql -d portal_db -tAc \

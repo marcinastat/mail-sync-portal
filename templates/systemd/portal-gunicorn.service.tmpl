@@ -1,7 +1,9 @@
 [Unit]
 Description=Portal Poczty — aplikacja /admin (Gunicorn)
 After=network.target postgresql-${PGDG_MAJOR_VERSION}.service
-Requires=postgresql-${PGDG_MAJOR_VERSION}.service
+# Wants, NIE Requires — patrz portal-worker.service.tmpl (restart PG przy jego
+# aktualizacji restartowałby też panel; połączenia odnawia pool_pre_ping).
+Wants=postgresql-${PGDG_MAJOR_VERSION}.service
 
 [Service]
 Type=simple

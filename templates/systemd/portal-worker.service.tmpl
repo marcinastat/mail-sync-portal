@@ -1,7 +1,12 @@
 [Unit]
 Description=Portal Poczty — worker kolejki zadań (sync/provision)
 After=network.target postgresql-${PGDG_MAJOR_VERSION}.service portal-gunicorn.service
-Requires=postgresql-${PGDG_MAJOR_VERSION}.service
+# Wants, NIE Requires: Requires restartuje tę usługę razem z każdym jawnym
+# restartem PostgreSQL — a RPM PGDG robi `try-restart postgresql-NN` przy
+# aktualizacji pakietu. Worker, który właśnie prowadził tę aktualizację
+# (dnf z panelu), ginął w połowie. Połączenia z bazą i tak się odnawiają
+# (pool_pre_ping), więc chwilowy restart PG nie wymaga restartu workera.
+Wants=postgresql-${PGDG_MAJOR_VERSION}.service
 
 [Service]
 Type=simple
