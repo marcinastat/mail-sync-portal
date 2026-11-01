@@ -48,9 +48,15 @@ esac
 # zapisywalny, a namespace ma read-only WIDOK tego samego /run. Dlatego to
 # transient unit tworzy/zapisuje plik pod STAŁĄ ścieżką, a helper tylko go CZYTA.
 out="/run/vm2-dnf-${mode}.out"
+# Przy update-* stderr idzie do TEGO SAMEGO pliku (inherit = jak StandardOutput):
+# tam dnf pisze przyczynę porażki („Error: Problem: ...”). Z journal ginęła —
+# w logu i panelu zostawał sam hint „try --allowerasing”. Tryby check-* zostają
+# przy journal, bo ich stdout jest parsowany (liczenie pakietów).
+stderr_target="journal"
+[[ "$mode" == update-* ]] && stderr_target="inherit"
 # StandardOutput=truncate: nadpisuje plik przy każdym uruchomieniu (nie narasta).
 /usr/bin/systemd-run --quiet --wait --collect \
-    -p "StandardOutput=truncate:$out" -p "StandardError=journal" \
+    -p "StandardOutput=truncate:$out" -p "StandardError=$stderr_target" \
     /usr/bin/dnf "${args[@]}"
 rc=$?
 cat "$out" 2>/dev/null

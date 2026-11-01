@@ -121,8 +121,14 @@ def _handle_vm2(run_id: int, security_only: bool) -> None:
     try:
         result = vm2_client.system_update(conn, security_only=security_only)
     except vm2_client.Vm2ApiError as exc:
-        _update(run_id, append=f"\nBŁĄD łączności z VM2: {exc}\n")
-        _finish(run_id, status="failed", error=f"VM2 nieosiągalna: {exc}")
+        if exc.status_code is None:
+            _update(run_id, append=f"\nBŁĄD łączności z VM2: {exc}\n")
+            _finish(run_id, status="failed", error=f"VM2 nieosiągalna: {exc}")
+        else:
+            # VM2 odpowiedziała, ale aktualizacja się nie udała (np. konflikt dnf).
+            _update(run_id, append=f"\nVM2 zgłosiła błąd aktualizacji — {exc}\n")
+            _finish(run_id, status="failed",
+                    error=f"Aktualizacja na VM2 nie powiodła się (HTTP {exc.status_code}) — przyczyna w wyjściu powyżej.")
         return
 
     health = result.get("health_check", {})

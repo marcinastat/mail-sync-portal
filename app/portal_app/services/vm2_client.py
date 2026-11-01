@@ -6,7 +6,22 @@ from ..models import Vm2Connection
 
 
 class Vm2ApiError(RuntimeError):
-    pass
+    """status_code = None: VM2 nieosiągalna (transport/TLS); liczba: VM2
+    odpowiedziała błędem HTTP, a komunikat niesie jej `detail`."""
+
+    def __init__(self, message: str, status_code: int | None = None):
+        super().__init__(message)
+        self.status_code = status_code
+
+
+def _error_detail(resp: httpx.Response) -> str:
+    try:
+        detail = resp.json().get("detail")
+    except ValueError:
+        detail = None
+    if isinstance(detail, str) and detail:
+        return detail
+    return resp.text[:3000] or resp.reason_phrase
 
 
 def _client(conn: Vm2Connection, timeout: float = 15.0) -> httpx.Client:
@@ -29,6 +44,13 @@ def _request(conn: Vm2Connection, method: str, path: str, *, timeout: float = 15
             resp = client.request(method, path, **kwargs)
             resp.raise_for_status()
             return resp.json()
+    except httpx.HTTPStatusError as exc:
+        # VM2 ODPOWIEDZIAŁA błędem — przekazujemy jej `detail` (np. przyczynę
+        # porażki dnf), a nie samo „Server error '502 Bad Gateway'” z httpx.
+        resp = exc.response
+        raise Vm2ApiError(
+            f"HTTP {resp.status_code}: {_error_detail(resp)}", status_code=resp.status_code
+        ) from exc
     except httpx.HTTPError as exc:
         raise Vm2ApiError(str(exc)) from exc
     except (OSError, ssl.SSLError) as exc:

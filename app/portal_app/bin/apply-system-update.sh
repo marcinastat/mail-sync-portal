@@ -61,9 +61,11 @@ do_update() {
     # więc bezpośredni dnf nie zainstalowałby pakietów. Uruchamiamy dnf jako
     # transient unit przez systemd-run — POZA sandboxem usługi. Wynik przez plik
     # + cat (nie --pipe: fd-passing bywa zawodne spod długo działającej usługi).
+    # StandardError=inherit: stderr do tego samego pliku — tam dnf pisze przyczynę
+    # porażki („Error: Problem: ...”); z journal ginęła z logu i panelu.
     local dnf_out="/run/portal-dnf-${mode}.out"
     /usr/bin/systemd-run --quiet --wait --collect \
-        -p "StandardOutput=truncate:$dnf_out" -p "StandardError=journal" \
+        -p "StandardOutput=truncate:$dnf_out" -p "StandardError=inherit" \
         /usr/bin/dnf "${args[@]}"
     local rc=$?
     # Pełne wyjście (nie ostatnie 6 KB) — trafia do logu na VMce i do panelu.

@@ -149,7 +149,9 @@ def run_dnf_update(security_only: bool = True) -> dict:
     if result.returncode != 0:
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY,
-            f"dnf update zakończył się błędem (log na VM2: {log_path}): {result.stderr[-1000:]}",
+            # Helper oddaje wyjście dnf (stdout+stderr) przez stdout, więc przyczyna
+            # jest w full_output, nie w result.stderr (tam tylko błędy sudo/helpera).
+            f"dnf update zakończył się błędem (log na VM2: {log_path}):\n{full_output[-3000:]}",
         )
     reboot_needed = _reboot_pending()
     token = None

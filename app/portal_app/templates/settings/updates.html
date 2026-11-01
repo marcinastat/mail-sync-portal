@@ -229,7 +229,10 @@
         </div>`;
       }
       if (d.log_path) {
-        html += `<div class="hint" style="margin-top:.5rem">Pełny log zapisany na ${d.host.toUpperCase()}:
+        // Gdy VM2 nie oddała ścieżki swojego logu (błąd), handler pokazuje kopię
+        // z VM1 (/var/log/portal/...) — etykieta musi wtedy mówić VM1, nie VM2.
+        const logHost = d.log_path.startsWith('/var/log/portal/') ? 'VM1' : d.host.toUpperCase();
+        html += `<div class="hint" style="margin-top:.5rem">Pełny log zapisany na ${logHost}:
           <code>${d.log_path}</code></div>`;
       }
       if (d.reboot_needed === true) {
